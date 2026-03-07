@@ -60,7 +60,7 @@ router.post(
       const sig     = req.headers['x-wc-webhook-signature'];
 
       // ── Signature verification ──────────────────────────────────────────────
-      const secret = process.env.WC_WEBHOOK_SECRET;
+      const secret = (process.env.WC_WEBHOOK_SECRET || '').trim();
 
       if (secret && sig) {
         // Both secret and signature present — verify
@@ -83,13 +83,16 @@ router.post(
           return res.status(401).json({ ok: false, error: 'Invalid signature' });
         }
       } else if (secret && !sig) {
-        // Secret configured but WC sent no signature — reject
-        console.warn('[webhook/wc] Missing X-WC-Webhook-Signature header');
-        return res.status(401).json({ ok: false, error: 'Missing signature' });
+        // Secret configured on Render but WC sent no signature header
+        console.warn('[webhook/wc] WC_WEBHOOK_SECRET is set but X-WC-Webhook-Signature header is missing');
+        return res.status(401).json({ ok: false, error: 'Missing signature header' });
       } else {
-        // No secret configured — accept but warn (useful during initial setup)
-        console.warn('[webhook/wc] WC_WEBHOOK_SECRET not set — skipping signature check');
+        // WC_WEBHOOK_SECRET not set (or empty) — skip verification
+        // This is acceptable during initial setup; set the secret on both sides to secure it
+        console.warn('[webhook/wc] No WC_WEBHOOK_SECRET set — accepting without signature check');
       }
+
+      console.log('[webhook/wc] Signature check passed, processing payload...');
 
       // ── Parse order ────────────────────────────────────────────────────────
       let order;
