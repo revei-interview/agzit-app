@@ -627,6 +627,109 @@ router.post('/interviews/start', ...guard, async (req, res) => {
   }
 });
 
+// ── GET /api/candidate/download ───────────────────────────────────────────────
+// Download candidate's own resume or a specific certificate PDF.
+// ?type=resume                — redirects to WP attachment URL
+// ?type=certificate&row=N    — redirects to certificate_pdf URL (0-based row)
+//
+// ACF Link field (certificate_pdf) is stored as PHP serialized assoc array
+// or a plain URL string. Both cases are handled by extractLinkUrl().
+
+function parsePhpAssocArray(raw) {
+  const s = String(raw || '');
+  if (!s.startsWith('a:')) return null;
+  const pairs = [...s.matchAll(/s:\d+:"([^"]*)";s:\d+:"([^"]*)";/g)];
+  const obj = {};
+  for (const m of pairs) obj[m[1]] = m[2];
+  return obj;
+}
+
+function extractLinkUrl(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  if (s.startsWith('a:')) {
+    const obj = parsePhpAssocArray(s);
+    return obj?.url || null;
+  }
+  // Plain URL
+  return s;
+}
+
+router.get('/download', ...guard, async (req, res) => {
+  try {
+    const data = await loadProfile(req.user.user_id);
+    if (!data) return res.status(404).json({ ok: false, error: 'Profile not found' });
+    const { meta, profileId } = data;
+
+    const { type, row } = req.query;
+
+    // ── Resume ───────────────────────────────────────────────────────────────
+    if (type === 'resume') {
+      const raw = String(meta.resume_upload || '').trim();
+      if (!raw) return res.status(404).json({ ok: false, error: 'No resume uploaded' });
+
+      // resume_upload is an attachment post ID (integer string) or JSON array with ID key
+      let attachId = null;
+      if (/^\d+$/.test(raw)) {
+        attachId = parseInt(raw);
+      } else {
+        try {
+          const parsed = JSON.parse(raw);
+          attachId = parsed?.ID ? parseInt(parsed.ID) : null;
+        } catch (_) {}
+      }
+
+      if (!attachId) return res.status(404).json({ ok: false, error: 'Invalid resume upload reference' });
+
+      const [[post]] = await pool.execute(
+        'SELECT guid FROM wp_posts WHERE ID = ? AND post_type = "attachment" LIMIT 1',
+        [attachId]
+      );
+      if (!post?.guid) return res.status(404).json({ ok: false, error: 'Resume file not found' });
+
+      // Fire-and-forget: increment resume_download_count in wp_postmeta
+      pool.execute(
+        `SELECT meta_id, meta_value FROM wp_postmeta WHERE post_id = ? AND meta_key = 'resume_download_count' LIMIT 1`,
+        [profileId]
+      ).then(([[row]]) => {
+        if (row) {
+          return pool.execute('UPDATE wp_postmeta SET meta_value = ? WHERE meta_id = ?',
+            [String(parseInt(row.meta_value || '0') + 1), row.meta_id]);
+        }
+        return pool.execute('INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
+          [profileId, 'resume_download_count', '1']);
+      }).catch(() => {});
+
+      return res.redirect(302, post.guid);
+    }
+
+    // ── Certificate ──────────────────────────────────────────────────────────
+    if (type === 'certificate') {
+      const rowIndex = parseInt(row);
+      if (isNaN(rowIndex) || rowIndex < 0) {
+        return res.status(400).json({ ok: false, error: 'row parameter required (0-based index)' });
+      }
+
+      const certCount = parseInt(meta.certifications) || 0;
+      if (rowIndex >= certCount) {
+        return res.status(404).json({ ok: false, error: 'Certificate row not found' });
+      }
+
+      const raw = meta[`certifications_${rowIndex}_certificate_pdf`];
+      const url = extractLinkUrl(raw);
+      if (!url) return res.status(404).json({ ok: false, error: 'No certificate file for this row' });
+
+      return res.redirect(302, url);
+    }
+
+    res.status(400).json({ ok: false, error: 'type must be resume or certificate' });
+  } catch (err) {
+    console.error('[candidate/download]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
 // ── GET /api/candidate/vapi-context ──────────────────────────────────────────
 // Proxy to daily backend /vapi/context — returns variableValues + session_minutes
 // Query params: sid, industry (optional, defaults to compliance)
