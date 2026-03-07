@@ -652,7 +652,7 @@ function applyDisplayName(p) {
       issued.textContent = 'Issued ' + fmtDate(p.issue_date, 'MDY');
       show(issued);
     }
-    el('hero-views').textContent = p.dpr_id_view_count + ' views';
+    el('hero-views').textContent = (p.dpr_id_view_count || 0) + ' views';
 
     // Render sections
     renderLeft(p);

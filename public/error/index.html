@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Error — AGZIT AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink:      #09101F;
+  --soft:     #3A4163;
+  --muted:    #7C83A0;
+  --line:     #E4E6EF;
+  --surface:  #F5F6FA;
+  --blue:     #1A44C2;
+  --blue-h:   #1538A8;
+  --blue-lt:  #EAF0FF;
+  --red:      #B91C1C;
+  --red-lt:   #FEF2F2;
+  --f:        'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+body {
+  font-family: var(--f);
+  background: #fff;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Hero ── */
+.hero {
+  background: #09101F;
+  padding: 56px 32px 48px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.hero-glow {
+  position: absolute;
+  width: 400px; height: 400px;
+  border-radius: 50%;
+  filter: blur(110px);
+  background: rgba(185,28,28,0.18);
+  top: -80px; right: -60px;
+  pointer-events: none;
+}
+.hero-inner { position: relative; z-index: 2; max-width: 480px; margin: 0 auto; }
+.hero-eyebrow {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 2px; color: #7B9FFF; margin-bottom: 12px;
+}
+.hero h1 {
+  font-size: clamp(26px, 4vw, 38px); font-weight: 800;
+  color: #fff; line-height: 1.18; margin-bottom: 12px;
+}
+.hero p {
+  font-size: 15px; color: rgba(255,255,255,0.6);
+  line-height: 1.55;
+}
+
+/* ── Error icon ── */
+.error-icon {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: var(--red-lt);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 24px;
+  font-size: 32px;
+}
+
+/* ── Card section ── */
+.section { max-width: 480px; margin: 0 auto; padding: 40px 24px 48px; flex: 1; }
+
+.card {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 32px 28px;
+  text-align: center;
+  border: 1px solid var(--line);
+}
+
+.card-code {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--red); margin-bottom: 10px;
+}
+.card-title {
+  font-size: 20px; font-weight: 700; color: var(--ink);
+  margin-bottom: 10px;
+}
+.card-msg {
+  font-size: 14px; color: var(--muted); line-height: 1.6;
+  margin-bottom: 28px;
+}
+
+.btn-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--f); font-size: 14px; font-weight: 600;
+  padding: 10px 22px; border-radius: 10px; cursor: pointer;
+  text-decoration: none; border: none; transition: opacity .15s;
+}
+.btn:hover { opacity: .85; }
+.btn-primary { background: var(--blue); color: #fff; }
+.btn-ghost {
+  background: transparent; color: var(--ink);
+  border: 1.5px solid var(--line);
+}
+
+/* ── Footer ── */
+.footer {
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding: 20px 24px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+.footer a { color: var(--blue); text-decoration: none; font-weight: 500; }
+.footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-inner">
+    <div class="hero-eyebrow">AGZIT AI Platform</div>
+    <h1>Something went wrong</h1>
+    <p>We hit an unexpected issue. Our team has been notified.</p>
+  </div>
+</div>
+
+<div class="section">
+  <div class="card">
+    <div class="error-icon">⚠️</div>
+    <div class="card-code" id="error-code">Error</div>
+    <div class="card-title" id="error-title">This page isn't available</div>
+    <div class="card-msg" id="error-msg">The page you're looking for may have moved, been removed, or is temporarily unavailable. Try going back to the homepage.</div>
+    <div class="btn-row">
+      <a href="https://agzit.com" class="btn btn-primary">Go to AGZIT.com</a>
+      <button class="btn btn-ghost" onclick="history.back()">Go back</button>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  &copy; 2025 AGZIT. All rights reserved. &nbsp;·&nbsp;
+  <a href="https://agzit.com">agzit.com</a>
+</div>
+
+<script>
+(function () {
+  const params = new URLSearchParams(location.search);
+  const code   = params.get('code')  || '';
+  const title  = params.get('title') || '';
+  const msg    = params.get('msg')   || '';
+
+  const codeEl  = document.getElementById('error-code');
+  const titleEl = document.getElementById('error-title');
+  const msgEl   = document.getElementById('error-msg');
+
+  if (code === '404') {
+    codeEl.textContent  = '404 — Not Found';
+    titleEl.textContent = 'Page not found';
+    msgEl.textContent   = 'The page you\'re looking for doesn\'t exist or has been moved.';
+  } else if (code === '403') {
+    codeEl.textContent  = '403 — Access Denied';
+    titleEl.textContent = 'You don\'t have access';
+    msgEl.textContent   = 'You don\'t have permission to view this page. Please log in or contact support.';
+  } else if (code === '500') {
+    codeEl.textContent  = '500 — Server Error';
+    titleEl.textContent = 'Something went wrong on our end';
+    msgEl.textContent   = 'We\'re having trouble processing your request right now. Please try again in a few moments.';
+  } else if (code === '429') {
+    codeEl.textContent  = '429 — Too Many Requests';
+    titleEl.textContent = 'Slow down a little';
+    msgEl.textContent   = 'You\'ve made too many requests in a short period. Please wait a moment before trying again.';
+  }
+
+  if (title) titleEl.textContent = title;
+  if (msg)   msgEl.textContent   = msg;
+})();
+</script>
+</body>
+</html>

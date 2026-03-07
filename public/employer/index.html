@@ -869,7 +869,10 @@ const WP_URL = 'https://agzit.com';
 
 // ── Render dashboard ────────────────────────────────────────────────────────
 function render() {
-  const { user, employer_profile: ep, unlock_stats: us, recent_interviews: ri } = DATA;
+  const user = DATA.user || {};
+  const ep   = DATA.employer_profile || {};
+  const us   = DATA.unlock_stats || { used_today: 0, used_this_month: 0, limit_daily: 5, limit_monthly: 50, remaining_today: 5, remaining_monthly: 50 };
+  const ri   = DATA.recent_interviews || [];
 
   // Hero
   document.getElementById('hero-name').textContent = 'Welcome back, ' + (user.first_name || user.email);

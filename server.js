@@ -5,9 +5,40 @@ const express      = require('express');
 const cookieParser = require('cookie-parser');
 const cors         = require('cors');
 const path         = require('path');
+const helmet       = require('helmet');
+const rateLimit    = require('express-rate-limit');
 const { requireAuth, requireRole } = require('./middleware/auth');
 
 const app = express();
+
+// ── Security headers ────────────────────────────────────────────────────────
+app.use(helmet({
+  contentSecurityPolicy:     false, // pages load inline scripts + CDN assets
+  crossOriginEmbedderPolicy: false, // pages embed Vapi iframe
+}));
+
+// ── Rate limiting ───────────────────────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please wait a moment.' },
+});
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please wait a moment.' },
+});
+const internalLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please wait a moment.' },
+});
 
 // ── Middleware ─────────────────────────────────────────────────────────────
 app.use(cors({
@@ -28,12 +59,12 @@ app.use('/api/webhooks', require('./routes/webhooks'));
 app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
 
 // ── API Routes ─────────────────────────────────────────────────────────────
-app.use('/api/auth',      require('./routes/auth'));
-app.use('/api/candidate', require('./routes/candidate'));
-app.use('/api/employer',  require('./routes/employer'));
-app.use('/api/internal',  require('./routes/internal'));
-app.use('/api/profile',            require('./routes/profile'));           // Public — no auth
-app.use('/api/employer-interview', require('./routes/employer-interviews')); // Token + employer auth
+app.use('/api/auth',      authLimiter,     require('./routes/auth'));
+app.use('/api/candidate', apiLimiter,      require('./routes/candidate'));
+app.use('/api/employer',  apiLimiter,      require('./routes/employer'));
+app.use('/api/internal',  internalLimiter, require('./routes/internal'));
+app.use('/api/profile',   apiLimiter,      require('./routes/profile'));           // Public — no auth
+app.use('/api/employer-interview', apiLimiter, require('./routes/employer-interviews')); // Token + employer auth
 
 // ── Page Routes ────────────────────────────────────────────────────────────
 
@@ -100,7 +131,7 @@ app.get('/health', (req, res) => {
 
 // 404
 app.use((req, res) => {
-  res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
+  res.status(404).sendFile(path.join(__dirname, 'public/error/index.html'));
 });
 
 // ── Start ──────────────────────────────────────────────────────────────────
