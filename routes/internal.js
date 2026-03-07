@@ -423,4 +423,206 @@ router.post('/save-scorecard', requireAppToken, async (req, res) => {
   }
 });
 
+// ── GET /api/internal/employer-interview-room/:token ─────────────────────────
+// Called by: agzit-daily-backend /vapi/employer-context?token=
+// Returns variableValues for employer-scheduled interview; generates SID if first call.
+
+router.get('/employer-interview-room/:token', requireAppToken, async (req, res) => {
+  try {
+    const { token } = req.params;
+    if (!token) return res.status(400).json({ ok: false, error: 'Missing token' });
+
+    const [[row]] = await pool.execute(
+      `SELECT p.ID FROM wp_posts p
+       INNER JOIN wp_postmeta pm ON pm.post_id = p.ID
+         AND pm.meta_key = 'join_token' AND pm.meta_value = ?
+       WHERE p.post_type = 'employer_interview' AND p.post_status = 'publish'
+       LIMIT 1`,
+      [token]
+    );
+    if (!row) return res.status(404).json({ ok: false, error: 'Session not found' });
+    const postId = row.ID;
+
+    const keys = [
+      'candidate_name', 'total_work_experience', 'interview_role',
+      'session_type', 'jd_raw_text', 'resume_text', 'resume_file',
+      'session_id', 'interview_status',
+    ];
+    const ph = keys.map(() => '?').join(',');
+    const [mRows] = await pool.execute(
+      `SELECT meta_key, meta_value FROM wp_postmeta WHERE post_id = ? AND meta_key IN (${ph})`,
+      [postId, ...keys]
+    );
+    const m = {};
+    for (const r of mRows) m[r.meta_key] = r.meta_value;
+
+    if (m.interview_status === 'cancelled') {
+      return res.status(410).json({ ok: false, error: 'Interview cancelled', status: 'cancelled' });
+    }
+
+    // Generate SID if not set; update status to started
+    let sid = m.session_id || '';
+    if (!sid) {
+      sid = 'MIS-' + crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase();
+    }
+    await Promise.all([
+      upsertPostMeta(postId, 'session_id',       sid),
+      upsertPostMeta(postId, 'interview_status', 'started'),
+    ]);
+
+    function eiCareerLevel(years) {
+      const y = parseInt(years) || 0;
+      if (y <= 2)  return 'Junior';
+      if (y <= 5)  return 'Mid-Level';
+      if (y <= 8)  return 'Senior';
+      if (y <= 12) return 'Principal';
+      return 'Executive';
+    }
+
+    function eiContextPack(meta) {
+      const parts = [];
+      if (meta.candidate_name) parts.push('CANDIDATE: ' + meta.candidate_name);
+      if (meta.interview_role) parts.push('ROLE: ' + meta.interview_role);
+      if (meta.jd_raw_text)    parts.push('JOB DESCRIPTION:\n' + String(meta.jd_raw_text).slice(0, 80000));
+      if (meta.resume_text)    parts.push('RESUME:\n' + String(meta.resume_text).slice(0, 40000));
+      else if (meta.resume_file) parts.push('RESUME FILE: ' + meta.resume_file);
+      return parts.join('\n\n---\n\n');
+    }
+
+    const sessionMinutes = m.session_type === '30-min' ? 30 : 20;
+
+    res.json({
+      ok:              true,
+      post_id:         postId,
+      session_id:      sid,
+      session_minutes: sessionMinutes,
+      variableValues: {
+        sid,
+        candidate_name:      m.candidate_name || '',
+        interview_role:      m.interview_role || '',
+        target_career_level: eiCareerLevel(m.total_work_experience),
+        context_pack:        eiContextPack(m),
+      },
+    });
+  } catch (err) {
+    console.error('[internal/employer-interview-room]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── GET /api/internal/employer-interview-by-sid?sid= ─────────────────────────
+// Called by: agzit-daily-backend webhook handler to detect employer interview SIDs.
+// Mirrors WP: GET /wp-json/dpr/v1/find-employer-interview-by-sid
+
+router.get('/employer-interview-by-sid', requireAppToken, async (req, res) => {
+  try {
+    const { sid } = req.query;
+    if (!sid) return res.status(400).json({ ok: false, error: 'Missing sid' });
+
+    const [[row]] = await pool.execute(
+      `SELECT p.ID FROM wp_posts p
+       INNER JOIN wp_postmeta pm ON pm.post_id = p.ID
+         AND pm.meta_key = 'session_id' AND pm.meta_value = ?
+       WHERE p.post_type = 'employer_interview' AND p.post_status = 'publish'
+       LIMIT 1`,
+      [sid]
+    );
+    if (!row) return res.status(404).json({ ok: false, error: 'Session not found', sid });
+
+    res.json({ ok: true, post_id: row.ID, sid });
+  } catch (err) {
+    console.error('[internal/employer-interview-by-sid]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── POST /api/internal/save-employer-scorecard ────────────────────────────────
+// Called by: agzit-daily-backend generateScorecard() after employer interview ends.
+// Mirrors WP: POST /wp-json/dpr/v1/save-scheduled-scorecard
+// Body: { sid, scorecard: { 9 scores + overall + 4 text + 5 employer fields } }
+
+router.post('/save-employer-scorecard', requireAppToken, async (req, res) => {
+  try {
+    const { sid, scorecard } = req.body;
+    if (!sid)                                 return res.status(400).json({ ok: false, error: 'Missing sid' });
+    if (!scorecard || typeof scorecard !== 'object') {
+      return res.status(400).json({ ok: false, error: 'Missing or invalid scorecard' });
+    }
+
+    const [[row]] = await pool.execute(
+      `SELECT p.ID FROM wp_posts p
+       INNER JOIN wp_postmeta pm ON pm.post_id = p.ID
+         AND pm.meta_key = 'session_id' AND pm.meta_value = ?
+       WHERE p.post_type = 'employer_interview' AND p.post_status = 'publish'
+       LIMIT 1`,
+      [sid]
+    );
+    if (!row) return res.status(404).json({ ok: false, error: 'Session not found', sid });
+    const postId = row.ID;
+
+    const SCORECARD_FIELDS = [
+      'score_communication', 'score_structure', 'score_role_knowledge',
+      'score_domain_application', 'score_problem_solving', 'score_confidence',
+      'score_question_handling', 'score_experience_relevance', 'score_resume_alignment',
+      'mock_overall_score', 'mock_performance_level',
+      'mock_strengths', 'mock_improvements', 'mock_next_focus', 'mock_attention_areas',
+      'emp_readiness_band', 'emp_red_flags', 'emp_role_strengths', 'emp_role_gaps', 'emp_consistency_check',
+    ];
+
+    const writeable = SCORECARD_FIELDS.filter(f => scorecard[f] !== undefined && scorecard[f] !== null);
+    await Promise.all(writeable.map(f => upsertPostMeta(postId, f, scorecard[f])));
+
+    // Merge into scorecard_json blob
+    let existing = {};
+    try {
+      const [[existingRow]] = await pool.execute(
+        "SELECT meta_value FROM wp_postmeta WHERE post_id = ? AND meta_key = 'scorecard_json' LIMIT 1",
+        [postId]
+      );
+      if (existingRow?.meta_value) existing = JSON.parse(existingRow.meta_value);
+    } catch { /* ignore invalid JSON */ }
+    await upsertPostMeta(postId, 'scorecard_json', JSON.stringify({ ...existing, ...scorecard }));
+
+    res.json({ ok: true, saved: true, sid, post_id: postId, fields_written: writeable.length });
+  } catch (err) {
+    console.error('[internal/save-employer-scorecard]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── POST /api/internal/save-employer-recording-urls ──────────────────────────
+// Called by: agzit-daily-backend webhook handler after employer Vapi call ends.
+// Mirrors WP: POST /wp-json/dpr/v1/save-recording-urls
+// Body: { sid, audio_url, video_url }
+
+router.post('/save-employer-recording-urls', requireAppToken, async (req, res) => {
+  try {
+    const { sid, audio_url = '', video_url = '' } = req.body;
+    if (!sid) return res.status(400).json({ ok: false, error: 'Missing sid' });
+
+    const [[row]] = await pool.execute(
+      `SELECT p.ID FROM wp_posts p
+       INNER JOIN wp_postmeta pm ON pm.post_id = p.ID
+         AND pm.meta_key = 'session_id' AND pm.meta_value = ?
+       WHERE p.post_type = 'employer_interview' AND p.post_status = 'publish'
+       LIMIT 1`,
+      [sid]
+    );
+    if (!row) return res.status(404).json({ ok: false, error: 'Session not found', sid });
+    const postId = row.ID;
+
+    await Promise.all([
+      upsertPostMeta(postId, 'audio_url',        audio_url || ''),
+      upsertPostMeta(postId, 'video_url',        video_url || ''),
+      upsertPostMeta(postId, 'interview_status', 'completed'),
+    ]);
+
+    res.json({ ok: true, saved: true, sid, post_id: postId });
+  } catch (err) {
+    console.error('[internal/save-employer-recording-urls]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
 module.exports = router;
+

@@ -32,7 +32,8 @@ app.use('/api/auth',      require('./routes/auth'));
 app.use('/api/candidate', require('./routes/candidate'));
 app.use('/api/employer',  require('./routes/employer'));
 app.use('/api/internal',  require('./routes/internal'));
-app.use('/api/profile',   require('./routes/profile'));    // Public — no auth
+app.use('/api/profile',            require('./routes/profile'));           // Public — no auth
+app.use('/api/employer-interview', require('./routes/employer-interviews')); // Token + employer auth
 
 // ── Page Routes ────────────────────────────────────────────────────────────
 
@@ -74,6 +75,11 @@ app.get('/employer-review', requireAuth, requireRole('dpr_employer', 'verified_e
 // Candidate scorecard detail page
 app.get('/scorecard', requireAuth, requireRole('dpr_candidate'), (req, res) => {
   res.sendFile(path.join(__dirname, 'public/scorecard/index.html'));
+});
+
+// Employer-scheduled interview room — PUBLIC (token-based, no WP login required)
+app.get('/employer-interviews', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/employer-interviews/index.html'));
 });
 
 // Public candidate profile viewer — no auth required
