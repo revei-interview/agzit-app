@@ -2,8 +2,8 @@
 // WooCommerce: POST /api/webhooks/woocommerce-order (order.completed)
 // Auth: HMAC-SHA256 of raw request body verified against WC_WEBHOOK_SECRET env var
 
-const express = require('express');
-const router  = express.Router();
+const { Router } = require('express');
+const router      = Router();
 const pool    = require('../config/db');
 const crypto  = require('crypto');
 
@@ -50,20 +50,23 @@ async function upsertUserMeta(wpUserId, metaKey, metaValue) {
 // Body is the full WC Order object (JSON).
 // Signature: base64(HMAC-SHA256(rawBody, WC_WEBHOOK_SECRET)) in X-Wc-Webhook-Signature header.
 
-router.post(
-  '/woocommerce-order',
-  // Capture raw body BEFORE Express parses JSON
-  express.raw({ type: '*/*', limit: '2mb' }),
-  async (req, res) => {
+router.post('/woocommerce-order', async (req, res) => {
     try {
-      const rawBody = req.body; // Buffer when using express.raw()
+      // req.rawBody = raw Buffer set by express.json() verify callback in server.js
+      // req.body    = already-parsed JSON object — no need to JSON.parse manually
+      const rawBody = req.rawBody;
+      const order   = req.body;
       const sig     = req.headers['x-wc-webhook-signature'];
 
       // ── Signature verification ──────────────────────────────────────────────
       const secret = (process.env.WC_WEBHOOK_SECRET || '').trim();
 
-      if (secret && sig) {
-        // Both secret and signature present — verify
+      if (secret && rawBody) {
+        if (!sig) {
+          console.warn('[webhook/wc] WC_WEBHOOK_SECRET set but X-WC-Webhook-Signature header missing');
+          return res.status(401).json({ ok: false, error: 'Missing signature header' });
+        }
+
         const expected = crypto
           .createHmac('sha256', secret)
           .update(rawBody)
@@ -82,25 +85,11 @@ router.post(
           console.warn('[webhook/wc] Signature mismatch — received:', sig, 'expected:', expected);
           return res.status(401).json({ ok: false, error: 'Invalid signature' });
         }
-      } else if (secret && !sig) {
-        // Secret configured on Render but WC sent no signature header
-        console.warn('[webhook/wc] WC_WEBHOOK_SECRET is set but X-WC-Webhook-Signature header is missing');
-        return res.status(401).json({ ok: false, error: 'Missing signature header' });
-      } else {
-        // WC_WEBHOOK_SECRET not set (or empty) — skip verification
-        // This is acceptable during initial setup; set the secret on both sides to secure it
-        console.warn('[webhook/wc] No WC_WEBHOOK_SECRET set — accepting without signature check');
+      } else if (!secret) {
+        console.warn('[webhook/wc] No WC_WEBHOOK_SECRET — accepting without signature check');
       }
 
-      console.log('[webhook/wc] Signature check passed, processing payload...');
-
-      // ── Parse order ────────────────────────────────────────────────────────
-      let order;
-      try {
-        order = JSON.parse(rawBody.toString('utf8'));
-      } catch {
-        return res.status(400).json({ ok: false, error: 'Invalid JSON body' });
-      }
+      console.log('[webhook/wc] Processing order:', order?.id, 'status:', order?.status);
 
       // Only process completed orders
       if (order.status !== 'completed') {

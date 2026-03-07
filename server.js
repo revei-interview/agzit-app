@@ -9,18 +9,20 @@ const { requireAuth, requireRole } = require('./middleware/auth');
 
 const app = express();
 
-// ── Webhooks — must come BEFORE express.json() so express.raw() gets the raw body ──
-// express.json() consumes the stream; if it runs first, HMAC verification breaks.
-app.use('/api/webhooks', require('./routes/webhooks'));
-
 // ── Middleware ─────────────────────────────────────────────────────────────
 app.use(cors({
   origin:      process.env.WP_URL || 'https://agzit.com',
   credentials: true,
 }));
-app.use(express.json());
+// Capture raw body in req.rawBody before JSON parsing (needed for HMAC webhook verification)
+app.use(express.json({
+  verify: (req, _res, buf) => { req.rawBody = buf; },
+}));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// ── Webhooks ───────────────────────────────────────────────────────────────
+app.use('/api/webhooks', require('./routes/webhooks'));
 
 // ── Static files ───────────────────────────────────────────────────────────
 app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
