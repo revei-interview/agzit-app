@@ -22,7 +22,7 @@ app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
 
 // ── API Routes ─────────────────────────────────────────────────────────────
 app.use('/api/auth',      require('./routes/auth'));
-// app.use('/api/candidate', require('./routes/candidate'));  // coming next session
+app.use('/api/candidate', require('./routes/candidate'));
 // app.use('/api/employer',  require('./routes/employer'));   // coming next session
 
 // ── Page Routes ────────────────────────────────────────────────────────────
