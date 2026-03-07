@@ -61,32 +61,34 @@ router.post(
 
       // ── Signature verification ──────────────────────────────────────────────
       const secret = process.env.WC_WEBHOOK_SECRET;
-      if (!secret) {
-        console.error('[webhook/wc] WC_WEBHOOK_SECRET not set');
-        return res.status(500).json({ ok: false, error: 'Webhook secret not configured' });
-      }
 
-      if (!sig) {
+      if (secret && sig) {
+        // Both secret and signature present — verify
+        const expected = crypto
+          .createHmac('sha256', secret)
+          .update(rawBody)
+          .digest('base64');
+
+        let sigValid = false;
+        try {
+          const sigBuf = Buffer.from(sig,      'base64');
+          const expBuf = Buffer.from(expected, 'base64');
+          sigValid = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+        } catch {
+          sigValid = false;
+        }
+
+        if (!sigValid) {
+          console.warn('[webhook/wc] Signature mismatch — received:', sig, 'expected:', expected);
+          return res.status(401).json({ ok: false, error: 'Invalid signature' });
+        }
+      } else if (secret && !sig) {
+        // Secret configured but WC sent no signature — reject
+        console.warn('[webhook/wc] Missing X-WC-Webhook-Signature header');
         return res.status(401).json({ ok: false, error: 'Missing signature' });
-      }
-
-      const expected = crypto
-        .createHmac('sha256', secret)
-        .update(rawBody)
-        .digest('base64');
-
-      let sigValid = false;
-      try {
-        const sigBuf = Buffer.from(sig,      'base64');
-        const expBuf = Buffer.from(expected, 'base64');
-        sigValid = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
-      } catch {
-        sigValid = false;
-      }
-
-      if (!sigValid) {
-        console.warn('[webhook/wc] Signature mismatch');
-        return res.status(401).json({ ok: false, error: 'Invalid signature' });
+      } else {
+        // No secret configured — accept but warn (useful during initial setup)
+        console.warn('[webhook/wc] WC_WEBHOOK_SECRET not set — skipping signature check');
       }
 
       // ── Parse order ────────────────────────────────────────────────────────
