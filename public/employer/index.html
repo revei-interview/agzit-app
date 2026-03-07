@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Employer Dashboard — AGZIT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Tokens ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --ink:     #09101F;
+  --blue:    #1A44C2;
+  --green:   #0B7A47;
+  --amber:   #B45309;
+  --red:     #B91C1C;
+  --surface: #F5F6FA;
+  --border:  #E4E6EF;
+  --muted:   #7C83A0;
+  --radius:  14px;
+}
+html { font-size: 16px; }
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  background: var(--surface);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button { font-family: inherit; cursor: pointer; }
+
+/* ── Loading skeleton ────────────────────────────────────────────────────── */
+#loading-overlay {
+  position: fixed; inset: 0; background: var(--surface);
+  z-index: 9999; display: flex; align-items: center; justify-content: center;
+}
+.skeleton-wrap { width: 100%; max-width: 900px; padding: 40px 24px; }
+.skel {
+  background: #E4E6EF;
+  border-radius: 8px;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+.skel-h1  { height: 36px; width: 60%; margin-bottom: 12px; }
+.skel-h2  { height: 20px; width: 40%; margin-bottom: 40px; }
+.skel-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 32px; }
+.skel-card{ height: 100px; border-radius: 14px; }
+.skel-block { height: 180px; border-radius: 14px; margin-bottom: 16px; }
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+#app { display: none; }
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.topbar {
+  background: var(--ink);
+  padding: 0 32px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.topbar-brand {
+  font-size: 17px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.topbar-brand-sub {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #7B9FFF;
+  margin-left: 2px;
+}
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.topbar-logout {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.55);
+  background: none;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  padding: 7px 14px;
+  transition: color .15s, border-color .15s;
+}
+.topbar-logout:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
+
+/* ── Hero ───────────────────────────────────────────────────────────────── */
+.hero {
+  background: var(--ink);
+  padding: 36px 32px 40px;
+  border-bottom: 1px solid #1E2640;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  width: 400px; height: 400px;
+  border-radius: 50%;
+  filter: blur(100px);
+  background: rgba(26,68,194,0.20);
+  top: -120px; right: -80px;
+  pointer-events: none;
+}
+.hero-inner {
+  position: relative;
+  z-index: 2;
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.hero-left {}
+.hero-welcome {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 6px;
+  letter-spacing: 0.2px;
+}
+.hero-name {
+  font-size: clamp(24px, 3.5vw, 34px);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.8px;
+  line-height: 1.15;
+  margin-bottom: 10px;
+}
+.hero-company {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.55);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.badge-verified  { background: rgba(11,122,71,0.22);  color: #4ADE80;  border: 1px solid rgba(74,222,128,0.25); }
+.badge-pending   { background: rgba(180,83,9,0.22);   color: #FCD34D;  border: 1px solid rgba(252,211,77,0.25); }
+.badge-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+}
+
+/* ── Stat Cards ─────────────────────────────────────────────────────────── */
+.stats-row {
+  max-width: 1100px;
+  margin: 28px auto 0;
+  padding: 0 32px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.stat-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  transition: box-shadow .2s;
+}
+.stat-card:hover { box-shadow: 0 4px 20px rgba(9,16,31,0.07); }
+.stat-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.stat-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.stat-sub {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.stat-email {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  word-break: break-all;
+  margin-bottom: 4px;
+}
+
+/* ── Main layout ────────────────────────────────────────────────────────── */
+.main-wrap {
+  max-width: 1100px;
+  margin: 28px auto 60px;
+  padding: 0 32px;
+}
+
+/* ── Tabs ───────────────────────────────────────────────────────────────── */
+.tab-nav {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 28px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tab-nav::-webkit-scrollbar { display: none; }
+.tab-btn {
+  padding: 11px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s;
+  flex-shrink: 0;
+}
+.tab-btn:hover { color: var(--ink); }
+.tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 700; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── Section header ─────────────────────────────────────────────────────── */
+.section-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.section-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+.card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.card-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+/* ── Info grid (profile fields) ─────────────────────────────────────────── */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px 24px;
+}
+.info-item {}
+.info-lbl {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.info-val {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  word-break: break-word;
+}
+.info-val.empty { color: var(--muted); font-weight: 400; font-style: italic; }
+
+/* ── Notice box ─────────────────────────────────────────────────────────── */
+.notice {
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+.notice-amber { background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; }
+.notice-green { background: #F0FDF4; border: 1px solid #BBF7D0; color: #166534; }
+.notice-blue  { background: #EFF6FF; border: 1px solid #BFDBFE; color: #1E40AF; }
+.notice strong { font-weight: 700; }
+.notice ul { margin: 8px 0 0 18px; }
+.notice li { margin-bottom: 4px; }
+
+/* ── Interview cards ────────────────────────────────────────────────────── */
+.iv-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 12px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: start;
+  transition: box-shadow .2s;
+}
+.iv-card:hover { box-shadow: 0 4px 16px rgba(9,16,31,0.06); }
+.iv-role { font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+.iv-candidate { font-size: 13px; font-weight: 600; color: var(--blue); margin-bottom: 6px; }
+.iv-meta { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 10px; }
+.iv-meta span::before { content: ''; }
+.iv-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.iv-status {
+  padding: 3px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+.iv-status-scheduled  { background: #EFF6FF; color: #1D4ED8; }
+.iv-status-started    { background: #FFFBEB; color: #B45309; }
+.iv-status-completed  { background: #F0FDF4; color: #15803D; }
+.iv-status-cancelled  { background: #FEF2F2; color: #B91C1C; }
+.iv-score {
+  font-size: 22px; font-weight: 800; color: var(--ink); line-height: 1;
+}
+.iv-score sub { font-size: 12px; font-weight: 600; color: var(--muted); }
+.iv-band {
+  font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px;
+}
+.iv-band-strong_match  { background: #DCFCE7; color: #15803D; }
+.iv-band-promising     { background: #DBEAFE; color: #1D4ED8; }
+.iv-band-developing    { background: #FEF3C7; color: #B45309; }
+.iv-band-not_ready     { background: #FEE2E2; color: #B91C1C; }
+.iv-join {
+  font-size: 12px; font-weight: 700; color: var(--blue);
+  background: none; border: 1px solid #BFDBFE; border-radius: 8px;
+  padding: 5px 12px; transition: background .15s;
+}
+.iv-join:hover { background: #EFF6FF; text-decoration: none; }
+
+/* ── Candidate cards ────────────────────────────────────────────────────── */
+.filter-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 20px;
+  padding: 16px 18px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.filter-group { display: flex; flex-direction: column; gap: 5px; }
+.filter-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+.filter-input, .filter-select {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color .15s;
+  min-width: 140px;
+}
+.filter-input:focus, .filter-select:focus { border-color: var(--blue); }
+.filter-check-wrap {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-bottom: 2px;
+  align-self: flex-end;
+}
+.filter-check-wrap input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; }
+.filter-check-wrap label { font-size: 13px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.filter-btn {
+  font-size: 13px; font-weight: 700;
+  color: #fff; background: var(--ink);
+  border: none; border-radius: 8px;
+  padding: 10px 20px;
+  align-self: flex-end;
+  transition: background .15s;
+}
+.filter-btn:hover { background: #1b2340; }
+
+.cand-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.cand-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: box-shadow .2s;
+  position: relative;
+}
+.cand-card:hover { box-shadow: 0 4px 20px rgba(9,16,31,0.07); }
+.cand-name { font-size: 16px; font-weight: 800; color: var(--ink); }
+.cand-role { font-size: 13px; font-weight: 600; color: var(--blue); }
+.cand-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.cand-tag {
+  font-size: 11px; font-weight: 600;
+  padding: 3px 10px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--ink);
+}
+.cand-tag-green { background: #F0FDF4; border-color: #BBF7D0; color: #15803D; }
+.cand-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.cand-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.btn-view {
+  font-size: 13px; font-weight: 700;
+  color: #fff; background: var(--blue);
+  border: none; border-radius: 8px;
+  padding: 9px 16px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background .15s;
+}
+.btn-view:hover { background: #1535a8; text-decoration: none; }
+.unlocked-tag {
+  font-size: 11px; font-weight: 700;
+  color: var(--green); background: #F0FDF4;
+  border: 1px solid #BBF7D0; border-radius: 999px;
+  padding: 3px 10px;
+}
+.locked-tag {
+  font-size: 11px; font-weight: 700;
+  color: var(--muted); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 3px 10px;
+}
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.page-btn {
+  font-size: 13px; font-weight: 700;
+  color: var(--ink); background: #fff;
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 14px;
+  transition: background .15s, border-color .15s;
+}
+.page-btn:hover:not(:disabled) { background: var(--surface); border-color: #CBD0E0; }
+.page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.page-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+.page-info { font-size: 13px; color: var(--muted); font-weight: 500; }
+
+/* ── Quick links ────────────────────────────────────────────────────────── */
+.quick-links {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.ql-btn {
+  font-size: 13px; font-weight: 700;
+  color: var(--ink); background: #fff;
+  border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 10px 18px;
+  transition: border-color .15s, background .15s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.ql-btn:hover { border-color: var(--blue); color: var(--blue); text-decoration: none; background: #EFF6FF; }
+.ql-btn-primary {
+  background: var(--ink); color: #fff; border-color: var(--ink);
+}
+.ql-btn-primary:hover { background: #1b2340; color: #fff; border-color: #1b2340; }
+
+/* ── Empty state ────────────────────────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--muted);
+}
+.empty-state-title { font-size: 16px; font-weight: 700; color: var(--ink); margin-bottom: 8px; }
+.empty-state-sub   { font-size: 14px; line-height: 1.6; }
+
+/* ── Inline spinner ─────────────────────────────────────────────────────── */
+.spinner {
+  width: 20px; height: 20px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; padding: 40px 0;
+  font-size: 14px; font-weight: 600; color: var(--muted);
+}
+
+/* ── Divider ────────────────────────────────────────────────────────────── */
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+/* ── Scroll reveal ──────────────────────────────────────────────────────── */
+.reveal { opacity: 0; transform: translateY(16px); transition: opacity .45s ease, transform .45s ease; }
+.reveal.in { opacity: 1; transform: none; }
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .info-grid  { grid-template-columns: 1fr; }
+  .hero-inner { flex-direction: column; }
+}
+@media (max-width: 640px) {
+  .topbar, .hero, .stats-row, .main-wrap { padding-left: 16px; padding-right: 16px; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .tab-btn { padding: 10px 14px; font-size: 13px; }
+  .cand-grid { grid-template-columns: 1fr; }
+  .iv-card { grid-template-columns: 1fr; }
+  .iv-right { flex-direction: row; align-items: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="skeleton-wrap">
+    <div class="skel skel-h1"></div>
+    <div class="skel skel-h2"></div>
+    <div class="skel-row">
+      <div class="skel skel-card"></div>
+      <div class="skel skel-card"></div>
+      <div class="skel skel-card"></div>
+      <div class="skel skel-card"></div>
+    </div>
+    <div class="skel skel-block"></div>
+    <div class="skel skel-block" style="height:120px"></div>
+  </div>
+</div>
+
+<!-- Main app (hidden until data loads) -->
+<div id="app">
+
+  <!-- Topbar -->
+  <nav class="topbar">
+    <div class="topbar-brand">
+      AGZIT <span class="topbar-brand-sub">AI</span>
+    </div>
+    <div class="topbar-right">
+      <button class="topbar-logout" onclick="logout()">Logout</button>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-inner">
+      <div class="hero-left">
+        <div class="hero-welcome">Employer Dashboard</div>
+        <div class="hero-name" id="hero-name">Welcome back</div>
+        <div class="hero-company">
+          <span id="hero-company">—</span>
+          <span id="hero-badge"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="stats-row">
+    <div class="stat-card reveal">
+      <div class="stat-label">Account Status</div>
+      <div class="stat-value" id="stat-status">—</div>
+      <div class="stat-sub" id="stat-status-sub"></div>
+    </div>
+    <div class="stat-card reveal">
+      <div class="stat-label">Unlocks Today</div>
+      <div class="stat-value" id="stat-day">0 / 5</div>
+      <div class="stat-sub" id="stat-day-sub">0 remaining</div>
+    </div>
+    <div class="stat-card reveal">
+      <div class="stat-label">Unlocks This Month</div>
+      <div class="stat-value" id="stat-month">0 / 50</div>
+      <div class="stat-sub" id="stat-month-sub">0 remaining</div>
+    </div>
+    <div class="stat-card reveal">
+      <div class="stat-label">Work Email</div>
+      <div class="stat-email" id="stat-email">—</div>
+      <div class="stat-sub" id="stat-email-sub"></div>
+    </div>
+  </div>
+
+  <!-- Tab area -->
+  <div class="main-wrap">
+
+    <nav class="tab-nav" role="tablist">
+      <button class="tab-btn active" onclick="switchTab('overview')"   id="tab-overview">Overview</button>
+      <button class="tab-btn"        onclick="switchTab('profile')"    id="tab-profile">Company Profile</button>
+      <button class="tab-btn"        onclick="switchTab('candidates')" id="tab-candidates">Candidates</button>
+      <button class="tab-btn"        onclick="switchTab('interviews')" id="tab-interviews">Interviews</button>
+    </nav>
+
+    <!-- ── Overview Tab ─────────────────────────────────────────────── -->
+    <div class="tab-panel active" id="panel-overview">
+
+      <!-- Verification notice -->
+      <div id="verification-notice"></div>
+
+      <!-- Two-column layout on wide screens -->
+      <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start" class="overview-grid">
+
+        <div>
+          <!-- Company summary -->
+          <div class="card reveal">
+            <div class="card-title">Company Summary</div>
+            <div class="info-grid" id="overview-company-grid"></div>
+            <div class="divider"></div>
+            <div class="quick-links">
+              <button class="ql-btn ql-btn-primary" onclick="switchTab('candidates')">View Candidates</button>
+              <button class="ql-btn" onclick="switchTab('profile')">Edit Profile</button>
+              <a class="ql-btn" href="https://agzit.com" target="_blank" rel="noopener">agzit.com</a>
+            </div>
+          </div>
+
+          <!-- Recent interviews -->
+          <div class="section-hdr">
+            <div class="section-title">Recent Interviews</div>
+            <button class="ql-btn" onclick="switchTab('interviews')" style="padding:7px 14px;font-size:12px">View All</button>
+          </div>
+          <div id="overview-interviews"></div>
+        </div>
+
+        <!-- Sidebar -->
+        <div>
+          <div class="card reveal" style="margin-bottom:16px">
+            <div class="card-title">Unlock Limits</div>
+            <div style="margin-bottom:14px">
+              <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Today</div>
+              <div id="unlock-bar-day" style="height:8px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:4px">
+                <div id="unlock-fill-day" style="height:100%;background:var(--blue);border-radius:99px;width:0%;transition:width .5s ease"></div>
+              </div>
+              <div style="font-size:12px;color:var(--muted)" id="unlock-day-text">0 / 5 used</div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">This Month</div>
+              <div style="height:8px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:4px">
+                <div id="unlock-fill-month" style="height:100%;background:var(--blue);border-radius:99px;width:0%;transition:width .5s ease"></div>
+              </div>
+              <div style="font-size:12px;color:var(--muted)" id="unlock-month-text">0 / 50 used</div>
+            </div>
+          </div>
+          <div class="card reveal">
+            <div class="card-title">Quick Links</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <button class="ql-btn" onclick="switchTab('candidates')" style="justify-content:flex-start">Search Candidates</button>
+              <button class="ql-btn" onclick="switchTab('interviews')" style="justify-content:flex-start">Scheduled Interviews</button>
+              <a class="ql-btn" href="/logout" style="justify-content:flex-start">Logout</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Company Profile Tab ──────────────────────────────────────── -->
+    <div class="tab-panel" id="panel-profile">
+      <div id="profile-loading" class="loading-row" style="display:none">
+        <div class="spinner"></div> Loading profile...
+      </div>
+      <div id="profile-content" style="display:none">
+
+        <!-- Personal Info -->
+        <div class="card reveal">
+          <div class="card-title">Personal Information</div>
+          <div class="info-grid" id="profile-personal-grid"></div>
+        </div>
+
+        <!-- Company Info -->
+        <div class="card reveal">
+          <div class="card-title">Company Information</div>
+          <div class="info-grid" id="profile-company-grid"></div>
+        </div>
+
+        <!-- Verification Info -->
+        <div class="card reveal">
+          <div class="card-title">Verification Status</div>
+          <div class="info-grid" id="profile-verification-grid"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Candidates Tab ───────────────────────────────────────────── -->
+    <div class="tab-panel" id="panel-candidates">
+
+      <!-- Pending notice (shown when role != verified_employer) -->
+      <div id="candidates-gated" style="display:none">
+        <div class="notice notice-amber">
+          <strong>Your account is pending verification.</strong><br>
+          The Candidates directory is available to Verified Employers only.
+          Once our team approves your application you will have full access.
+        </div>
+      </div>
+
+      <!-- Candidates content (verified employers only) -->
+      <div id="candidates-content" style="display:none">
+
+        <!-- Filter bar -->
+        <div class="filter-bar reveal">
+          <div class="filter-group">
+            <span class="filter-label">Domain</span>
+            <select class="filter-select" id="filter-domain">
+              <option value="">All Domains</option>
+              <option value="Compliance">Compliance</option>
+              <option value="Accounting">Accounting</option>
+              <option value="HR">HR / People</option>
+              <option value="Investment Banking">Investment Banking</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Sales">Sales</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Career Level</span>
+            <select class="filter-select" id="filter-career">
+              <option value="">All Levels</option>
+              <option value="0-2 Years">0 – 2 Years</option>
+              <option value="3-5 Years">3 – 5 Years</option>
+              <option value="6-8 Years">6 – 8 Years</option>
+              <option value="9-12 Years">9 – 12 Years</option>
+              <option value="12+ Years">12+ Years</option>
+            </select>
+          </div>
+          <div class="filter-check-wrap">
+            <input type="checkbox" id="filter-open" name="filter-open">
+            <label for="filter-open">Open for Work only</label>
+          </div>
+          <button class="filter-btn" onclick="loadCandidates(1)">Search</button>
+        </div>
+
+        <div id="candidates-count" style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:16px"></div>
+        <div id="candidates-loading" class="loading-row" style="display:none">
+          <div class="spinner"></div> Loading candidates...
+        </div>
+        <div class="cand-grid" id="candidates-grid"></div>
+        <div class="pagination" id="candidates-pagination"></div>
+
+      </div>
+    </div>
+
+    <!-- ── Interviews Tab ───────────────────────────────────────────── -->
+    <div class="tab-panel" id="panel-interviews">
+      <div class="section-hdr">
+        <div class="section-title">Your Scheduled Interviews</div>
+      </div>
+      <div id="interviews-list"></div>
+    </div>
+
+  </div><!-- /.main-wrap -->
+</div><!-- /#app -->
+
+<script>
+'use strict';
+
+// ── State ───────────────────────────────────────────────────────────────────
+let DATA = null;          // dashboard API response
+let USER_ROLE = null;     // from data.user.role
+let profileLoaded = false;
+let candidatesLoaded = false;
+let candidatePage = 1;
+const WP_URL = 'https://agzit.com';
+
+// ── Boot ────────────────────────────────────────────────────────────────────
+(async function init() {
+  try {
+    const res = await fetch('/api/employer/dashboard', { credentials: 'include' });
+    if (res.status === 401 || res.status === 403) {
+      window.location.href = '/login?next=/employer';
+      return;
+    }
+    const data = await res.json();
+    if (!data.ok) { showError(data.error || 'Failed to load dashboard.'); return; }
+
+    DATA = data;
+    USER_ROLE = data.user.role;
+
+    render();
+    document.getElementById('loading-overlay').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initReveal();
+  } catch (e) {
+    showError('Network error. Please refresh the page.');
+  }
+})();
+
+// ── Render dashboard ────────────────────────────────────────────────────────
+function render() {
+  const { user, employer_profile: ep, unlock_stats: us, recent_interviews: ri } = DATA;
+
+  // Hero
+  document.getElementById('hero-name').textContent = 'Welcome back, ' + (user.first_name || user.email);
+  document.getElementById('hero-company').textContent = ep.company_name || 'Company not set';
+
+  const isVerified = USER_ROLE === 'verified_employer';
+  const badgeEl = document.getElementById('hero-badge');
+  if (isVerified) {
+    badgeEl.innerHTML = '<span class="badge badge-verified"><span class="badge-dot"></span>Verified Employer</span>';
+  } else {
+    badgeEl.innerHTML = '<span class="badge badge-pending"><span class="badge-dot"></span>Pending Verification</span>';
+  }
+
+  // Stat cards
+  const statusEl = document.getElementById('stat-status');
+  if (isVerified) {
+    statusEl.textContent = 'Verified';
+    statusEl.style.color = '#0B7A47';
+    document.getElementById('stat-status-sub').textContent = verifiedUntilText(ep.verified_until);
+  } else {
+    statusEl.textContent = 'Pending';
+    statusEl.style.color = '#B45309';
+    document.getElementById('stat-status-sub').textContent = applicationStatusLabel(ep.application_status);
+  }
+
+  document.getElementById('stat-day').textContent   = us.used_today + ' / ' + us.limit_daily;
+  document.getElementById('stat-day-sub').textContent = us.remaining_today + ' remaining today';
+  document.getElementById('stat-month').textContent  = us.used_this_month + ' / ' + us.limit_monthly;
+  document.getElementById('stat-month-sub').textContent = us.remaining_monthly + ' remaining this month';
+  document.getElementById('stat-email').textContent  = ep.work_email || '—';
+  document.getElementById('stat-email-sub').textContent = ep.work_email ? 'Verified work email' : 'Not verified';
+
+  // Overview — unlock bars
+  const dayPct   = Math.round((us.used_today    / us.limit_daily)   * 100);
+  const monthPct = Math.round((us.used_this_month / us.limit_monthly) * 100);
+  document.getElementById('unlock-fill-day').style.width   = dayPct   + '%';
+  document.getElementById('unlock-fill-month').style.width = monthPct + '%';
+  document.getElementById('unlock-day-text').textContent   = us.used_today    + ' / ' + us.limit_daily   + ' used';
+  document.getElementById('unlock-month-text').textContent = us.used_this_month + ' / ' + us.limit_monthly + ' used';
+
+  // Overview — company summary grid
+  const companyGrid = document.getElementById('overview-company-grid');
+  companyGrid.innerHTML = [
+    ['Company', ep.company_name],
+    ['Designation', ep.designation],
+    ['Department', ep.department],
+    ['Work Email', ep.work_email],
+    ['LinkedIn', ep.linkedin_url ? `<a href="${esc(ep.linkedin_url)}" target="_blank" rel="noopener">${esc(ep.linkedin_url)}</a>` : null],
+    ['Status', applicationStatusLabel(ep.application_status)],
+  ].map(([lbl, val]) => infoItem(lbl, val)).join('');
+
+  // Verification notice (Overview tab)
+  const noticeEl = document.getElementById('verification-notice');
+  if (!isVerified) {
+    const steps = pendingSteps(ep.application_status);
+    noticeEl.innerHTML = `
+      <div class="notice notice-amber reveal">
+        <strong>Your employer account is pending verification.</strong>
+        <ul>${steps.map(s => `<li>${s}</li>`).join('')}</ul>
+      </div>`;
+  } else {
+    noticeEl.innerHTML = `
+      <div class="notice notice-green reveal">
+        <strong>Verified Employer.</strong>
+        You have full access to the DPR candidate directory.
+        ${ep.verified_until ? 'Verification valid until ' + fmtDate(ep.verified_until * 1000) + '.' : ''}
+      </div>`;
+  }
+
+  // Overview — recent interviews
+  renderInterviewList(document.getElementById('overview-interviews'), ri, 5);
+
+  // Interviews tab
+  renderInterviewList(document.getElementById('interviews-list'), ri, 20);
+
+  // Candidates tab visibility
+  if (isVerified) {
+    document.getElementById('candidates-content').style.display = 'block';
+  } else {
+    document.getElementById('candidates-gated').style.display = 'block';
+  }
+}
+
+// ── Interview list renderer ──────────────────────────────────────────────────
+function renderInterviewList(container, list, max) {
+  if (!list || !list.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-state-title">No interviews yet</div><div class="empty-state-sub">Scheduled interviews with candidates will appear here.</div></div>`;
+    return;
+  }
+
+  const items = list.slice(0, max);
+  container.innerHTML = items.map(iv => {
+    const status = iv.interview_status || 'scheduled';
+    const scorePart = iv.mock_overall_score
+      ? `<div class="iv-score">${iv.mock_overall_score}<sub>/100</sub></div>` : '';
+    const bandClass = iv.emp_readiness_band ? `iv-band iv-band-${iv.emp_readiness_band}` : '';
+    const bandPart  = iv.emp_readiness_band
+      ? `<span class="${bandClass}">${bandLabel(iv.emp_readiness_band)}</span>` : '';
+    const joinPart  = iv.join_url
+      ? `<a class="iv-join" href="${esc(iv.join_url)}" target="_blank" rel="noopener">Join Room</a>` : '';
+    const scheduledPart = iv.scheduled_at ? `Scheduled: ${iv.scheduled_at}` : (iv.post_date ? fmtDate(iv.post_date) : '');
+
+    return `
+    <div class="iv-card reveal">
+      <div>
+        <div class="iv-role">${esc(iv.interview_role || 'Interview')}</div>
+        <div class="iv-candidate">${esc(iv.candidate_name || 'Candidate')}</div>
+        <div class="iv-meta">
+          ${iv.session_type ? `<span>${esc(iv.session_type)}</span>` : ''}
+          ${scheduledPart ? `<span>${esc(scheduledPart)}</span>` : ''}
+          ${iv.total_work_experience ? `<span>${esc(iv.total_work_experience)} yrs exp</span>` : ''}
+        </div>
+      </div>
+      <div class="iv-right">
+        <span class="iv-status iv-status-${esc(status)}">${statusLabel(status)}</span>
+        ${scorePart}
+        ${bandPart}
+        ${joinPart}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+
+  if (name === 'profile' && !profileLoaded) loadProfile();
+  if (name === 'candidates' && USER_ROLE === 'verified_employer' && !candidatesLoaded) loadCandidates(1);
+}
+
+// ── Profile tab ──────────────────────────────────────────────────────────────
+async function loadProfile() {
+  document.getElementById('profile-loading').style.display = 'flex';
+  try {
+    const res = await fetch('/api/employer/profile', { credentials: 'include' });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    const p = data.profile;
+
+    document.getElementById('profile-personal-grid').innerHTML = [
+      ['First Name',    p.first_name],
+      ['Account Email', DATA.user.email],
+      ['Work Email',    p.work_email],
+      ['LinkedIn',      p.linkedin_url ? `<a href="${esc(p.linkedin_url)}" target="_blank" rel="noopener">${esc(p.linkedin_url)}</a>` : null],
+    ].map(([l, v]) => infoItem(l, v)).join('');
+
+    document.getElementById('profile-company-grid').innerHTML = [
+      ['Company Name',    p.company_name],
+      ['Company Website', p.company_website ? `<a href="${esc(p.company_website)}" target="_blank" rel="noopener">${esc(p.company_website)}</a>` : null],
+      ['Designation',     p.designation],
+      ['Department',      p.department],
+      ['Proof Document',  p.designation_proof ? `<a href="${esc(p.designation_proof)}" target="_blank" rel="noopener">View Document</a>` : null],
+    ].map(([l, v]) => infoItem(l, v)).join('');
+
+    document.getElementById('profile-verification-grid').innerHTML = [
+      ['Application Status', applicationStatusLabel(p.application_status)],
+      ['Applied At',         p.applied_at  ? fmtDate(p.applied_at  * 1000) : null],
+      ['Email Verified At',  p.verified_at ? fmtDate(p.verified_at * 1000) : null],
+      ['Verified Until',     p.verified_until ? fmtDate(p.verified_until * 1000) : null],
+    ].map(([l, v]) => infoItem(l, v)).join('');
+
+    profileLoaded = true;
+    document.getElementById('profile-loading').style.display  = 'none';
+    document.getElementById('profile-content').style.display  = 'block';
+    initReveal();
+  } catch (e) {
+    document.getElementById('profile-loading').style.display = 'none';
+    document.getElementById('profile-content').innerHTML = `<div class="notice notice-amber">${esc(e.message || 'Failed to load profile.')}</div>`;
+    document.getElementById('profile-content').style.display = 'block';
+  }
+}
+
+// ── Candidates tab ───────────────────────────────────────────────────────────
+async function loadCandidates(page) {
+  candidatePage = page;
+  const domain     = document.getElementById('filter-domain').value;
+  const careerLvl  = document.getElementById('filter-career').value;
+  const openOnly   = document.getElementById('filter-open').checked;
+
+  const params = new URLSearchParams({ page, per_page: 20 });
+  if (domain)    params.set('domain', domain);
+  if (careerLvl) params.set('career_level', careerLvl);
+  if (openOnly)  params.set('open_for_work', '1');
+
+  document.getElementById('candidates-loading').style.display = 'flex';
+  document.getElementById('candidates-grid').innerHTML = '';
+  document.getElementById('candidates-pagination').innerHTML = '';
+  document.getElementById('candidates-count').textContent = '';
+
+  try {
+    const res  = await fetch('/api/employer/candidates?' + params, { credentials: 'include' });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+
+    document.getElementById('candidates-loading').style.display = 'none';
+    document.getElementById('candidates-count').textContent =
+      data.total + ' candidate' + (data.total !== 1 ? 's' : '') + ' found';
+
+    if (!data.candidates.length) {
+      document.getElementById('candidates-grid').innerHTML = `
+        <div class="empty-state" style="grid-column:1/-1">
+          <div class="empty-state-title">No candidates found</div>
+          <div class="empty-state-sub">Try adjusting your filters or check back later.</div>
+        </div>`;
+    } else {
+      document.getElementById('candidates-grid').innerHTML = data.candidates.map(c => candidateCard(c)).join('');
+    }
+
+    renderPagination(data.page, data.total_pages);
+    candidatesLoaded = true;
+    initReveal();
+  } catch (e) {
+    document.getElementById('candidates-loading').style.display = 'none';
+    document.getElementById('candidates-grid').innerHTML = `<div class="notice notice-amber">${esc(e.message || 'Failed to load candidates.')}</div>`;
+  }
+}
+
+function candidateCard(c) {
+  const location = [c.residential_city, c.residential_country].filter(Boolean).join(', ');
+  const exp      = c.total_work_experience ? c.total_work_experience + ' yrs' : null;
+  const unlockedHtml = c.is_unlocked
+    ? '<span class="unlocked-tag">Unlocked</span>'
+    : '<span class="locked-tag">Locked</span>';
+  const profileUrl = WP_URL + '/view-profile/?dpr_id=' + encodeURIComponent(c.dpr_id || '');
+
+  return `
+  <div class="cand-card reveal">
+    <div>
+      <div class="cand-name">${esc(c.full_name || 'DPR Profile')}</div>
+      ${c.desired_role ? `<div class="cand-role">${esc(c.desired_role)}</div>` : ''}
+    </div>
+    <div class="cand-tags">
+      ${c.compliance_domains       ? `<span class="cand-tag">${esc(c.compliance_domains)}</span>` : ''}
+      ${c.current_career_level     ? `<span class="cand-tag">${esc(c.current_career_level)}</span>` : ''}
+      ${c.preferred_work_type      ? `<span class="cand-tag">${esc(c.preferred_work_type)}</span>` : ''}
+      ${c.open_for_work_badge      ? `<span class="cand-tag cand-tag-green">Open for Work</span>` : ''}
+    </div>
+    <div class="cand-meta-row">
+      ${location ? `<span>${esc(location)}</span>` : ''}
+      ${exp      ? `<span>${esc(exp)} experience</span>` : ''}
+      ${c.current_employment_status ? `<span>${esc(c.current_employment_status)}</span>` : ''}
+      ${c.notice_period_in_days ? `<span>${esc(c.notice_period_in_days)}d notice</span>` : ''}
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+      ${c.dpr_id ? `<span style="font-size:11px;font-weight:700;color:var(--muted)">${esc(c.dpr_id)}</span>` : '<span></span>'}
+      ${c.profile_completeness ? `<span style="font-size:11px;font-weight:700;color:var(--muted)">${c.profile_completeness}% complete</span>` : ''}
+    </div>
+    <div class="cand-actions">
+      ${c.dpr_id ? `<a class="btn-view" href="${esc(profileUrl)}" target="_blank" rel="noopener">View Full Profile</a>` : ''}
+      ${unlockedHtml}
+    </div>
+  </div>`;
+}
+
+function renderPagination(page, totalPages) {
+  if (totalPages <= 1) return;
+  const el = document.getElementById('candidates-pagination');
+  let html = `<button class="page-btn" onclick="loadCandidates(${page-1})" ${page<=1?'disabled':''}>Prev</button>`;
+  const start = Math.max(1, page - 2);
+  const end   = Math.min(totalPages, page + 2);
+  if (start > 1) html += `<button class="page-btn" onclick="loadCandidates(1)">1</button>${start>2?'<span class="page-info">…</span>':''}`;
+  for (let i = start; i <= end; i++) {
+    html += `<button class="page-btn${i===page?' active':''}" onclick="loadCandidates(${i})">${i}</button>`;
+  }
+  if (end < totalPages) html += `${end<totalPages-1?'<span class="page-info">…</span>':''}<button class="page-btn" onclick="loadCandidates(${totalPages})">${totalPages}</button>`;
+  html += `<button class="page-btn" onclick="loadCandidates(${page+1})" ${page>=totalPages?'disabled':''}>Next</button>`;
+  el.innerHTML = html;
+}
+
+// ── Scroll reveal ────────────────────────────────────────────────────────────
+function initReveal() {
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); obs.unobserve(e.target); } });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal:not(.in)').forEach(el => obs.observe(el));
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function logout() { window.location.href = '/logout'; }
+
+function esc(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function infoItem(label, value) {
+  const isEmpty = !value || value === '—';
+  const display = isEmpty ? '<span class="info-val empty">Not provided</span>' : `<div class="info-val">${value}</div>`;
+  return `<div class="info-item"><div class="info-lbl">${esc(label)}</div>${display}</div>`;
+}
+
+function fmtDate(ms) {
+  try { return new Date(ms).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }); }
+  catch { return '—'; }
+}
+
+function statusLabel(s) {
+  return { scheduled:'Scheduled', started:'Started', completed:'Completed', cancelled:'Cancelled' }[s] || s;
+}
+
+function bandLabel(b) {
+  return { strong_match:'Strong Match', promising:'Promising', developing:'Developing', not_ready:'Not Ready' }[b] || b;
+}
+
+function applicationStatusLabel(s) {
+  return { otp_sent:'OTP Sent — Verify Email', email_verified:'Email Verified — Awaiting Admin Approval', approved:'Approved' }[s] || (s || 'Application incomplete');
+}
+
+function verifiedUntilText(ts) {
+  if (!ts) return '';
+  return 'Valid until ' + fmtDate(ts * 1000);
+}
+
+function pendingSteps(status) {
+  if (!status || status === 'otp_sent') {
+    return [
+      'Submit your employer application form at agzit.com/verify-employer/',
+      'Verify your work email using the OTP sent to you',
+      'Wait for admin approval to become a Verified Employer',
+    ];
+  }
+  if (status === 'email_verified') {
+    return ['Your email has been verified. Waiting for admin approval.'];
+  }
+  return ['Contact support if you need assistance.'];
+}
+
+function showError(msg) {
+  document.getElementById('loading-overlay').innerHTML =
+    `<div style="text-align:center;padding:40px;font-family:'Plus Jakarta Sans',sans-serif">
+       <div style="font-size:18px;font-weight:700;color:#09101F;margin-bottom:8px">Unable to load dashboard</div>
+       <div style="color:#7C83A0;font-size:14px;margin-bottom:24px">${esc(msg)}</div>
+       <a href="/login" style="background:#1A44C2;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px">Back to Login</a>
+     </div>`;
+}
+</script>
+
+</body>
+</html>

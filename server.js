@@ -5,7 +5,7 @@ const express      = require('express');
 const cookieParser = require('cookie-parser');
 const cors         = require('cors');
 const path         = require('path');
-const { requireAuth } = require('./middleware/auth');
+const { requireAuth, requireRole } = require('./middleware/auth');
 
 const app = express();
 
@@ -43,8 +43,9 @@ app.get('/dashboard', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public/dashboard/index.html'));
 });
 
-app.get('/employer', (req, res) => {
-  res.redirect('/login?next=/employer');
+// Employer dashboard
+app.get('/employer', requireAuth, requireRole('dpr_employer', 'verified_employer'), (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/employer/index.html'));
 });
 
 // Logout (GET for simple link clicks)
