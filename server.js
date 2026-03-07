@@ -9,6 +9,10 @@ const { requireAuth, requireRole } = require('./middleware/auth');
 
 const app = express();
 
+// ── Webhooks — must come BEFORE express.json() so express.raw() gets the raw body ──
+// express.json() consumes the stream; if it runs first, HMAC verification breaks.
+app.use('/api/webhooks', require('./routes/webhooks'));
+
 // ── Middleware ─────────────────────────────────────────────────────────────
 app.use(cors({
   origin:      process.env.WP_URL || 'https://agzit.com',
@@ -25,14 +29,7 @@ app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
 app.use('/api/auth',      require('./routes/auth'));
 app.use('/api/candidate', require('./routes/candidate'));
 app.use('/api/employer',  require('./routes/employer'));
-
-// Internal endpoints called by agzit-daily-backend (not browsers)
-// Auth via x-wp-app-token header. Must be mounted BEFORE express.json() would interfere.
 app.use('/api/internal',  require('./routes/internal'));
-
-// Inbound webhooks — WooCommerce, etc.
-// express.raw() is applied per-route inside webhooks.js so JSON parsing is bypassed.
-app.use('/api/webhooks',  require('./routes/webhooks'));
 
 // ── Page Routes ────────────────────────────────────────────────────────────
 
