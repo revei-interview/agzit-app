@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Scorecard — AGZIT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --ink:      #09101F;
+      --soft:     #3A4163;
+      --muted:    #7C83A0;
+      --line:     #E4E6EF;
+      --surface:  #F5F6FA;
+      --blue:     #1A44C2;
+      --blue-lt:  #EAF0FF;
+      --green:    #0B7A47;
+      --green-lt: #E4F5EE;
+    }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--surface); color: var(--ink); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+    /* ── Loading / error ── */
+    #loading {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; flex-direction: column; gap: 14px;
+    }
+    .spin { width: 36px; height: 36px; border: 3px solid var(--line); border-top-color: var(--blue); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .load-label { font-size: 13px; color: var(--muted); font-weight: 600; }
+
+    #error-state {
+      display: none; max-width: 520px; margin: 80px auto; padding: 32px;
+      background: #fff; border: 1px solid var(--line); border-radius: 16px; text-align: center;
+    }
+    #error-state h2 { font-size: 20px; font-weight: 800; margin-bottom: 10px; }
+    #error-state p  { font-size: 14px; color: var(--muted); line-height: 1.7; }
+
+    /* ── Main ── */
+    #main { display: none; max-width: 820px; margin: 0 auto; padding: 28px 20px 72px; }
+
+    /* ── Top bar ── */
+    .top-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 24px; flex-wrap: wrap; gap: 10px;
+    }
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 10px;
+      border: 1px solid var(--line); background: #fff; color: var(--ink);
+      font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none;
+      transition: border-color .15s;
+    }
+    .back-btn:hover { border-color: var(--blue); color: var(--blue); }
+    .top-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .action-btn {
+      padding: 8px 18px; border-radius: 10px; border: 1.5px solid var(--line);
+      background: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+      transition: border-color .15s, background .15s;
+    }
+    .action-btn:hover { border-color: var(--blue); background: var(--blue-lt); color: var(--blue); }
+    .action-btn.primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .action-btn.primary:hover { background: #1E2D4A; border-color: #1E2D4A; }
+
+    /* ── Session header card ── */
+    .session-header {
+      background: var(--ink); border-radius: 16px; padding: 28px 28px 24px;
+      margin-bottom: 16px; position: relative; overflow: hidden;
+    }
+    .session-header::before {
+      content: ''; position: absolute; inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
+      background-size: 24px 24px; pointer-events: none;
+    }
+    .session-glow {
+      position: absolute; width: 300px; height: 300px; border-radius: 50%;
+      filter: blur(90px); background: rgba(26,68,194,0.30);
+      top: -80px; right: -40px; pointer-events: none;
+    }
+    .sh-inner  { position: relative; z-index: 2; }
+    .sh-eyebrow { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: #C9A24D; margin-bottom: 10px; }
+    .sh-role    { font-size: clamp(16px,2.5vw,22px); font-weight: 800; color: #fff; letter-spacing: -0.3px; margin-bottom: 6px; }
+    .sh-meta    { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .sh-date    { font-size: 13px; color: rgba(255,255,255,0.4); }
+    .sh-dur     { font-size: 13px; color: rgba(255,255,255,0.4); }
+
+    /* ── Cards ── */
+    .card {
+      background: #fff; border: 1px solid rgba(10,26,58,0.09);
+      border-radius: 16px; padding: 22px; margin-bottom: 14px;
+    }
+
+    /* ── Header band (overall + level) ── */
+    .header-band {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      gap: 16px; flex-wrap: wrap;
+      padding: 18px 20px; border-radius: 12px; margin-bottom: 20px;
+      background: linear-gradient(135deg, rgba(10,26,58,0.03) 0%, rgba(201,162,77,0.07) 100%);
+      border: 1px solid rgba(201,162,77,0.18);
+    }
+    .hb-eyebrow { font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase; color: #C9A24D; font-weight: 800; margin-bottom: 10px; }
+    .hb-level-pill {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 800;
+    }
+    .pill-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .hb-right  { text-align: right; }
+    .hb-label  { font-size: 9.5px; letter-spacing: 1.5px; text-transform: uppercase; color: #94A3B8; font-weight: 700; margin-bottom: 4px; }
+    .hb-score  { font-size: 48px; font-weight: 900; color: var(--ink); letter-spacing: -2.5px; line-height: 1; }
+    .hb-denom  { font-size: 16px; font-weight: 600; color: #CBD5E1; }
+    .hb-track  { width: 140px; height: 7px; background: #E2E8F0; border-radius: 999px; overflow: hidden; margin: 10px 0 0 auto; }
+    .hb-fill   { height: 7px; border-radius: 999px; }
+
+    /* ── Section label ── */
+    .sec-label {
+      font-size: 11px; font-weight: 800; color: var(--ink);
+      letter-spacing: 1px; text-transform: uppercase;
+      margin-bottom: 10px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .sec-hint { font-size: 10.5px; font-weight: 500; color: #94A3B8; text-transform: none; letter-spacing: 0; }
+    .divider  { border: none; border-top: 1px solid rgba(10,26,58,0.07); margin: 20px 0; }
+
+    /* ── Performance scale guide ── */
+    .guide-list { display: flex; flex-direction: column; gap: 5px; margin-bottom: 4px; }
+    .guide-row {
+      display: flex; align-items: flex-start; gap: 16px;
+      padding: 10px 12px; border-radius: 10px;
+      border: 1.5px solid rgba(10,26,58,0.07);
+      background: rgba(10,26,58,0.02);
+    }
+    .guide-meta  { display: flex; align-items: flex-start; gap: 9px; min-width: 170px; flex-shrink: 0; }
+    .guide-dot   { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+    .guide-level { font-size: 12.5px; font-weight: 800; color: #1E293B; line-height: 1.3; }
+    .guide-range { font-size: 10.5px; color: #94A3B8; font-weight: 600; margin-top: 2px; }
+    .guide-desc  { font-size: 12px; color: #475569; line-height: 1.65; }
+
+    /* ── 3x3 competency grid ── */
+    .score-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; margin-bottom: 4px; }
+    .score-card { position: relative; border-radius: 12px; padding: 14px 10px 12px; text-align: center; transition: box-shadow .15s; }
+    .score-card:hover { box-shadow: 0 3px 14px rgba(10,26,58,0.08); }
+    .info-btn {
+      position: absolute; top: 7px; right: 7px;
+      width: 17px; height: 17px; border-radius: 50%; border: 1.5px solid;
+      background: transparent; font-size: 9.5px; font-weight: 900;
+      font-style: italic; font-family: Georgia, serif;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      padding: 0; line-height: 1; transition: opacity .15s;
+    }
+    .info-btn:hover { opacity: .6; }
+    .score-num   { font-size: 28px; font-weight: 900; letter-spacing: -1.2px; line-height: 1; margin-top: 4px; }
+    .score-denom { font-size: 11px; font-weight: 600; color: #94A3B8; }
+    .mini-track  { height: 4px; background: rgba(0,0,0,0.07); border-radius: 999px; overflow: hidden; margin: 8px 6px 6px; }
+    .mini-fill   { height: 4px; border-radius: 999px; }
+    .score-label { font-size: 10.5px; font-weight: 700; color: #475569; line-height: 1.3; }
+
+    /* ── Tooltip ── */
+    #float-tip {
+      display: none; position: fixed; z-index: 999999;
+      max-width: 272px; width: max-content;
+      background: var(--ink); color: #E2E8F0;
+      border-radius: 12px; padding: 14px 16px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.3);
+      pointer-events: none; font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .tip-title { font-size: 13px; font-weight: 800; color: #fff; margin-bottom: 3px; }
+    .tip-short { font-size: 9.5px; font-weight: 700; color: #C9A24D; text-transform: uppercase; letter-spacing: .9px; margin-bottom: 9px; }
+    .tip-def   { font-size: 12px; line-height: 1.7; color: #CBD5E1; }
+
+    /* ── Feedback cards ── */
+    .feedback-grid { display: grid; gap: 9px; }
+    .fb-card   { border-radius: 0 11px 11px 0; border: 1px solid rgba(10,26,58,0.08); background: #fff; overflow: hidden; }
+    .fb-hd     { padding: 10px 14px; }
+    .fb-label  { font-size: 12px; font-weight: 800; }
+    .fb-body   { padding: 11px 14px; font-size: 13px; color: #475569; line-height: 1.75; white-space: pre-wrap; }
+
+    /* ── Share toast ── */
+    #copy-toast {
+      display: none; position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      background: var(--ink); color: #fff; padding: 10px 20px; border-radius: 10px;
+      font-size: 13px; font-weight: 700; z-index: 9999; animation: fadeup .25s ease;
+    }
+    @keyframes fadeup { from { opacity: 0; transform: translateX(-50%) translateY(8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+    /* ── Reveal ── */
+    .reveal { opacity: 0; transform: translateY(14px); transition: opacity .4s ease, transform .4s ease; }
+    .reveal.visible { opacity: 1; transform: none; }
+
+    /* ── Responsive ── */
+    @media (max-width: 580px) { .score-grid { grid-template-columns: repeat(2,1fr) !important; } .header-band { flex-direction: column; } .hb-right { text-align: left; } .hb-track { margin-left: 0; } .guide-row { flex-direction: column; gap: 5px; } .guide-meta { min-width: unset; } }
+    @media (max-width: 360px) { .score-grid { grid-template-columns: 1fr !important; } }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spin"></div>
+  <div class="load-label">Loading scorecard...</div>
+</div>
+
+<div id="error-state">
+  <h2 id="err-title">Scorecard Not Found</h2>
+  <p id="err-msg">This session may not have a scorecard yet, or the session ID is incorrect.</p>
+  <a href="/dashboard" style="display:inline-block;margin-top:16px;background:#09101F;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:700;">Back to Dashboard</a>
+</div>
+
+<div id="main">
+  <!-- Top bar -->
+  <div class="top-bar">
+    <a class="back-btn" href="/dashboard">&larr; Back to Dashboard</a>
+    <div class="top-actions">
+      <button class="action-btn" onclick="shareScorecard()">Share Scorecard</button>
+      <button class="action-btn primary" onclick="downloadScorecard()">Download PDF</button>
+    </div>
+  </div>
+
+  <!-- Session header -->
+  <div class="session-header reveal">
+    <div class="session-glow"></div>
+    <div class="sh-inner">
+      <div class="sh-eyebrow">AI Career Intelligence</div>
+      <div class="sh-role" id="sh-role"></div>
+      <div class="sh-meta">
+        <span class="sh-date" id="sh-date"></span>
+        <span class="sh-dur"  id="sh-dur"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main scorecard card -->
+  <div class="card reveal" id="scorecard-card"></div>
+
+  <!-- Feedback card -->
+  <div class="card reveal" id="feedback-card" style="display:none"></div>
+
+</div><!-- #main -->
+
+<div id="float-tip" role="tooltip" aria-live="polite"></div>
+<div id="copy-toast">Link copied to clipboard</div>
+
+<script>
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function el(id) { return document.getElementById(id); }
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function fmtDate(s) {
+  if (!s) return '';
+  const d = new Date(s);
+  return isNaN(d) ? s : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// ── Performance level config ──────────────────────────────────────────────────
+const PERF_LEVELS = [
+  { range: '85 – 100', level: 'Interview Ready',           dot: '#16a34a', bg: '#DCFCE7', bd: '#86EFAC', tx: '#166534',
+    desc: 'You are ready for real interviews. Your answers are structured, confident, and show ownership. Start applying to target companies.' },
+  { range: '75 – 84',  level: 'Strong Potential',          dot: '#2563eb', bg: '#DBEAFE', bd: '#93C5FD', tx: '#1D4ED8',
+    desc: 'You are very close. One or two areas need polishing — focus on your Areas to Improve section and you will be ready.' },
+  { range: '65 – 74',  level: 'Developing Professional',   dot: '#0d9488', bg: '#CCFBF1', bd: '#5EEAD4', tx: '#0F766E',
+    desc: 'You have a solid foundation but need to practise structuring answers. Take another mock focusing on the STAR method.' },
+  { range: '50 – 64',  level: 'Needs Structured Practice', dot: '#d97706', bg: '#FEF3C7', bd: '#FCD34D', tx: '#92400E',
+    desc: 'You know your field but answers need clearer structure. Practise framing responses with a clear beginning, middle, and end.' },
+  { range: '0 – 49',   level: 'Foundation Level',          dot: '#dc2626', bg: '#FEE2E2', bd: '#FCA5A5', tx: '#991B1B',
+    desc: 'You are building the basics. Focus on core concepts for your target role and take another mock when you feel ready.' },
+];
+
+function getLevelStyle(level) {
+  return PERF_LEVELS.find(l => l.level === level) || { dot: '#64748b', bg: '#F1F5F9', bd: '#CBD5E1', tx: '#475569' };
+}
+
+function barGrad(score) {
+  if (score >= 80) return 'linear-gradient(90deg,#16a34a,#4ade80)';
+  if (score >= 61) return 'linear-gradient(90deg,#0ea5e9,#38bdf8)';
+  if (score >= 41) return 'linear-gradient(90deg,#d97706,#fbbf24)';
+  return 'linear-gradient(90deg,#dc2626,#f87171)';
+}
+
+function scoreColor(v) {
+  if (v >= 9) return { tx: '#166534', bg: '#F0FDF4', bd: '#86EFAC', bar: '#16a34a', ibg: '#DCFCE7', itx: '#166534' };
+  if (v >= 7) return { tx: '#0F766E', bg: '#F0FDFA', bd: '#5EEAD4', bar: '#0d9488', ibg: '#CCFBF1', itx: '#0F766E' };
+  if (v >= 5) return { tx: '#92400E', bg: '#FFFBEB', bd: '#FCD34D', bar: '#d97706', ibg: '#FEF3C7', itx: '#92400E' };
+  return           { tx: '#991B1B', bg: '#FFF5F5', bd: '#FCA5A5', bar: '#dc2626', ibg: '#FEE2E2', itx: '#991B1B' };
+}
+
+// ── Core score definitions ────────────────────────────────────────────────────
+const CORE_SCORES = [
+  { field: 'score_communication',       label: 'Communication', short: 'Clarity and Articulation',
+    def: 'Clear speaking, professional language, minimal filler words, and coherent sentence construction throughout the interview.' },
+  { field: 'score_structure',           label: 'Structure',     short: 'Logical Organisation',
+    def: 'Answers follow a clear framework with a natural beginning, middle, and conclusion. No rambling or jumping between unrelated points.' },
+  { field: 'score_role_knowledge',      label: 'Role Knowledge', short: 'Core Domain Understanding',
+    def: 'Accurate grasp of fundamental concepts, terminology, and responsibilities for the target role — not just memorised definitions, but correct applied explanation.' },
+  { field: 'score_domain_application',  label: 'Domain Application', short: 'Practical Know-How',
+    def: 'Connects theory to real work situations. Explains how to apply concepts in practice, with personal ownership over outcomes rather than generic descriptions.' },
+  { field: 'score_problem_solving',     label: 'Problem Solving', short: 'Analytical Thinking and Judgment',
+    def: 'Handles novel or pressure scenarios by proposing independent solutions before escalating. Demonstrates structured thinking rather than defaulting to "the team decides."' },
+  { field: 'score_confidence',          label: 'Confidence',    short: 'Professional Presence',
+    def: 'Vocal stability, decisiveness, and tone. Presents ideas with conviction — scored independently of whether the content is correct.' },
+  { field: 'score_question_handling',   label: 'Q. Handling',   short: 'Grace Under Uncertainty',
+    def: 'Handles unknown or unexpected questions professionally. Pivots to related knowledge or asks a clarifying question rather than going silent.' },
+  { field: 'score_experience_relevance',label: 'Experience',    short: 'Impact and Applicability',
+    def: 'Relevance of past experience to the target role, with specific personal contributions and articulated outcomes rather than generic team-level descriptions.' },
+  { field: 'score_resume_alignment',    label: 'Resume Fit',    short: 'Authenticity and Consistency',
+    def: 'Spoken answers align with the claims made on the CV. Flags inconsistencies in stated responsibilities, timelines, or achievements that appear during the interview.' },
+];
+
+// ── Render scorecard ──────────────────────────────────────────────────────────
+
+let _session = null;
+
+function renderScorecard(s) {
+  _session = s;
+  const overall = parseInt(s.mock_overall_score) || 0;
+  const level   = String(s.mock_performance_level || '');
+  const ls      = getLevelStyle(level);
+
+  // Header band
+  let html = `<div class="header-band">
+    <div>
+      <div class="hb-eyebrow">AI Career Intelligence</div>
+      <div class="hb-level-pill" style="background:${ls.bg};border:1px solid ${ls.bd};color:${ls.tx};">
+        <span class="pill-dot" style="background:${ls.dot};"></span>${esc(level || '—')}
+      </div>
+    </div>
+    <div class="hb-right">
+      <div class="hb-label">Overall Score</div>
+      <div class="hb-score">${overall}<span class="hb-denom">/100</span></div>
+      <div class="hb-track"><div class="hb-fill" style="width:${overall}%;background:${barGrad(overall)};"></div></div>
+    </div>
+  </div>`;
+
+  // Performance scale guide
+  html += `<div class="sec-label">Performance Scale</div>
+  <div class="guide-list">`;
+  for (const gl of PERF_LEVELS) {
+    const active = gl.level === level;
+    const st = active ? `background:${gl.bg};border-color:${gl.bd};` : '';
+    html += `<div class="guide-row" style="${st}">
+      <div class="guide-meta">
+        <span class="guide-dot" style="background:${gl.dot};"></span>
+        <div>
+          <div class="guide-level" style="${active ? `color:${gl.tx};font-weight:900;` : ''}">${esc(gl.level)}</div>
+          <div class="guide-range">${esc(gl.range)}</div>
+        </div>
+      </div>
+      <div class="guide-desc">${esc(gl.desc)}</div>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Core competencies
+  html += `<hr class="divider">
+  <div class="sec-label" style="margin-top:22px;">Core Competencies <span class="sec-hint">Tap the i icon for definition</span></div>
+  <div class="score-grid">`;
+  for (const cs of CORE_SCORES) {
+    const sv  = Math.max(0, Math.min(10, parseInt(s[cs.field]) || 0));
+    const sc  = scoreColor(sv);
+    const tip = `<div class="tip-title">${cs.label}</div><div class="tip-short">${cs.short}</div><div class="tip-def">${cs.def}</div>`;
+    html += `<div class="score-card" style="background:${sc.bg};border:1.5px solid ${sc.bd};">
+      <button class="info-btn" style="color:${sc.itx};background:${sc.ibg};border-color:${sc.bd};"
+        data-tip="${esc(tip)}" onclick="showTip(this)" aria-label="Definition: ${cs.label}">i</button>
+      <div class="score-num" style="color:${sc.tx};">${sv}<span class="score-denom">/10</span></div>
+      <div class="mini-track"><div class="mini-fill" style="width:${sv*10}%;background:${sc.bar};"></div></div>
+      <div class="score-label">${esc(cs.label)}</div>
+    </div>`;
+  }
+  html += `</div>`;
+
+  el('scorecard-card').innerHTML = html;
+
+  // Feedback
+  const feedbackSections = [
+    { key: 'mock_strengths',       label: 'Strengths',        ac: '#16a34a', hbg: '#F0FDF4', hbd: '#BBF7D0' },
+    { key: 'mock_improvements',    label: 'Areas to Improve', ac: '#2563eb', hbg: '#EFF6FF', hbd: '#BFDBFE' },
+    { key: 'mock_next_focus',      label: 'Next Focus',       ac: '#7C3AED', hbg: '#F5F3FF', hbd: '#DDD6FE' },
+    { key: 'mock_attention_areas', label: 'Attention Areas',  ac: '#D97706', hbg: '#FFFBEB', hbd: '#FDE68A' },
+  ].filter(f => s[f.key] && String(s[f.key]).trim());
+
+  if (feedbackSections.length) {
+    let fhtml = `<div class="sec-label">Personalised Feedback</div><div class="feedback-grid">`;
+    for (const f of feedbackSections) {
+      fhtml += `<div class="fb-card" style="border-left:3px solid ${f.ac};">
+        <div class="fb-hd" style="background:${f.hbg};border-bottom:1px solid ${f.hbd};">
+          <span class="fb-label" style="color:${f.ac};">${esc(f.label)}</span>
+        </div>
+        <div class="fb-body">${esc(s[f.key])}</div>
+      </div>`;
+    }
+    fhtml += `</div>`;
+    el('feedback-card').innerHTML = fhtml;
+    el('feedback-card').style.display = '';
+  }
+}
+
+// ── Tooltip ───────────────────────────────────────────────────────────────────
+
+let _tipBtn = null;
+const _tip  = () => el('float-tip');
+
+window.showTip = function(btn) {
+  const t = _tip();
+  if (!t) return;
+  if (_tipBtn === btn && t.style.display === 'block') { t.style.display = 'none'; _tipBtn = null; return; }
+  t.innerHTML = btn.getAttribute('data-tip') || '';
+  t.style.display = 'block'; _tipBtn = btn;
+  requestAnimationFrame(() => {
+    const r = btn.getBoundingClientRect();
+    const tw = t.offsetWidth || 260; const th = t.offsetHeight || 120;
+    const vw = window.innerWidth;    const vh = window.innerHeight;
+    let left = r.left + r.width/2 - tw/2; let top = r.bottom + 8;
+    left = Math.max(10, Math.min(left, vw - tw - 10));
+    if (top + th > vh - 10) top = r.top - th - 8;
+    t.style.left = left + 'px'; t.style.top = top + 'px';
+  });
+};
+document.addEventListener('click', e => {
+  const t = _tip();
+  if (!t || t.style.display !== 'block') return;
+  if (e.target.closest && e.target.closest('.info-btn')) return;
+  t.style.display = 'none'; _tipBtn = null;
+});
+
+// ── Share ─────────────────────────────────────────────────────────────────────
+
+function shareScorecard() {
+  if (!_session) return;
+  const token = _session.share_token;
+  const url   = token
+    ? `https://app.agzit.com/scorecard-share?token=${encodeURIComponent(token)}`
+    : location.href;
+  navigator.clipboard.writeText(url).then(() => {
+    const toast = el('copy-toast');
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 2200);
+  }).catch(() => {});
+}
+
+// ── Download PDF ──────────────────────────────────────────────────────────────
+
+function downloadScorecard() {
+  if (!_session) return;
+  const s = _session;
+  const info = {
+    name:    s.full_name   || 'Candidate',
+    role:    s.interview_role || '',
+    overall: parseInt(s.mock_overall_score) || 0,
+    level:   s.mock_performance_level || '',
+  };
+  const scores = {};
+  for (const cs of CORE_SCORES) scores[cs.field] = parseInt(s[cs.field]) || 0;
+  const fb = {
+    strengths: s.mock_strengths       || '',
+    improve:   s.mock_improvements    || '',
+    focus:     s.mock_next_focus      || '',
+    attention: s.mock_attention_areas || '',
+  };
+  const win = window.open('', '_blank');
+  if (!win) { alert('Please allow pop-ups for this site.'); return; }
+  win.document.write(buildPdfHtml(info, scores, fb));
+  win.document.close();
+  win.onload = () => setTimeout(() => win.print(), 600);
+}
+
+function buildPdfHtml(info, sc, fb) {
+  function barCol(v) { if(v>=9) return '#16a34a'; if(v>=7) return '#0d9488'; if(v>=5) return '#d97706'; return '#dc2626'; }
+  const labels = { score_communication:'Communication', score_structure:'Structure', score_role_knowledge:'Role Knowledge', score_domain_application:'Domain Application', score_problem_solving:'Problem Solving', score_confidence:'Confidence', score_question_handling:'Q. Handling', score_experience_relevance:'Experience', score_resume_alignment:'Resume Fit' };
+  let rows = '';
+  for (const [k,lbl] of Object.entries(labels)) {
+    const v = sc[k]||0; const col = barCol(v);
+    rows += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span style="min-width:140px;font-size:12px;color:#475569;">${lbl}</span><div style="flex:1;height:8px;background:#E2E8F0;border-radius:999px;overflow:hidden;"><div style="width:${v*10}%;height:8px;background:${col};border-radius:999px;"></div></div><span style="min-width:30px;text-align:right;font-size:12px;font-weight:700;color:${col};">${v}/10</span></div>`;
+  }
+  function fblock(lbl,txt,col){return txt?`<div style="margin-bottom:14px;"><div style="font-size:11px;font-weight:800;color:${col};text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">${lbl}</div><div style="font-size:12px;color:#475569;line-height:1.7;white-space:pre-wrap;">${esc(txt)}</div></div>`:''}
+  const fbHtml = fblock('Strengths',fb.strengths,'#16a34a')+fblock('Areas to Improve',fb.improve,'#2563eb')+fblock('Next Focus',fb.focus,'#7C3AED')+fblock('Attention Areas',fb.attention,'#D97706');
+  const today = new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>AGZIT AI Scorecard — ${esc(info.name)}</title><style>body{margin:0;padding:32px 40px;font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:#1E293B;background:#fff;print-color-adjust:exact;-webkit-print-color-adjust:exact;}@media print{.no-print{display:none!important;}body{padding:16px 24px;}}</style></head><body>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:18px;border-bottom:2px solid #0A1A3A;margin-bottom:24px;"><div><div style="font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:#C9A24D;font-weight:800;margin-bottom:4px;">AGZIT AI</div><div style="font-size:20px;font-weight:900;color:#0A1A3A;">AI Mock Interview Scorecard</div></div><div style="text-align:right;font-size:11px;color:#94A3B8;">${today}<div style="margin-top:2px;">Candidate Copy</div></div></div>
+    <div style="margin-bottom:22px;"><div style="font-size:16px;font-weight:800;color:#0A1A3A;">${esc(info.name)}</div>${info.role?`<div style="font-size:12px;color:#64748B;margin-top:3px;">${esc(info.role)}</div>`:''}</div>
+    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:26px;"><div style="flex:1;min-width:140px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:16px 18px;text-align:center;"><div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#94A3B8;font-weight:700;margin-bottom:4px;">Overall Score</div><div style="font-size:42px;font-weight:900;color:#0A1A3A;letter-spacing:-2px;line-height:1;">${info.overall}<span style="font-size:14px;color:#CBD5E1;">/100</span></div></div><div style="flex:2;min-width:200px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:16px 18px;"><div style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#94A3B8;font-weight:700;margin-bottom:8px;">Readiness Level</div><div style="font-size:14px;font-weight:800;color:#0A1A3A;">${esc(info.level||'—')}</div></div></div>
+    <div style="font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#0A1A3A;margin-bottom:12px;">Core Competencies</div>${rows}
+    ${fbHtml?`<div style="margin-top:24px;padding-top:18px;border-top:1px solid #E2E8F0;"><div style="font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#0A1A3A;margin-bottom:14px;">Personalised Feedback</div>${fbHtml}</div>`:''}
+    <div style="margin-top:30px;padding-top:14px;border-top:1px solid #E2E8F0;font-size:10px;color:#94A3B8;display:flex;justify-content:space-between;"><span>AGZIT.com — AI Career Intelligence</span><span>agzit.com</span></div>
+    <div class="no-print" style="margin-top:20px;text-align:center;"><button onclick="window.print()" style="padding:10px 24px;background:#0A1A3A;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Save as PDF</button></div>
+  </body></html>`;
+}
+
+// ── Reveal ────────────────────────────────────────────────────────────────────
+
+function setupReveal() {
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
+  }, { threshold: 0.05 });
+  document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+}
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+
+(async function boot() {
+  // Auth check
+  const me = await fetch('/api/auth/me', { credentials: 'include' }).catch(() => null);
+  if (!me || !me.ok) {
+    location.href = '/login?redirect=' + encodeURIComponent(location.pathname + location.search);
+    return;
+  }
+  const meData = await me.json().catch(() => null);
+  if (!meData?.ok || meData.user?.role !== 'dpr_candidate') {
+    location.href = '/login';
+    return;
+  }
+
+  const params    = new URLSearchParams(location.search);
+  const sessionId = (params.get('session_id') || '').trim();
+  if (!sessionId) {
+    el('loading').style.display  = 'none';
+    el('err-title').textContent  = 'No session ID provided';
+    el('err-msg').textContent    = 'Add ?session_id=MIS-XXXXXXXX to the URL.';
+    el('error-state').style.display = '';
+    return;
+  }
+
+  try {
+    const res  = await fetch(`/api/candidate/scorecard?session_id=${encodeURIComponent(sessionId)}`, { credentials: 'include' });
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      el('loading').style.display  = 'none';
+      el('err-title').textContent  = data.error || 'Scorecard not found';
+      el('error-state').style.display = '';
+      return;
+    }
+
+    const s = data.session;
+    document.title = `Scorecard — ${s.interview_role || 'Mock Interview'} — AGZIT`;
+
+    // Session header
+    el('sh-role').textContent = s.interview_role || 'Mock Interview';
+    if (s.started_at) el('sh-date').textContent = fmtDate(s.started_at);
+    if (s.duration_minutes) el('sh-dur').textContent = s.duration_minutes + '-minute session';
+
+    // Render scorecard
+    renderScorecard(s);
+
+    el('loading').style.display = 'none';
+    el('main').style.display    = '';
+    requestAnimationFrame(() => setTimeout(setupReveal, 50));
+
+  } catch (err) {
+    el('loading').style.display  = 'none';
+    el('err-title').textContent  = 'Could not load scorecard';
+    el('err-msg').textContent    = 'Please try again later.';
+    el('error-state').style.display = '';
+    console.error('[scorecard]', err);
+  }
+})();
+</script>
+</body>
+</html>

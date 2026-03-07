@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Candidate Profile — AGZIT</title>
+  <title>DPR Profile — AGZIT</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
       --ink:      #09101F;
       --soft:     #3A4163;
@@ -20,467 +19,659 @@
       --green:    #0B7A47;
       --green-lt: #E4F5EE;
     }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--surface); color: var(--ink); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+    a { color: inherit; text-decoration: none; }
 
-    body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      background: var(--surface);
-      color: var(--ink);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
+    /* ── Loading ── */
+    #loading {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; flex-direction: column; gap: 14px;
     }
+    .spin { width: 36px; height: 36px; border: 3px solid var(--line); border-top-color: var(--blue); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .load-label { font-size: 13px; color: var(--muted); font-weight: 600; }
 
-    /* ── Nav ── */
-    nav {
-      background: #fff;
-      border-bottom: 1px solid var(--line);
-      padding: 0 1.5rem;
-      height: 60px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-    nav .logo { font-weight: 800; font-size: 1.2rem; color: var(--ink); text-decoration: none; }
-    nav .nav-links { display: flex; gap: 1.25rem; align-items: center; }
-    nav a { color: var(--soft); text-decoration: none; font-size: .9rem; }
-    nav a:hover { color: var(--blue); }
-
-    /* ── Layout ── */
-    .page { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; width: 100%; }
-
-    /* ── Hero card ── */
-    .hero-card {
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 2rem;
-      display: flex;
-      gap: 1.5rem;
-      align-items: flex-start;
-      margin-bottom: 1.25rem;
-    }
-    .avatar {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      background: var(--blue-lt);
-      color: var(--blue);
-      font-size: 1.75rem;
-      font-weight: 800;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      overflow: hidden;
-    }
-    .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-    .hero-info { flex: 1; }
-    .hero-name {
-      font-size: 1.4rem;
-      font-weight: 800;
-      color: var(--ink);
-      display: flex;
-      align-items: center;
-      gap: .6rem;
-      flex-wrap: wrap;
-    }
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: .3rem;
-      padding: .2rem .65rem;
-      border-radius: 999px;
-      font-size: .75rem;
-      font-weight: 600;
-    }
-    .badge-green  { background: var(--green-lt); color: var(--green); }
-    .badge-blue   { background: var(--blue-lt);  color: var(--blue); }
-    .badge-muted  { background: #F1F2F6; color: var(--muted); }
-    .hero-sub     { color: var(--soft); font-size: .95rem; margin-top: .4rem; }
-    .hero-meta    { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin-top: .75rem; font-size: .85rem; color: var(--muted); }
-    .hero-meta span::before { content: ''; display: inline-block; width: 4px; height: 4px; background: var(--muted); border-radius: 50%; margin-right: .4rem; vertical-align: middle; }
-
-    .hero-actions { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: 1.25rem; }
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: .4rem;
-      padding: .55rem 1.2rem;
-      border-radius: 8px;
-      font-size: .9rem;
-      font-weight: 700;
-      cursor: pointer;
-      border: none;
-      text-decoration: none;
-      transition: opacity .15s;
-      font-family: inherit;
-    }
-    .btn:hover { opacity: .88; }
-    .btn-primary { background: var(--blue);    color: #fff; }
-    .btn-outline { background: transparent;    color: var(--blue); border: 1.5px solid var(--blue); }
-    .btn-success { background: var(--green);   color: #fff; }
-    .btn-sm      { padding: .4rem .9rem; font-size: .82rem; }
-
-    /* ── Verified badges row ── */
-    .verify-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: .5rem;
-      padding: 1rem 1.25rem;
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      margin-bottom: 1.25rem;
-    }
-
-    /* ── Section card ── */
-    .section {
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      margin-bottom: 1.25rem;
-      overflow: hidden;
-    }
-    .section-head {
-      padding: 1rem 1.5rem;
-      border-bottom: 1px solid var(--line);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .section-title { font-size: 1rem; font-weight: 700; color: var(--ink); }
-    .section-body  { padding: 1.25rem 1.5rem; }
-
-    /* ── Key-value pairs ── */
-    .kv-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 1rem;
-    }
-    .kv { display: flex; flex-direction: column; gap: .2rem; }
-    .kv-label { font-size: .75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
-    .kv-value { font-size: .9rem; color: var(--ink); }
-    .kv-masked { color: var(--muted); font-style: italic; }
-
-    /* ── Work experience ── */
-    .exp-item { padding: 1rem 0; border-bottom: 1px solid var(--line); }
-    .exp-item:last-child { border-bottom: none; padding-bottom: 0; }
-    .exp-title { font-weight: 700; font-size: .95rem; color: var(--ink); }
-    .exp-company { font-size: .88rem; color: var(--soft); margin-top: .2rem; }
-    .exp-period  { font-size: .8rem; color: var(--muted); margin-top: .2rem; }
-    .exp-desc { font-size: .85rem; color: var(--soft); margin-top: .5rem; line-height: 1.55; }
-
-    /* ── Skills pills ── */
-    .pills { display: flex; flex-wrap: wrap; gap: .4rem; }
-    .pill  { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: .25rem .7rem; font-size: .8rem; color: var(--soft); }
-
-    /* ── Locked overlay ── */
-    .locked-notice {
-      background: var(--blue-lt);
-      border: 1px solid #BFDBFE;
-      border-radius: 10px;
-      padding: 1rem 1.25rem;
+    /* ── Error / Not-found ── */
+    #error-state {
+      display: none; max-width: 560px; margin: 80px auto; padding: 32px;
+      background: #fff; border: 1px solid var(--line); border-radius: 16px;
       text-align: center;
-      margin: .75rem 0;
     }
-    .locked-notice p { color: var(--blue); font-size: .9rem; font-weight: 600; }
-    .locked-notice small { color: var(--soft); font-size: .8rem; display: block; margin-top: .25rem; }
+    #error-state h2 { font-size: 20px; font-weight: 800; margin-bottom: 10px; }
+    #error-state p  { font-size: 14px; color: var(--muted); line-height: 1.7; }
 
-    /* ── Toast ── */
-    #toast {
-      position: fixed;
-      bottom: 1.5rem;
-      left: 50%;
-      transform: translateX(-50%) translateY(80px);
+    /* ── Main (hidden until loaded) ── */
+    #main { display: none; }
+
+    /* ── Hero ── */
+    .hero {
       background: var(--ink);
-      color: #fff;
-      padding: .7rem 1.5rem;
-      border-radius: 8px;
-      font-size: .9rem;
-      font-weight: 600;
-      opacity: 0;
-      transition: all .3s;
-      z-index: 999;
-      white-space: nowrap;
+      padding: 52px 32px 44px;
+      position: relative; overflow: hidden;
     }
-    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 28px 28px; pointer-events: none;
+    }
+    .hero-glow {
+      position: absolute; width: 400px; height: 400px; border-radius: 50%;
+      filter: blur(110px); background: rgba(26,68,194,0.22);
+      top: -100px; right: -60px; pointer-events: none;
+    }
+    .hero-inner {
+      position: relative; z-index: 2;
+      max-width: 1120px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 24px; flex-wrap: wrap;
+    }
+    .hero-left  { display: flex; align-items: center; gap: 18px; }
+    .hero-right { text-align: right; flex-shrink: 0; }
+    .avatar {
+      width: 64px; height: 64px; border-radius: 16px;
+      background: var(--blue); display: flex; align-items: center;
+      justify-content: center; font-size: 24px; font-weight: 800;
+      color: #fff; flex-shrink: 0; border: 2px solid rgba(26,68,194,0.4);
+    }
+    .hero-eyebrow { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #7B9FFF; margin-bottom: 6px; }
+    .hero-name  { font-size: clamp(18px,3vw,28px); font-weight: 800; color: #fff; letter-spacing: -0.5px; line-height: 1.15; margin-bottom: 8px; }
+    .hero-tags  { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .hero-role  { font-size: 13px; color: rgba(255,255,255,0.5); }
+    .hero-loc   { font-size: 12px; color: rgba(255,255,255,0.3); }
+    .hero-ofw   {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--green-lt); border: 1px solid #A7F3D0; color: var(--green);
+      padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700;
+    }
+    .ofw-dot    { width: 5px; height: 5px; background: var(--green); border-radius: 50%; display: inline-block; }
+    .hero-li    { font-size: 12px; font-weight: 700; color: #7B9FFF; }
+    .dpr-badge  {
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 12px; padding: 12px 18px; margin-bottom: 10px;
+    }
+    .dpr-eyebrow { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: rgba(255,255,255,0.3); margin-bottom: 4px; }
+    .dpr-id-val  { font-family: ui-monospace, monospace; font-size: 14px; font-weight: 800; color: #fff; letter-spacing: 1px; }
+    .dpr-issued  { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 4px; }
+    .views-chip  { font-size: 11px; color: rgba(255,255,255,0.25); }
+    .hero-divider { height: 1px; background: #1E2640; }
 
-    #loading-state { padding: 3rem; text-align: center; color: var(--muted); }
-    #error-state   { display: none; padding: 3rem; text-align: center; color: var(--muted); }
+    /* ── Body layout ── */
+    .body-wrap { max-width: 1120px; margin: 0 auto; padding: 24px 24px 60px; }
+    .body-grid  { display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 20px; align-items: start; }
+    .left-col   { display: grid; gap: 12px; }
+    .right-col  { display: grid; gap: 12px; position: sticky; top: 24px; align-self: start; }
 
-    @media (max-width: 600px) {
-      .hero-card { flex-direction: column; }
-      .kv-grid   { grid-template-columns: 1fr 1fr; }
+    /* ── Cards ── */
+    .card {
+      background: #fff; border: 1px solid var(--line); border-radius: 14px;
+      padding: 20px 22px;
+      box-shadow: 0 2px 4px rgba(9,16,31,0.03), 0 8px 24px rgba(9,16,31,0.06);
+    }
+    .card-surface { background: var(--surface); }
+    .card-blue    { border-color: #C7D7F8; background: linear-gradient(160deg, #fff 0%, var(--blue-lt) 100%); }
+
+    /* ── Section heading ── */
+    .sec-head {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 16px; flex-wrap: wrap; gap: 8px;
+    }
+    .sec-title-wrap { display: flex; align-items: center; gap: 10px; }
+    .sec-bar  { width: 3px; height: 20px; background: linear-gradient(180deg,var(--blue),rgba(26,68,194,0.28)); border-radius: 2px; flex-shrink: 0; }
+    .sec-title { font-weight: 800; color: var(--ink); font-size: 15px; }
+    .sec-sub   { color: var(--muted); font-size: 12px; }
+
+    /* ── KV label ── */
+    .kv { margin-bottom: 8px; }
+    .kv-label { font-size: 11px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 2px; }
+    .kv-value { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+
+    /* ── Chips ── */
+    .chip {
+      display: inline-block; background: var(--surface); border: 1px solid var(--line);
+      padding: 5px 12px; border-radius: 999px; font-size: 12.5px;
+      color: var(--soft); font-weight: 500; margin: 4px 4px 0 0;
+    }
+
+    /* ── Work exp / edu / cert rows ── */
+    .exp-row {
+      padding: 16px; border: 1px solid var(--line); border-radius: 12px;
+      background: #fff; margin-bottom: 10px;
+    }
+    .exp-row:last-child { margin-bottom: 0; }
+    .exp-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+    .exp-title { font-weight: 800; color: var(--ink); font-size: 15px; }
+    .exp-date  { color: #94A3B8; font-size: 12.5px; white-space: nowrap; }
+    .exp-co    { margin-top: 5px; font-size: 13.5px; color: var(--blue); font-weight: 600; }
+    .exp-loc   { margin-top: 3px; font-size: 12.5px; color: #94A3B8; }
+    .exp-resp  { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+    .resp-label { font-size: 11px; font-weight: 800; color: #94A3B8; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 8px; }
+    .resp-list  { list-style: none; display: grid; gap: 6px; }
+    .resp-item  { display: flex; align-items: flex-start; gap: 8px; font-size: 13.5px; color: var(--soft); line-height: 1.7; }
+    .resp-dot   { color: var(--blue); font-size: 9px; flex-shrink: 0; margin-top: 6px; }
+    .resp-prose { color: #374151; line-height: 1.8; font-size: 13.5px; }
+
+    /* ── Performance badge ── */
+    .perf-badge {
+      display: inline-block; padding: 4px 13px; border-radius: 999px;
+      font-size: 12px; font-weight: 800;
+    }
+    .perf-row {
+      padding: 18px; border: 1px solid var(--line); border-radius: 12px;
+      background: #fff; margin-bottom: 10px;
+    }
+    .perf-row:last-child { margin-bottom: 0; }
+    .perf-head  { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .perf-role  { font-weight: 800; color: var(--ink); font-size: 14.5px; }
+    .perf-date  { font-size: 12px; color: #94A3B8; }
+    .perf-note  { margin-top: 10px; font-size: 12.5px; color: #94A3B8; }
+
+    /* ── Verified badge ── */
+    .verified-badge {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 16px; border-radius: 12px;
+      background: linear-gradient(135deg,rgba(11,122,71,0.06),rgba(11,122,71,0.10));
+      border: 1px solid rgba(11,122,71,0.20);
+    }
+    .verified-icon {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--green-lt); display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0;
+    }
+    .verified-check { width: 16px; height: 16px; background: var(--green); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .verified-check::after { content: ''; display: block; width: 7px; height: 4px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg) translate(1px,-1px); }
+    .verified-title { font-size: 13px; font-weight: 800; color: var(--green); }
+    .verified-sub   { font-size: 11.5px; color: #0B7A47; margin-top: 2px; line-height: 1.5; }
+
+    /* ── Resume button ── */
+    .resume-btn {
+      display: block; width: 100%; background: var(--ink); color: #fff;
+      padding: 11px 16px; border-radius: 11px; text-align: center;
+      font-weight: 800; font-size: 13px; margin-top: 10px;
+    }
+
+    /* ── AI info banner ── */
+    .ai-info {
+      padding: 10px 14px; background: var(--blue-lt);
+      border: 1px solid #C7D7F8; border-radius: 10px;
+      font-size: 12.5px; color: var(--blue); line-height: 1.6; margin-bottom: 14px;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      background: var(--ink); padding: 36px 32px;
+      text-align: center; position: relative; overflow: hidden;
+    }
+    .footer-glow {
+      position: absolute; top: -40px; left: 50%; transform: translateX(-50%);
+      width: 400px; height: 200px;
+      background: radial-gradient(ellipse, rgba(26,68,194,0.25) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .footer-inner { position: relative; z-index: 2; }
+    .footer-eyebrow { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #7B9FFF; margin-bottom: 8px; }
+    .footer-sub     { font-size: 13px; color: rgba(255,255,255,0.3); margin: 0 0 16px; line-height: 1.6; }
+    .footer-cta {
+      display: inline-block; background: #fff; color: var(--ink);
+      border-radius: 9px; padding: 10px 20px;
+      font-size: 13px; font-weight: 700; box-shadow: 0 3px 14px rgba(0,0,0,0.2);
+    }
+
+    /* ── Reveal animation ── */
+    .reveal { opacity: 0; transform: translateY(16px); transition: opacity .4s ease, transform .4s ease; }
+    .reveal.visible { opacity: 1; transform: none; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .body-grid   { grid-template-columns: 1fr; }
+      .right-col   { position: static; }
+      .hero-inner  { flex-direction: column; gap: 16px; }
+      .hero-right  { text-align: left; }
+      .body-wrap   { padding: 20px 16px 48px; }
+    }
+    @media (max-width: 480px) {
+      .hero        { padding: 36px 16px 32px; }
+      .body-wrap   { padding: 16px 12px 40px; }
     }
   </style>
 </head>
 <body>
 
-<nav>
-  <a class="logo" href="/">AGZIT</a>
-  <div class="nav-links">
-    <a href="/employer">Dashboard</a>
-    <a href="/logout">Log out</a>
+<div id="loading">
+  <div class="spin"></div>
+  <div class="load-label">Loading profile...</div>
+</div>
+
+<div id="error-state">
+  <h2 id="err-title">Profile Not Found</h2>
+  <p id="err-msg">This DPR ID may be incorrect or the profile has been set to private.</p>
+</div>
+
+<div id="main">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-glow"></div>
+    <div class="hero-inner">
+      <div class="hero-left">
+        <div class="avatar" id="hero-avatar"></div>
+        <div>
+          <div class="hero-eyebrow">DPR Profile</div>
+          <div class="hero-name" id="hero-name"></div>
+          <div class="hero-tags">
+            <span class="hero-role" id="hero-role" style="display:none"></span>
+            <span class="hero-loc"  id="hero-loc"  style="display:none"></span>
+            <span class="hero-ofw" id="hero-ofw" style="display:none"><span class="ofw-dot"></span>Open for Work</span>
+            <a class="hero-li" id="hero-li" style="display:none" target="_blank" rel="nofollow noopener">LinkedIn</a>
+          </div>
+        </div>
+      </div>
+      <div class="hero-right">
+        <div class="dpr-badge">
+          <div class="dpr-eyebrow">AGZIT DPR</div>
+          <div class="dpr-id-val" id="hero-dpr-id"></div>
+          <div class="dpr-issued" id="hero-issued" style="display:none"></div>
+        </div>
+        <div class="views-chip" id="hero-views"></div>
+      </div>
+    </div>
   </div>
-</nav>
+  <div class="hero-divider"></div>
 
-<div id="loading-state" class="page">Loading candidate profile...</div>
-<div id="error-state"   class="page"><p>Candidate not found or not available.</p></div>
-<div id="profile-page"  class="page" style="display:none"></div>
+  <!-- BODY -->
+  <div class="body-wrap">
+  <div class="body-grid">
 
-<div id="toast"></div>
+    <!-- LEFT COLUMN -->
+    <div class="left-col" id="left-col"></div>
+
+    <!-- RIGHT COLUMN (sidebar) -->
+    <div class="right-col" id="right-col"></div>
+
+  </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-glow"></div>
+    <div class="footer-inner">
+      <div class="footer-eyebrow">Powered by AGZIT AI</div>
+      <p class="footer-sub">Verified via AGZIT DPR &mdash; Digital Professional Record</p>
+      <a class="footer-cta" href="https://agzit.com/dpr-registration/">Create Free DPR ID &rarr;</a>
+    </div>
+  </div>
+
+</div><!-- #main -->
 
 <script>
-const params = new URLSearchParams(window.location.search);
-const DPR_ID = params.get('dpr_id');
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-function showToast(msg, dur = 3000) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), dur);
-}
+function el(id) { return document.getElementById(id); }
+function show(e) { e.style.display = ''; }
+function hide(e) { e.style.display = 'none'; }
+function esc(s)  { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-function esc(s) {
+function fmtDate(s, mode) {
   if (!s) return '';
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return s;
+  const opts = mode === 'MY' ? { month: 'short', year: 'numeric' }
+             : mode === 'MDY' ? { month: 'short', day: 'numeric', year: 'numeric' }
+             : { month: 'short', year: 'numeric' };
+  return d.toLocaleDateString('en-GB', opts);
 }
 
-function pill(v) { return v ? `<span class="pill">${esc(v)}</span>` : ''; }
-
-function formatDate(d) {
-  if (!d) return 'Present';
-  const dt = new Date(d);
-  if (isNaN(dt)) return d;
-  return dt.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+function titleCase(s) {
+  return String(s || '').replace(/[_\-]/g,' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
-(async () => {
-  if (!DPR_ID) {
-    document.getElementById('loading-state').style.display = 'none';
-    document.getElementById('error-state').style.display   = 'block';
+const PERF_COLORS = {
+  'Interview Ready':           { bg: '#DCFCE7', bd: '#86EFAC', tx: '#166534' },
+  'Strong Potential':          { bg: '#DBEAFE', bd: '#93C5FD', tx: '#1D4ED8' },
+  'Developing Professional':   { bg: '#CCFBF1', bd: '#5EEAD4', tx: '#0F766E' },
+  'Needs Structured Practice': { bg: '#FEF3C7', bd: '#FCD34D', tx: '#92400E' },
+  'Foundation Level':          { bg: '#FEE2E2', bd: '#FCA5A5', tx: '#991B1B' },
+};
+function perfBadge(level) {
+  const c = PERF_COLORS[level] || { bg: '#F1F5F9', bd: '#CBD5E1', tx: '#475569' };
+  return `<span class="perf-badge" style="background:${c.bg};border:1px solid ${c.bd};color:${c.tx};">${esc(level)}</span>`;
+}
+
+function secHead(title, sub) {
+  return `<div class="sec-head">
+    <div class="sec-title-wrap">
+      <span class="sec-bar"></span>
+      <span class="sec-title">${esc(title)}</span>
+    </div>
+    ${sub ? `<span class="sec-sub">${esc(sub)}</span>` : ''}
+  </div>`;
+}
+
+function chip(text) {
+  return `<span class="chip">${esc(text)}</span>`;
+}
+
+function kv(label, value) {
+  if (!value) return '';
+  return `<div class="kv">
+    <div class="kv-label">${esc(label)}</div>
+    <div class="kv-value">${esc(value)}</div>
+  </div>`;
+}
+
+function renderBulletList(text) {
+  const lines = text.split(/\n/).map(l => l.trim()).filter(Boolean);
+  const isList = lines.some(l => /^[-•*·]|\d+[.\)]/.test(l));
+  if (isList) {
+    const items = lines.map(l => l.replace(/^[-•*·]\s*|\d+[.\)]\s*/, ''));
+    return `<ul class="resp-list">${items.map(i => `<li class="resp-item"><span class="resp-dot">&#9679;</span>${esc(i)}</li>`).join('')}</ul>`;
+  }
+  // Prose
+  const paras = text.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
+  return paras.map(p => `<p class="resp-prose">${esc(p).replace(/\n/g,'<br>')}</p>`).join('');
+}
+
+// ── Reveal animation ──────────────────────────────────────────────────────────
+
+function setupReveal() {
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+}
+
+// ── Render functions ──────────────────────────────────────────────────────────
+
+function renderLeft(p) {
+  const left = el('left-col');
+  let html = '';
+
+  // Professional Summary
+  if (p.professional_summary_bio) {
+    const paras = String(p.professional_summary_bio).split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
+    html += `<div class="card reveal">
+      ${secHead('Professional Summary')}
+      ${paras.map(para => `<p style="margin-bottom:12px;color:#374151;line-height:1.85;font-size:14.5px;">${esc(para).replace(/\n/g,'<br>')}</p>`).join('')}
+    </div>`;
+  }
+
+  // Skills & Expertise
+  const skills = String(p.soft_skills || '');
+  const domains = Array.isArray(p.compliance_domains) ? p.compliance_domains : (p.compliance_domains ? [p.compliance_domains] : []);
+  if (skills || domains.length) {
+    let skillHtml = '';
+    if (skills) {
+      const items = skills.split(',').map(s => s.trim()).filter(Boolean);
+      if (items.length > 1) {
+        skillHtml += `<ul style="list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:7px 20px;">
+          ${items.map(i => `<li class="resp-item"><span class="resp-dot">&#9679;</span>${esc(i)}</li>`).join('')}
+        </ul>`;
+      } else {
+        skillHtml += `<p style="color:#374151;line-height:1.85;font-size:14px;">${esc(skills)}</p>`;
+      }
+    }
+    if (domains.length) {
+      skillHtml += `<div style="margin-top:14px;">
+        <div style="font-size:11px;font-weight:800;color:#94A3B8;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Industry / Functional Area</div>
+        ${domains.filter(Boolean).map(d => chip(titleCase(d))).join('')}
+      </div>`;
+    }
+    html += `<div class="card reveal">${secHead('Skills & Expertise')}${skillHtml}</div>`;
+  }
+
+  // Work Experience
+  html += `<div class="card reveal">${secHead('Work Experience')}`;
+  if (p.work_experience && p.work_experience.length) {
+    html += `<div>`;
+    for (const w of p.work_experience) {
+      const isCurrent = w.Currently_working === '1' || w.Currently_working === 'true' || w.Currently_working === true;
+      const sd = fmtDate(w.start_date, 'MY');
+      const ed = isCurrent ? 'Present' : (w.end_date ? fmtDate(w.end_date, 'MY') : '');
+      const dl = [sd, ed].filter(Boolean).join(' – ');
+      const loc = [w.office_city, w.office_country].filter(Boolean).join(', ');
+      html += `<div class="exp-row">
+        <div class="exp-head">
+          <div class="exp-title">${esc(w.job_title || 'Role')}</div>
+          ${dl ? `<div class="exp-date">${esc(dl)}</div>` : ''}
+        </div>
+        ${w.company_name ? `<div class="exp-co">${esc(w.company_name)}</div>` : ''}
+        ${loc ? `<div class="exp-loc">${esc(loc)}</div>` : ''}
+        ${w.key_responsibilities ? `<div class="exp-resp">
+          <div class="resp-label">Key Responsibilities</div>
+          ${renderBulletList(w.key_responsibilities)}
+        </div>` : ''}
+      </div>`;
+    }
+    html += `</div>`;
+  } else {
+    html += `<div style="color:#94A3B8;font-size:14px;">No work experience added yet.</div>`;
+  }
+  html += `</div>`;
+
+  // Education
+  html += `<div class="card reveal">${secHead('Education')}`;
+  if (p.education && p.education.length) {
+    html += `<div>`;
+    for (const e of p.education) {
+      const sd = fmtDate(e.edu_start_date, 'MY');
+      const ed = e.edu_end_date ? fmtDate(e.edu_end_date, 'MY') : '';
+      const dl = [sd, ed].filter(Boolean).join(' – ');
+      const loc = [e.edu_city, e.edu_country].filter(Boolean).join(', ');
+      html += `<div class="exp-row">
+        <div class="exp-head">
+          <div class="exp-title">${esc(e.degree || 'Degree')}</div>
+          ${dl ? `<div class="exp-date">${esc(dl)}</div>` : ''}
+        </div>
+        ${e.institution_name ? `<div class="exp-co">${esc(e.institution_name)}</div>` : ''}
+        ${loc ? `<div class="exp-loc">${esc(loc)}</div>` : ''}
+      </div>`;
+    }
+    html += `</div>`;
+  } else {
+    html += `<div style="color:#94A3B8;font-size:14px;">No education added yet.</div>`;
+  }
+  html += `</div>`;
+
+  // Certifications
+  html += `<div class="card reveal">${secHead('Certifications & Licenses', 'Professional credentials')}`;
+  if (p.certifications && p.certifications.length) {
+    html += `<div>`;
+    for (const c of p.certifications) {
+      const issued  = fmtDate(c.cert_issue_date, 'MY');
+      const expires = c.cert_expiry_date ? fmtDate(c.cert_expiry_date, 'MY') : '';
+      const dl = [issued, expires ? 'Expires ' + expires : ''].filter(Boolean).join(' – ');
+      html += `<div class="exp-row">
+        <div class="exp-head">
+          <div class="exp-title">${esc(c.certification_name || 'Certification')}</div>
+          ${dl ? `<div class="exp-date">${esc(dl)}</div>` : ''}
+        </div>
+        ${c.issuing_organization ? `<div class="exp-co">${esc(c.issuing_organization)}</div>` : ''}
+        ${c.credential_id ? `<div class="exp-loc">Credential ID: <strong>${esc(c.credential_id)}</strong></div>` : ''}
+      </div>`;
+    }
+    html += `</div>`;
+  } else {
+    html += `<div style="color:#94A3B8;font-size:14px;">No certifications added yet.</div>`;
+  }
+  html += `</div>`;
+
+  // AI Mock Interview Performance
+  const scored = (p.mock_sessions || []).filter(s => s.mock_performance_level);
+  if (scored.length) {
+    html += `<div class="card reveal">
+      ${secHead('AI Mock Interview Performance', `Last ${scored.length} completed`)}
+      <div class="ai-info">Performance level from AGZIT AI Mock Interviews. Detailed scorecard available to the candidate.</div>
+      <div>`;
+    for (const s of scored) {
+      const dt = s.started_at ? fmtDate(s.started_at, 'MDY') : '';
+      html += `<div class="perf-row">
+        <div class="perf-head">
+          <div class="perf-role">${esc(s.interview_role || 'Mock Interview')}</div>
+          ${dt ? `<div class="perf-date">${esc(dt)}</div>` : ''}
+        </div>
+        ${s.mock_performance_level ? perfBadge(s.mock_performance_level) : ''}
+        <div class="perf-note">Full scorecard visible to candidate only.</div>
+      </div>`;
+    }
+    html += `</div></div>`;
+  }
+
+  left.innerHTML = html;
+}
+
+function renderRight(p) {
+  const right = el('right-col');
+  let html = '';
+
+  // Quick Facts
+  const countryNat = Array.isArray(p.country_of_nationality) ? p.country_of_nationality[0] : p.country_of_nationality;
+  const countryRes = Array.isArray(p.residential_country)   ? p.residential_country[0]   : p.residential_country;
+  const loc = [p.residential_city, p.residential_state, countryRes].filter(Boolean).join(', ');
+  let qf = `<div class="sec-head"><div class="sec-title-wrap"><span class="sec-bar"></span><span class="sec-title">Quick Facts</span></div></div><div style="display:grid;gap:10px;">`;
+  qf += kv('Employment Status', titleCase(p.current_employment_status));
+  if (p.total_work_experience) qf += kv('Work Experience', p.total_work_experience + ' years');
+  if (p.notice_period_in_days) qf += kv('Notice Period', p.notice_period_in_days + ' days');
+  qf += kv('Target Role', p.desired_role);
+  qf += kv('Open to Relocate', (p.open_to_relocate === '1' || p.open_to_relocate === true) ? 'Yes' : 'No');
+  if (countryNat) qf += kv('Nationality', countryNat);
+  if (loc)        qf += kv('Location', loc);
+  qf += `</div>`;
+  html += `<div class="card card-surface reveal">${qf}</div>`;
+
+  // Tools & Languages
+  const tools = (p.compliance_tools || []).map(t => t.tool_name).filter(Boolean);
+  const langs  = (p.language_proficiency || []).map(l => l.language).filter(Boolean);
+  if (tools.length || langs.length) {
+    let tl = secHead('Tools & Languages');
+    if (tools.length) {
+      tl += `<div style="margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:800;color:#94A3B8;letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;">Tools & Software</div>
+        ${tools.map(t => chip(t)).join('')}
+      </div>`;
+    }
+    if (langs.length) {
+      tl += `<div>
+        <div style="font-size:11px;font-weight:800;color:#94A3B8;letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;">Languages</div>
+        ${langs.map(l => chip(l)).join('')}
+      </div>`;
+    }
+    html += `<div class="card reveal">${tl}</div>`;
+  }
+
+  // Resume (public only)
+  if (p.resume_visibility !== 're_private') {
+    let rs = `<div style="font-size:9.5px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--blue);margin-bottom:6px;">Resume</div>
+      <div style="font-weight:800;color:var(--ink);font-size:15px;margin-bottom:6px;">Candidate Resume</div>`;
+    if (p.resume_url && p.resume_visibility === 're_public') {
+      rs += `<div style="font-size:13px;color:#64748B;margin-bottom:10px;">Publicly available.</div>
+        <a class="resume-btn" href="${esc(p.resume_url)}" target="_blank" rel="nofollow noopener">Download Resume</a>`;
+    } else {
+      rs += `<div style="font-size:13px;color:#94A3B8;">Resume available to verified employers only.</div>`;
+    }
+    html += `<div class="card card-blue reveal">${rs}</div>`;
+  }
+
+  // AGZIT Verified badge
+  html += `<div class="card reveal">
+    <div class="verified-badge">
+      <div class="verified-icon"><div class="verified-check"></div></div>
+      <div>
+        <div class="verified-title">Verified by AGZIT AI</div>
+        <div class="verified-sub">Profile identity verified via AGZIT Digital Professional Record system.</div>
+      </div>
+    </div>
+  </div>`;
+
+  // Privacy note
+  html += `<div class="card card-surface reveal">
+    <div style="font-size:11px;font-weight:800;color:#94A3B8;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Privacy &amp; Access</div>
+    <div style="color:#94A3B8;line-height:1.7;font-size:12.5px;">Salary and residential address are never shown publicly. Contact details and documents require verified employer access.</div>
+  </div>`;
+
+  right.innerHTML = html;
+}
+
+function applyDisplayName(p) {
+  let name = p.full_name || 'DPR Profile';
+  if (p.public_name_mode === 'initials' && p.full_name) {
+    const parts = p.full_name.trim().split(/\s+/);
+    name = parts.length >= 2
+      ? parts[0][0] + '. ' + parts[parts.length - 1]
+      : parts[0][0] + '.';
+  }
+  return name;
+}
+
+// ── Boot ─────────────────────────────────────────────────────────────────────
+
+(async function boot() {
+  const params = new URLSearchParams(location.search);
+  const dprId  = (params.get('dpr_id') || '').trim();
+
+  if (!dprId) {
+    hide(el('loading'));
+    el('err-title').textContent = 'No DPR ID provided';
+    el('err-msg').textContent   = 'Add ?dpr_id=DPR-XXXXXXXXXX to the URL.';
+    show(el('error-state'));
     return;
   }
 
   try {
-    const res  = await fetch(`/api/employer/profile-view?dpr_id=${encodeURIComponent(DPR_ID)}`, { credentials: 'include' });
+    const res  = await fetch('/api/profile?dpr_id=' + encodeURIComponent(dprId));
     const data = await res.json();
 
-    document.getElementById('loading-state').style.display = 'none';
-
     if (!res.ok || !data.ok) {
-      document.getElementById('error-state').style.display = 'block';
+      hide(el('loading'));
+      el('err-title').textContent = data.error || 'Profile not found';
+      show(el('error-state'));
       return;
     }
 
-    const c = data.candidate;
-    const isUnlocked = data.is_unlocked;
-    const page = document.getElementById('profile-page');
-    page.style.display = 'block';
+    const p = data.profile;
+    document.title = `${p.full_name || 'DPR Profile'} — AGZIT`;
 
-    // Avatar initials
-    const initials = (c.full_name || 'C').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-    const avatarHTML = c.profile_photo
-      ? `<img src="${esc(c.profile_photo)}" alt="Photo">`
-      : initials;
+    const displayName = applyDisplayName(p);
 
-    // Badges
-    const verifiedBadges = [
-      c.id_verified          && '<span class="badge badge-green">ID Verified</span>',
-      c.experience_verified  && '<span class="badge badge-green">Exp. Verified</span>',
-      c.certificate_verified && '<span class="badge badge-green">Cert. Verified</span>',
-    ].filter(Boolean).join('');
+    // Hero
+    el('hero-avatar').textContent = displayName[0].toUpperCase();
+    el('hero-name').textContent   = displayName;
+    el('hero-dpr-id').textContent = p.dpr_id || dprId;
 
-    const openBadge = c.open_for_work_badge
-      ? '<span class="badge badge-green">Open to Work</span>'
-      : '';
+    if (p.desired_role)      { el('hero-role').textContent = p.desired_role; show(el('hero-role')); }
+    const countryRes = Array.isArray(p.residential_country) ? p.residential_country[0] : p.residential_country;
+    const locStr = [p.residential_city, countryRes].filter(Boolean).join(', ');
+    if (locStr) { el('hero-loc').textContent = locStr; show(el('hero-loc')); }
+    if (p.open_for_work_badge === '1' || p.open_for_work_badge === true) show(el('hero-ofw'));
+    if (p.linkedin_url) {
+      const li = el('hero-li');
+      li.href = p.linkedin_url;
+      li.textContent = '↗ LinkedIn';
+      show(li);
+    }
+    if (p.issue_date) {
+      const issued = el('hero-issued');
+      issued.textContent = 'Issued ' + fmtDate(p.issue_date, 'MDY');
+      show(issued);
+    }
+    el('hero-views').textContent = p.dpr_id_view_count + ' views';
 
-    // Contact fields
-    const emailDisplay = c.email_address
-      ? (isUnlocked || c.contact_visibility === 'co_public'
-          ? `<span class="kv-value"><a href="mailto:${esc(c.email_address)}" style="color:var(--blue)">${esc(c.email_address)}</a></span>`
-          : `<span class="kv-value kv-masked">${esc(c.email_address)}</span>`)
-      : '<span class="kv-value kv-masked">Not available</span>';
+    // Render sections
+    renderLeft(p);
+    renderRight(p);
 
-    const phoneDisplay = c.phone_number
-      ? `<span class="kv-value ${isUnlocked || c.contact_visibility === 'co_public' ? '' : 'kv-masked'}">${esc(c.phone_number)}</span>`
-      : '<span class="kv-value kv-masked">Not available</span>';
+    hide(el('loading'));
+    show(el('main'));
 
-    const linkedinDisplay = c.linkedin_url
-      ? `<a href="${esc(c.linkedin_url)}" target="_blank" rel="noopener" style="color:var(--blue);font-size:.9rem">View LinkedIn</a>`
-      : (isUnlocked ? '<span style="color:var(--muted);font-size:.9rem">Not provided</span>' : '');
+    // Reveal animation
+    requestAnimationFrame(() => setTimeout(setupReveal, 50));
 
-    // Unlock button
-    const unlockBtn = isUnlocked
-      ? `<span class="btn btn-success btn-sm">Unlocked</span>`
-      : `<button class="btn btn-primary btn-sm" onclick="unlockProfile()">Unlock Full Profile</button>`;
-
-    // Resume
-    const resumeBtn = c.resume_upload && isUnlocked
-      ? `<a href="/api/candidate/resume?dpr_id=${encodeURIComponent(DPR_ID)}" class="btn btn-outline btn-sm" target="_blank">Download Resume</a>`
-      : (isUnlocked ? '' : `<span style="color:var(--muted);font-size:.85rem">Unlock profile to view resume</span>`);
-
-    // Locked notice
-    const lockedNotice = isUnlocked ? '' : `
-      <div class="locked-notice">
-        <p>Unlock this profile to view contact details, CTC, LinkedIn and resume.</p>
-        <small>Uses 1 of your 5 daily unlocks</small>
-      </div>`;
-
-    // Work experience
-    const workHTML = (c.work_experience || []).length === 0
-      ? '<p style="color:var(--muted);font-size:.9rem">No work experience listed.</p>'
-      : c.work_experience.map(e => `
-          <div class="exp-item">
-            <div class="exp-title">${esc(e.job_title || 'Role not specified')}</div>
-            <div class="exp-company">${esc(e.company_name || '')}${e.office_city ? ', ' + esc(e.office_city) : ''}${e.office_country ? ' — ' + esc(e.office_country) : ''}</div>
-            <div class="exp-period">${formatDate(e.start_date)} — ${e.Currently_working === '1' ? 'Present' : formatDate(e.end_date)}${e.employment_type ? ' &middot; ' + esc(e.employment_type) : ''}</div>
-            ${e.key_responsibilities ? `<div class="exp-desc">${esc(e.key_responsibilities)}</div>` : ''}
-          </div>`).join('');
-
-    // Education
-    const eduHTML = (c.education || []).length === 0
-      ? '<p style="color:var(--muted);font-size:.9rem">No education listed.</p>'
-      : c.education.map(e => `
-          <div class="exp-item">
-            <div class="exp-title">${esc(e.degree || 'Degree not specified')}</div>
-            <div class="exp-company">${esc(e.institution_name || '')}${e.edu_city ? ', ' + esc(e.edu_city) : ''}${e.edu_country ? ' — ' + esc(e.edu_country) : ''}</div>
-            <div class="exp-period">${formatDate(e.edu_start_date)} — ${formatDate(e.edu_end_date)}</div>
-          </div>`).join('');
-
-    // Skills
-    const skills = (c.soft_skills || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
-    const tools  = (c.compliance_tools || []).map(t => t.tool_name).filter(Boolean);
-
-    // Certifications
-    const certHTML = (c.certifications || []).length === 0
-      ? '<p style="color:var(--muted);font-size:.9rem">No certifications listed.</p>'
-      : c.certifications.map(cert => `
-          <div class="exp-item">
-            <div class="exp-title">${esc(cert.certification_name || 'Certification')}</div>
-            ${cert.issuing_organization ? `<div class="exp-company">${esc(cert.issuing_organization)}</div>` : ''}
-            ${cert.cert_issue_date ? `<div class="exp-period">Issued ${formatDate(cert.cert_issue_date)}${cert.cert_expiry_date ? ' — Expires ' + formatDate(cert.cert_expiry_date) : ''}</div>` : ''}
-          </div>`).join('');
-
-    // CTC
-    const ctcHTML = isUnlocked && (c.current_annual_ctc_with_currency || c.expected_annual_ctc_with_currency)
-      ? `<div class="kv"><span class="kv-label">Current CTC</span><span class="kv-value">${esc(c.current_annual_ctc_with_currency || 'Not provided')}</span></div>
-         <div class="kv"><span class="kv-label">Expected CTC</span><span class="kv-value">${esc(c.expected_annual_ctc_with_currency || 'Not provided')}</span></div>`
-      : '';
-
-    page.innerHTML = `
-      <!-- Hero -->
-      <div class="hero-card">
-        <div class="avatar">${avatarHTML}</div>
-        <div class="hero-info">
-          <div class="hero-name">
-            ${esc(c.full_name || 'Candidate')}
-            ${openBadge}
-          </div>
-          <div class="hero-sub">${esc(c.desired_role || c.compliance_domains || 'Professional')}</div>
-          <div class="hero-meta">
-            ${c.residential_city    ? `<span>${esc(c.residential_city)}${c.residential_country ? ', ' + esc(c.residential_country) : ''}</span>` : ''}
-            ${c.current_career_level ? `<span>${esc(c.current_career_level)}</span>` : ''}
-            ${c.total_work_experience ? `<span>${esc(c.total_work_experience)} yrs exp.</span>` : ''}
-            ${c.profile_completeness ? `<span>Profile ${c.profile_completeness}% complete</span>` : ''}
-          </div>
-          <div class="hero-actions">
-            ${unlockBtn}
-            ${linkedinDisplay}
-            ${resumeBtn}
-          </div>
-        </div>
-      </div>
-
-      ${verifiedBadges ? `<div class="verify-row">${verifiedBadges}</div>` : ''}
-
-      ${lockedNotice}
-
-      <!-- Contact & Availability -->
-      <div class="section">
-        <div class="section-head"><span class="section-title">Contact &amp; Availability</span></div>
-        <div class="section-body">
-          <div class="kv-grid">
-            <div class="kv"><span class="kv-label">Email</span>${emailDisplay}</div>
-            <div class="kv"><span class="kv-label">Phone</span>${phoneDisplay}</div>
-            ${c.notice_period_in_days ? `<div class="kv"><span class="kv-label">Notice Period</span><span class="kv-value">${esc(c.notice_period_in_days)} days</span></div>` : ''}
-            ${c.preferred_work_type ? `<div class="kv"><span class="kv-label">Work Type</span><span class="kv-value">${esc(c.preferred_work_type)}</span></div>` : ''}
-            ${c.open_to_relocate !== undefined ? `<div class="kv"><span class="kv-label">Open to Relocate</span><span class="kv-value">${c.open_to_relocate ? 'Yes' : 'No'}</span></div>` : ''}
-            ${ctcHTML}
-          </div>
-        </div>
-      </div>
-
-      <!-- Summary -->
-      ${c.professional_summary_bio ? `
-      <div class="section">
-        <div class="section-head"><span class="section-title">Professional Summary</span></div>
-        <div class="section-body"><p style="color:var(--soft);line-height:1.65;font-size:.9rem">${esc(c.professional_summary_bio)}</p></div>
-      </div>` : ''}
-
-      <!-- Work Experience -->
-      <div class="section">
-        <div class="section-head"><span class="section-title">Work Experience</span></div>
-        <div class="section-body">${workHTML}</div>
-      </div>
-
-      <!-- Education -->
-      ${(c.education || []).length ? `
-      <div class="section">
-        <div class="section-head"><span class="section-title">Education</span></div>
-        <div class="section-body">${eduHTML}</div>
-      </div>` : ''}
-
-      <!-- Skills -->
-      ${skills.length || tools.length ? `
-      <div class="section">
-        <div class="section-head"><span class="section-title">Skills &amp; Tools</span></div>
-        <div class="section-body" style="display:flex;flex-direction:column;gap:1rem">
-          ${skills.length ? `<div><div class="kv-label" style="margin-bottom:.5rem">Skills</div><div class="pills">${skills.map(pill).join('')}</div></div>` : ''}
-          ${tools.length  ? `<div><div class="kv-label" style="margin-bottom:.5rem">Tools &amp; Software</div><div class="pills">${tools.map(pill).join('')}</div></div>` : ''}
-        </div>
-      </div>` : ''}
-
-      <!-- Certifications -->
-      ${(c.certifications || []).length ? `
-      <div class="section">
-        <div class="section-head"><span class="section-title">Certifications</span></div>
-        <div class="section-body">${certHTML}</div>
-      </div>` : ''}
-
-      <p style="text-align:center;color:var(--muted);font-size:.8rem;margin-top:1rem;padding-bottom:2rem">
-        DPR ID: ${esc(c.dpr_id)} &mdash; <a href="/employer" style="color:var(--blue)">Back to Dashboard</a>
-      </p>
-    `;
   } catch (err) {
-    document.getElementById('loading-state').style.display = 'none';
-    document.getElementById('error-state').style.display   = 'block';
-    console.error(err);
+    hide(el('loading'));
+    el('err-title').textContent = 'Could not load profile';
+    el('err-msg').textContent   = 'Please try again later.';
+    show(el('error-state'));
+    console.error('[profile]', err);
   }
 })();
-
-async function unlockProfile() {
-  try {
-    const res  = await fetch('/api/employer/unlock', {
-      method:      'POST',
-      headers:     { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body:        JSON.stringify({ dpr_id: DPR_ID }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.ok) {
-      showToast(data.error || 'Could not unlock profile.');
-      return;
-    }
-    showToast('Profile unlocked!');
-    setTimeout(() => window.location.reload(), 900);
-  } catch {
-    showToast('Network error. Please try again.');
-  }
-}
 </script>
 </body>
 </html>

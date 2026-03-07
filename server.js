@@ -11,7 +11,7 @@ const app = express();
 
 // ── Middleware ─────────────────────────────────────────────────────────────
 app.use(cors({
-  origin:      process.env.WP_URL || 'https://agzit.com',
+  origin:      ['https://agzit.com', 'https://www.agzit.com', 'https://app.agzit.com'],
   credentials: true,
 }));
 // Capture raw body in req.rawBody before JSON parsing (needed for HMAC webhook verification)
@@ -32,6 +32,7 @@ app.use('/api/auth',      require('./routes/auth'));
 app.use('/api/candidate', require('./routes/candidate'));
 app.use('/api/employer',  require('./routes/employer'));
 app.use('/api/internal',  require('./routes/internal'));
+app.use('/api/profile',   require('./routes/profile'));    // Public — no auth
 
 // ── Page Routes ────────────────────────────────────────────────────────────
 
@@ -70,15 +71,20 @@ app.get('/employer-review', requireAuth, requireRole('dpr_employer', 'verified_e
   res.sendFile(path.join(__dirname, 'public/employer-review/index.html'));
 });
 
-// Public candidate profile viewer (employers + admins)
-app.get('/profile', requireAuth, requireRole('dpr_employer', 'verified_employer'), (req, res) => {
+// Candidate scorecard detail page
+app.get('/scorecard', requireAuth, requireRole('dpr_candidate'), (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/scorecard/index.html'));
+});
+
+// Public candidate profile viewer — no auth required
+app.get('/profile', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/profile/index.html'));
 });
 
 // Logout (GET for simple link clicks)
 app.get('/logout', (req, res) => {
   res.clearCookie('agzit_token');
-  res.redirect(process.env.WP_URL + '/');
+  res.redirect('https://agzit.com/');
 });
 
 // Health check (Render uses this)

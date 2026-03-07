@@ -275,6 +275,14 @@ router.get('/scorecard', ...guard, async (req, res) => {
     const sessions = parseRepeater(data.meta, 'mock_interview_sessions', SESSION_SUBFIELDS);
     const scored   = [...sessions].reverse().filter(s => s.mock_overall_score);
 
+    // ?session_id=XXX — return a specific session's full scorecard
+    const { session_id } = req.query;
+    if (session_id) {
+      const session = sessions.find(s => s.session_id === session_id);
+      if (!session) return res.status(404).json({ ok: false, error: 'Session not found' });
+      return res.json({ ok: true, session });
+    }
+
     res.json({
       ok:              true,
       latest_scorecard: scored[0] || null,
