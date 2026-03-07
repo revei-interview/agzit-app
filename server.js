@@ -5,6 +5,7 @@ const express      = require('express');
 const cookieParser = require('cookie-parser');
 const cors         = require('cors');
 const path         = require('path');
+const { requireAuth } = require('./middleware/auth');
 
 const app = express();
 
@@ -38,12 +39,8 @@ app.get('/register', (req, res) => {
 });
 
 // Candidate dashboard
-app.get('/dashboard', (req, res) => {
-  if (req.cookies?.agzit_token) {
-    res.sendFile(path.join(__dirname, 'public/dashboard/index.html'));
-  } else {
-    res.redirect('/login?next=/dashboard');
-  }
+app.get('/dashboard', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/dashboard/index.html'));
 });
 
 app.get('/employer', (req, res) => {

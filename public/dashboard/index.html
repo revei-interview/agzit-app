@@ -8,1072 +8,1397 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  /* ── Design tokens ─────────────────────────────────────────────────────── */
-  :root {
-    --ink:      #09101F;
-    --blue:     #1A44C2;
-    --blue-bg:  #EAF0FF;
-    --green:    #0B7A47;
-    --green-bg: #E4F5EE;
-    --red:      #C0392B;
-    --red-bg:   #FFF4F4;
-    --surface:  #F5F6FA;
-    --border:   #E4E6EF;
-    --muted:    #7C83A0;
-    --sub:      #3A4163;
-    --white:    #ffffff;
-    --card-shadow: 0 2px 4px rgba(9,16,31,.03), 0 8px 24px rgba(9,16,31,.06);
-  }
+/* ── Tokens ──────────────────────────────────────────────────────────────── */
+:root {
+  --ink:       #09101F;
+  --soft:      #3A4163;
+  --muted:     #7C83A0;
+  --line:      #E4E6EF;
+  --surface:   #F5F6FA;
+  --white:     #ffffff;
+  --blue:      #1A44C2;
+  --blue-lt:   #EAF0FF;
+  --green:     #0B7A47;
+  --green-lt:  #E4F5EE;
+  --amber:     #92400E;
+  --amber-lt:  #FEF3C7;
+  --red:       #991B1B;
+  --red-lt:    #FEE2E2;
+  --shadow-sm: 0 1px 3px rgba(9,16,31,.06), 0 4px 12px rgba(9,16,31,.05);
+  --shadow-md: 0 2px 6px rgba(9,16,31,.05), 0 8px 24px rgba(9,16,31,.07);
+  --radius:    16px;
+  --font:      'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
 
-  /* ── Reset ──────────────────────────────────────────────────────────────── */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    background: var(--surface);
-    color: var(--ink);
-    -webkit-font-smoothing: antialiased;
-    min-height: 100vh;
-  }
-  a { color: inherit; text-decoration: none; }
-  button { font-family: inherit; cursor: pointer; border: none; background: none; }
+/* ── Reset ───────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font);
+  background: var(--surface);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: var(--font); cursor: pointer; border: none; background: none; }
 
-  /* ── Loading / Error screens ─────────────────────────────────────────────── */
-  #loading-screen, #error-screen {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    min-height: 100vh; gap: 16px;
-  }
-  #error-screen { display: none; }
-  .spinner {
-    width: 40px; height: 40px;
-    border: 3px solid var(--border);
-    border-top-color: var(--blue);
-    border-radius: 50%;
-    animation: spin .7s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+/* ── Loading skeleton ────────────────────────────────────────────────────── */
+#loading {
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 14px; min-height: 100vh;
+}
+.sk-ring {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 3px solid var(--line); border-top-color: var(--blue);
+  animation: spin .65s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ── App shell ───────────────────────────────────────────────────────────── */
-  #app { display: none; }
+/* ── App shell ───────────────────────────────────────────────────────────── */
+#app { display: none; }
 
-  /* ── Top nav ─────────────────────────────────────────────────────────────── */
-  .topnav {
-    background: var(--white);
-    border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; z-index: 100;
-    box-shadow: 0 1px 0 var(--border), 0 4px 20px rgba(9,16,31,.04);
-  }
-  .topnav-inner {
-    max-width: 1200px; margin: 0 auto; padding: 0 32px;
-    height: 64px; display: flex; align-items: center; justify-content: space-between;
-  }
-  .topnav-logo {
-    display: flex; align-items: baseline; gap: 0; text-decoration: none;
-  }
-  .topnav-logo-word { font-size: 18px; font-weight: 800; color: var(--ink); letter-spacing: -0.5px; }
-  .topnav-logo-ai {
-    font-size: 10px; font-weight: 700; color: var(--blue);
-    background: var(--blue-bg); padding: 2px 6px; border-radius: 5px;
-    margin-left: 5px; letter-spacing: .4px; text-transform: uppercase;
-  }
-  .topnav-right { display: flex; align-items: center; gap: 12px; }
-  .topnav-name { font-size: 13px; font-weight: 600; color: var(--sub); }
-  .topnav-logout {
-    padding: 8px 16px; border-radius: 9px; font-size: 13px; font-weight: 600;
-    color: var(--sub); border: 1.5px solid var(--border);
-    transition: border-color .15s, color .15s;
-  }
-  .topnav-logout:hover { border-color: var(--ink); color: var(--ink); }
+/* ── Topbar ──────────────────────────────────────────────────────────────── */
+.topbar {
+  background: var(--white); border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 200;
+  box-shadow: 0 1px 0 var(--line), 0 2px 12px rgba(9,16,31,.04);
+}
+.topbar-inner {
+  max-width: 1200px; margin: 0 auto; padding: 0 32px;
+  height: 62px; display: flex; align-items: center; justify-content: space-between;
+}
+.logo { display: flex; align-items: baseline; }
+.logo-word { font-size: 18px; font-weight: 800; color: var(--ink); letter-spacing: -.5px; }
+.logo-badge {
+  margin-left: 5px; font-size: 10px; font-weight: 700; color: var(--blue);
+  background: var(--blue-lt); padding: 2px 6px; border-radius: 5px;
+  letter-spacing: .4px; text-transform: uppercase;
+}
+.topbar-right { display: flex; align-items: center; gap: 16px; }
+.topbar-name  { font-size: 13px; font-weight: 600; color: var(--soft); }
+.btn-ghost {
+  padding: 8px 16px; border-radius: 9px; font-size: 13px; font-weight: 600;
+  color: var(--soft); border: 1.5px solid var(--line);
+  transition: border-color .15s, color .15s;
+}
+.btn-ghost:hover { border-color: var(--ink); color: var(--ink); }
 
-  /* ── Page wrapper ────────────────────────────────────────────────────────── */
-  .page { max-width: 1200px; margin: 0 auto; padding: 28px 32px 80px; }
+/* ── Page wrapper ────────────────────────────────────────────────────────── */
+.page { max-width: 1200px; margin: 0 auto; padding: 28px 32px 80px; }
 
-  /* ── Hero ────────────────────────────────────────────────────────────────── */
-  .hero {
-    background: var(--ink);
-    border-radius: 20px;
-    padding: 36px 40px;
-    margin-bottom: 22px;
-    position: relative; overflow: hidden;
-  }
-  .hero::before {
-    content: '';
-    position: absolute; inset: 0;
-    background-image: radial-gradient(rgba(255,255,255,.04) 1px, transparent 1px);
-    background-size: 22px 22px;
-    pointer-events: none;
-  }
-  .hero-inner { position: relative; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
-  .hero-eyebrow { font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase; color: #7B9FFF; font-weight: 800; margin-bottom: 8px; }
-  .hero-greeting { font-size: 26px; font-weight: 800; color: var(--white); letter-spacing: -.5px; margin-bottom: 12px; }
-  .hero-badges { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .hero-badge {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 5px 13px; border-radius: 999px; font-size: 12px; font-weight: 700;
-    background: rgba(255,255,255,.1); color: rgba(255,255,255,.85);
-    border: 1px solid rgba(255,255,255,.15);
-  }
-  .hero-badge.status-approved { background: rgba(11,122,71,.25); color: #6EE7B7; border-color: rgba(11,122,71,.4); }
-  .hero-badge.status-pending  { background: rgba(245,158,11,.2); color: #FCD34D; border-color: rgba(245,158,11,.3); }
-  .hero-badge.status-draft    { background: rgba(148,163,184,.15); color: #CBD5E1; border-color: rgba(148,163,184,.25); }
-  .hero-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-  .hero-right { display: flex; gap: 10px; flex-wrap: wrap; }
-  .hero-btn {
-    padding: 11px 22px; border-radius: 12px; font-size: 13px; font-weight: 700;
-    display: inline-flex; align-items: center; gap: 6px; transition: all .15s;
-  }
-  .hero-btn-primary { background: var(--blue); color: var(--white); box-shadow: 0 3px 14px rgba(26,68,194,.35); }
-  .hero-btn-primary:hover { background: #1538A8; }
-  .hero-btn-outline { background: rgba(255,255,255,.08); color: rgba(255,255,255,.8); border: 1.5px solid rgba(255,255,255,.18); }
-  .hero-btn-outline:hover { background: rgba(255,255,255,.14); }
+/* ── Hero ────────────────────────────────────────────────────────────────── */
+.hero {
+  background: var(--ink); border-radius: 20px; padding: 36px 40px;
+  margin-bottom: 22px; position: relative; overflow: hidden;
+  border: 1px solid rgba(26,68,194,.2);
+}
+.hero-dot-bg {
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,.04) 1px, transparent 1px);
+  background-size: 22px 22px; pointer-events: none;
+}
+.hero-glow {
+  position: absolute; top: -60px; right: -60px;
+  width: 280px; height: 280px;
+  background: radial-gradient(circle, rgba(26,68,194,.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-inner {
+  position: relative; z-index: 1;
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 20px; flex-wrap: wrap;
+}
+.hero-eyebrow {
+  font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase;
+  color: #7B9FFF; font-weight: 800; margin-bottom: 10px;
+}
+.hero-heading {
+  font-size: 26px; font-weight: 800; color: var(--white);
+  letter-spacing: -.5px; line-height: 1.2; margin-bottom: 14px;
+}
+.hero-heading span { color: #7B9FFF; }
+.hero-meta { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.hero-dpr-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px; font-weight: 700;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+  color: #C7D2FE; padding: 5px 14px; border-radius: 999px; letter-spacing: .5px;
+}
+.status-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 700;
+}
+.status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.hero-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.hero-link-label {
+  font-size: 11px; color: #7B9FFF; letter-spacing: 1.5px;
+  text-transform: uppercase; font-weight: 700;
+}
+.hero-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.btn-hero-primary {
+  display: inline-flex; align-items: center; padding: 10px 20px;
+  border-radius: 11px; font-size: 13px; font-weight: 700;
+  background: var(--blue); color: var(--white);
+  box-shadow: 0 3px 14px rgba(26,68,194,.35);
+  transition: background .15s;
+}
+.btn-hero-primary:hover { background: #1538A8; }
+.btn-hero-ghost {
+  display: inline-flex; align-items: center; padding: 10px 20px;
+  border-radius: 11px; font-size: 13px; font-weight: 700;
+  background: rgba(255,255,255,.07); color: rgba(255,255,255,.85);
+  border: 1.5px solid rgba(255,255,255,.18);
+  transition: background .15s;
+}
+.btn-hero-ghost:hover { background: rgba(255,255,255,.13); }
+.hero-pending-note {
+  font-size: 13px; color: #7B9FFF;
+  background: rgba(255,255,255,.05);
+  border: 1px dashed rgba(255,255,255,.2);
+  border-radius: 12px; padding: 12px 16px;
+  line-height: 1.55; text-align: center;
+}
 
-  /* ── Stat cards ──────────────────────────────────────────────────────────── */
-  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
-  .stat-card {
-    background: var(--white); border: 1px solid var(--border); border-radius: 16px;
-    padding: 20px 22px; box-shadow: var(--card-shadow);
-  }
-  .stat-label { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .7px; text-transform: uppercase; margin-bottom: 8px; }
-  .stat-value { font-size: 28px; font-weight: 800; color: var(--ink); letter-spacing: -.8px; line-height: 1; margin-bottom: 6px; }
-  .stat-sub   { font-size: 12px; color: var(--muted); }
-  .stat-bar-track { height: 6px; background: var(--surface); border-radius: 999px; overflow: hidden; margin-top: 10px; }
-  .stat-bar-fill  { height: 6px; background: var(--blue); border-radius: 999px; transition: width .6s ease; }
+/* ── Stat cards ──────────────────────────────────────────────────────────── */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+.stat {
+  background: var(--white); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 20px 22px; box-shadow: var(--shadow-sm);
+}
+.stat-label { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .7px; text-transform: uppercase; margin-bottom: 8px; }
+.stat-value { font-size: 26px; font-weight: 800; color: var(--ink); letter-spacing: -.8px; line-height: 1; margin-bottom: 6px; }
+.stat-sub   { font-size: 12px; color: var(--muted); }
+.stat-bar   { height: 5px; background: var(--surface); border-radius: 999px; overflow: hidden; margin-top: 10px; }
+.stat-fill  { height: 5px; background: var(--blue); border-radius: 999px; transition: width .7s ease; }
 
-  /* ── Two-column layout ───────────────────────────────────────────────────── */
-  .two-col { display: grid; grid-template-columns: 1.35fr .65fr; gap: 16px; align-items: start; }
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+.two-col { display: grid; grid-template-columns: 1fr 300px; gap: 18px; align-items: start; }
+.sidebar { display: grid; gap: 14px; }
 
-  /* ── Card ────────────────────────────────────────────────────────────────── */
-  .card {
-    background: var(--white); border: 1px solid var(--border); border-radius: 16px;
-    padding: 22px 24px; box-shadow: var(--card-shadow); margin-bottom: 16px;
-  }
-  .card-title { font-size: 15px; font-weight: 800; color: var(--ink); letter-spacing: -.2px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-  .card-icon { font-size: 16px; }
+/* ── Card ────────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--white); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 22px 24px; box-shadow: var(--shadow-sm);
+}
+.card + .card { margin-top: 14px; }
+.card-title {
+  font-size: 14px; font-weight: 800; color: var(--ink); letter-spacing: -.2px;
+  margin-bottom: 16px;
+}
 
-  /* ── Tabs ────────────────────────────────────────────────────────────────── */
-  .tabs-nav {
-    display: flex; border-bottom: 2px solid var(--border); margin-bottom: 18px;
-    overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; flex-wrap: nowrap;
-  }
-  .tabs-nav::-webkit-scrollbar { display: none; }
-  .tab-btn {
-    padding: 10px 20px; font-size: 13px; font-weight: 700; color: var(--muted);
-    border-bottom: 2.5px solid transparent; margin-bottom: -2px;
-    display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0;
-    white-space: nowrap; transition: color .15s, border-color .15s;
-  }
-  .tab-btn:hover { color: var(--ink); }
-  .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
-  .tab-badge {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-width: 19px; height: 19px; padding: 0 5px;
-    border-radius: 999px; background: var(--blue); color: var(--white);
-    font-size: 11px; font-weight: 800;
-  }
-  .tab-pane { display: none; }
-  .tab-pane.active { display: block; }
+/* ── Tabs ────────────────────────────────────────────────────────────────── */
+.tabs-outer { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+.tabs-nav {
+  display: flex; border-bottom: 2px solid var(--line); padding: 0 4px;
+  overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.tabs-nav::-webkit-scrollbar { display: none; }
+.tab-btn {
+  flex-shrink: 0; padding: 14px 20px;
+  font-size: 13px; font-weight: 700; color: var(--muted);
+  border-bottom: 2.5px solid transparent; margin-bottom: -2px;
+  white-space: nowrap; transition: color .15s, border-color .15s;
+  display: flex; align-items: center; gap: 7px;
+}
+.tab-btn:hover { color: var(--ink); }
+.tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
+.tab-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 19px; height: 19px; padding: 0 5px;
+  border-radius: 999px; background: var(--blue); color: var(--white);
+  font-size: 10.5px; font-weight: 800;
+}
+.tab-pane { display: none; padding: 24px; }
+.tab-pane.active { display: block; }
 
-  /* ── Profile fields ──────────────────────────────────────────────────────── */
-  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; }
-  .field-item { }
-  .field-label { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 3px; }
-  .field-value { font-size: 13.5px; color: var(--ink); font-weight: 600; }
-  .field-value.empty { color: var(--muted); font-style: italic; font-weight: 400; }
-  .field-full { grid-column: 1 / -1; }
+/* ── Profile field grid ──────────────────────────────────────────────────── */
+.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; }
+.field-full { grid-column: 1 / -1; }
+.field-label { font-size: 10.5px; color: var(--muted); font-weight: 700; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 3px; }
+.field-val   { font-size: 13.5px; color: var(--ink); font-weight: 600; line-height: 1.4; }
+.field-val.empty { color: var(--muted); font-weight: 400; font-style: italic; }
 
-  /* ── Repeater rows ───────────────────────────────────────────────────────── */
-  .repeater-item {
-    border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px;
-  }
-  .repeater-title { font-size: 13.5px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
-  .repeater-sub   { font-size: 12.5px; color: var(--muted); margin-bottom: 6px; }
-  .repeater-body  { font-size: 12.5px; color: var(--sub); line-height: 1.6; }
+/* ── Section sub-heading ─────────────────────────────────────────────────── */
+.section-title {
+  font-size: 12px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .7px;
+  margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line);
+}
+.section-title:first-child { margin-top: 0; }
 
-  /* ── Scorecard ───────────────────────────────────────────────────────────── */
-  .score-ring-wrap { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; }
-  .score-ring-svg  { flex-shrink: 0; }
-  .score-ring-info h2 { font-size: 28px; font-weight: 800; color: var(--ink); letter-spacing: -1px; }
-  .score-ring-info p  { font-size: 13px; color: var(--muted); margin-top: 4px; }
-  .perf-badge {
-    display: inline-block; margin-top: 10px; padding: 5px 14px; border-radius: 999px;
-    font-size: 12px; font-weight: 700;
-  }
-  .perf-interview-ready { background: var(--green-bg); color: var(--green); }
-  .perf-strong-potential { background: #E0F2FE; color: #0369A1; }
-  .perf-developing       { background: #EDE9FE; color: #5B21B6; }
-  .perf-needs-practice   { background: #FEF3C7; color: #92400E; }
-  .perf-foundation       { background: #FEE2E2; color: #991B1B; }
-  .competency-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-  .competency-label { font-size: 12.5px; font-weight: 600; color: var(--sub); width: 170px; flex-shrink: 0; }
-  .competency-track { flex: 1; height: 8px; background: var(--surface); border-radius: 999px; overflow: hidden; }
-  .competency-fill  { height: 8px; border-radius: 999px; background: var(--blue); transition: width .6s ease; }
-  .competency-score { font-size: 12px; font-weight: 700; color: var(--ink); width: 28px; text-align: right; flex-shrink: 0; }
-  .feedback-block { margin-top: 18px; }
-  .feedback-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 8px; }
-  .feedback-text  { font-size: 13px; color: var(--sub); line-height: 1.75; white-space: pre-line; }
-  .no-scorecard { text-align: center; padding: 40px 20px; color: var(--muted); }
-  .no-scorecard p { font-size: 14px; margin-bottom: 16px; }
+/* ── Repeater items ──────────────────────────────────────────────────────── */
+.rep-item {
+  border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+  margin-bottom: 10px; border-left: 3px solid var(--blue);
+}
+.rep-item:last-child { margin-bottom: 0; }
+.rep-title { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 3px; }
+.rep-sub   { font-size: 12.5px; color: var(--muted); margin-bottom: 5px; }
+.rep-body  { font-size: 12.5px; color: var(--soft); line-height: 1.65; }
 
-  /* ── Interviews table ────────────────────────────────────────────────────── */
-  .interview-list { display: flex; flex-direction: column; gap: 10px; }
-  .interview-row {
-    border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
-    display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center;
-  }
-  .interview-role  { font-size: 14px; font-weight: 700; color: var(--ink); }
-  .interview-meta  { font-size: 12px; color: var(--muted); margin-top: 3px; }
-  .interview-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-  .status-pill {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 4px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
-  }
-  .status-completed { background: var(--green-bg); color: var(--green); }
-  .status-in_progress { background: #DBEAFE; color: #1D4ED8; }
-  .status-default   { background: var(--surface); color: var(--muted); }
-  .score-chip {
-    display: inline-flex; align-items: center; padding: 4px 11px; border-radius: 999px;
-    font-size: 12px; font-weight: 700; background: var(--blue-bg); color: var(--blue);
-  }
-  .interview-links { display: flex; gap: 6px; }
-  .media-btn {
-    padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 700;
-    border: 1.5px solid var(--border); color: var(--sub); transition: background .13s;
-  }
-  .media-btn:hover { background: var(--surface); }
+/* ── Pills ───────────────────────────────────────────────────────────────── */
+.pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.pill {
+  padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: var(--surface); border: 1px solid var(--line); color: var(--soft);
+}
 
-  /* ── Resume card ─────────────────────────────────────────────────────────── */
-  .resume-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  .resume-info h3 { font-size: 15px; font-weight: 700; color: var(--ink); }
-  .resume-info p  { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
-  .btn-primary {
-    padding: 10px 20px; border-radius: 11px; font-size: 13px; font-weight: 700;
-    background: var(--ink); color: var(--white); display: inline-flex; align-items: center; gap: 7px;
-    transition: background .15s;
-  }
-  .btn-primary:hover { background: #1b2340; }
-  .btn-blue {
-    padding: 10px 20px; border-radius: 11px; font-size: 13px; font-weight: 700;
-    background: var(--blue); color: var(--white); display: inline-flex; align-items: center; gap: 7px;
-    transition: background .15s; box-shadow: 0 3px 14px rgba(26,68,194,.25);
-  }
-  .btn-blue:hover { background: #1538A8; }
+/* ── Score ring ──────────────────────────────────────────────────────────── */
+.score-ring-row { display: flex; align-items: center; gap: 22px; margin-bottom: 22px; }
+.score-ring-meta h2 { font-size: 32px; font-weight: 800; color: var(--ink); letter-spacing: -1.5px; }
+.score-ring-meta p  { font-size: 12.5px; color: var(--muted); margin-top: 5px; }
+.perf-badge { display: inline-block; margin-top: 10px; padding: 5px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.pb-5 { background: var(--green-lt);  color: var(--green); }
+.pb-4 { background: #E0F2FE;          color: #0369A1; }
+.pb-3 { background: #EDE9FE;          color: #5B21B6; }
+.pb-2 { background: var(--amber-lt);  color: var(--amber); }
+.pb-1 { background: var(--red-lt);    color: var(--red); }
 
-  /* ── Visibility toggles ──────────────────────────────────────────────────── */
-  .vis-grid { display: flex; flex-direction: column; gap: 12px; }
-  .vis-row  { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-  .vis-label { font-size: 13px; font-weight: 600; color: var(--ink); }
-  .vis-desc  { font-size: 12px; color: var(--muted); margin-top: 1px; }
-  .vis-select {
-    padding: 8px 14px; border-radius: 9px; border: 1.5px solid var(--border);
-    font-size: 13px; font-weight: 600; color: var(--ink); background: var(--white);
-    font-family: inherit; cursor: pointer; min-width: 160px;
-    transition: border-color .15s;
-  }
-  .vis-select:focus { outline: none; border-color: var(--blue); }
-  #vis-save-btn {
-    margin-top: 14px; padding: 11px 24px; border-radius: 11px; font-size: 13px; font-weight: 700;
-    background: var(--ink); color: var(--white); transition: background .15s;
-  }
-  #vis-save-btn:hover { background: #1b2340; }
-  #vis-save-btn:disabled { opacity: .55; cursor: not-allowed; }
-  #vis-feedback { font-size: 12.5px; margin-top: 10px; min-height: 18px; }
-  #vis-feedback.ok  { color: var(--green); }
-  #vis-feedback.err { color: var(--red); }
+/* Competency bars */
+.comp-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+.comp-label { font-size: 12.5px; font-weight: 600; color: var(--soft); width: 175px; flex-shrink: 0; }
+.comp-track { flex: 1; height: 7px; background: var(--surface); border-radius: 999px; overflow: hidden; }
+.comp-fill  { height: 7px; border-radius: 999px; background: var(--blue); transition: width .7s ease; }
+.comp-val   { font-size: 12px; font-weight: 700; color: var(--ink); width: 30px; text-align: right; flex-shrink: 0; }
 
-  /* ── Sidebar ─────────────────────────────────────────────────────────────── */
-  .sidebar-card { background: var(--white); border: 1px solid var(--border); border-radius: 16px; padding: 20px; box-shadow: var(--card-shadow); margin-bottom: 16px; }
-  .sidebar-title { font-size: 13px; font-weight: 800; color: var(--ink); margin-bottom: 12px; }
-  .credit-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
-  .credit-row:last-child { border-bottom: none; }
-  .credit-label { font-size: 12.5px; color: var(--sub); font-weight: 600; }
-  .credit-val   { font-size: 16px; font-weight: 800; color: var(--ink); }
-  .credit-val.zero { color: var(--muted); }
+/* Feedback blocks */
+.fb-block { margin-top: 18px; }
+.fb-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 7px; }
+.fb-text  { font-size: 13px; color: var(--soft); line-height: 1.75; white-space: pre-line; }
 
-  /* ── Utility ─────────────────────────────────────────────────────────────── */
-  .pill {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 3px 11px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
-    background: var(--surface); border: 1px solid var(--border); color: var(--sub);
-  }
-  .divider { height: 1px; background: var(--border); margin: 14px 0; }
-  .empty-state { text-align: center; padding: 32px 16px; color: var(--muted); font-size: 13.5px; }
+/* ── Session cards ───────────────────────────────────────────────────────── */
+.ses-card {
+  border: 1px solid var(--line); border-left: 4px solid var(--blue);
+  border-radius: 14px; padding: 18px 20px; margin-bottom: 12px;
+  background: var(--white);
+}
+.ses-card.ses-completed   { border-left-color: var(--green); }
+.ses-card.ses-in-progress { border-left-color: #D97706; }
+.ses-card:last-child { margin-bottom: 0; }
+.ses-top   { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+.ses-role  { font-size: 15px; font-weight: 700; color: var(--ink); letter-spacing: -.2px; }
+.ses-meta  { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.ses-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.ses-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 12px; }
+.btn-sm {
+  padding: 7px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 700;
+  border: 1.5px solid var(--line); color: var(--soft); background: var(--white);
+  transition: background .13s, border-color .13s;
+}
+.btn-sm:hover { background: var(--surface); border-color: #B8BCCC; }
+.score-chip {
+  display: inline-flex; align-items: center;
+  padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  background: var(--blue-lt); color: var(--blue);
+}
 
-  /* ── Responsive ──────────────────────────────────────────────────────────── */
-  @media (max-width: 900px) {
-    .two-col { grid-template-columns: 1fr; }
-    .stats-row { grid-template-columns: repeat(2, 1fr); }
-    .topnav-inner { padding: 0 20px; }
-    .page { padding: 20px 20px 60px; }
-    .hero { padding: 26px 24px; }
-    .hero-greeting { font-size: 22px; }
-  }
-  @media (max-width: 520px) {
-    .stats-row { grid-template-columns: 1fr 1fr; }
-    .field-grid { grid-template-columns: 1fr; }
-    .interview-row { grid-template-columns: 1fr; }
-    .hero-inner { flex-direction: column; }
-  }
+/* ── Session inline scorecard ────────────────────────────────────────────── */
+.ses-scorecard {
+  border-top: 1px solid var(--line); margin-top: 14px; padding-top: 14px;
+}
+.ses-sc-header { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+.ses-sc-score  { font-size: 28px; font-weight: 800; color: var(--ink); letter-spacing: -1px; }
+
+/* ── Entitlement strip ───────────────────────────────────────────────────── */
+.ent-strip {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 12px 16px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--line); margin-bottom: 18px;
+}
+.ent-label { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px; flex-shrink: 0; }
+.ent-chip  { padding: 4px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 700; }
+.ent-chip.c20 { background: #EDE9FE; color: #5B21B6; }
+.ent-chip.c30 { background: var(--green-lt); color: var(--green); }
+.ent-meta  { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+/* ── Visibility rows ─────────────────────────────────────────────────────── */
+.vis-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 11px 14px; border-radius: 11px; background: var(--surface);
+  border: 1px solid var(--line); margin-bottom: 8px;
+}
+.vis-row:last-of-type { margin-bottom: 0; }
+.vis-row-label { font-size: 13px; font-weight: 700; color: var(--soft); }
+.vis-val {
+  font-size: 11.5px; font-weight: 700; padding: 4px 11px; border-radius: 999px;
+}
+.vis-val.vv-public  { background: var(--green-lt); color: var(--green); }
+.vis-val.vv-verified { background: #EDE9FE; color: #5B21B6; }
+.vis-val.vv-private  { background: var(--red-lt); color: var(--red); }
+
+/* ── Visibility selects ──────────────────────────────────────────────────── */
+.vis-form-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap;
+}
+.vis-form-row:last-of-type { border-bottom: none; }
+.vis-form-label  { font-size: 13px; font-weight: 700; color: var(--ink); }
+.vis-form-desc   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.vis-select {
+  padding: 8px 14px; border-radius: 9px; border: 1.5px solid var(--line);
+  font-size: 13px; font-weight: 600; color: var(--ink);
+  background: var(--white); font-family: var(--font); min-width: 175px;
+  transition: border-color .15s; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237C83A0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+  padding-right: 32px;
+}
+.vis-select:focus { outline: none; border-color: var(--blue); }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 11px 22px; border-radius: 11px; font-size: 13px; font-weight: 700;
+  background: var(--ink); color: var(--white); transition: background .15s;
+  width: 100%;
+}
+.btn-primary:hover { background: #1b2340; }
+.btn-secondary {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 11px 22px; border-radius: 11px; font-size: 13px; font-weight: 700;
+  background: var(--white); color: var(--soft); border: 1.5px solid var(--line);
+  transition: border-color .15s, color .15s; width: 100%;
+}
+.btn-secondary:hover { border-color: var(--ink); color: var(--ink); }
+.btn-blue {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 11px 22px; border-radius: 11px; font-size: 13px; font-weight: 700;
+  background: var(--blue); color: var(--white); transition: background .15s;
+  width: 100%; box-shadow: 0 3px 12px rgba(26,68,194,.25);
+}
+.btn-blue:hover { background: #1538A8; }
+.btn-save {
+  padding: 11px 28px; border-radius: 11px; font-size: 13px; font-weight: 700;
+  background: var(--ink); color: var(--white); margin-top: 18px;
+  transition: background .15s;
+}
+.btn-save:hover { background: #1b2340; }
+.btn-save:disabled { opacity: .55; cursor: not-allowed; }
+#vis-feedback { font-size: 12.5px; margin-top: 8px; min-height: 16px; }
+#vis-feedback.ok  { color: var(--green); }
+#vis-feedback.err { color: var(--red); }
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+.modal {
+  position: fixed; inset: 0; background: rgba(9,16,31,.78);
+  display: none; align-items: center; justify-content: center;
+  padding: 20px; z-index: 9999;
+}
+.modal.open { display: flex; }
+.modal-inner {
+  max-width: 820px; width: 100%; background: var(--white);
+  border-radius: 18px; box-shadow: 0 32px 80px rgba(0,0,0,.3); overflow: hidden;
+}
+.modal-inner.audio { max-width: 520px; }
+.modal-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 18px; border-bottom: 1px solid var(--line);
+  background: linear-gradient(135deg, rgba(9,16,31,.03), rgba(26,68,194,.08));
+}
+.modal-title { font-size: 13.5px; font-weight: 800; color: var(--ink); }
+.modal-close {
+  padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 700;
+  background: var(--ink); color: var(--white);
+}
+.modal-body { padding: 18px; }
+.modal-player { width: 100%; border-radius: 10px; background: #0b1220; }
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.empty {
+  text-align: center; padding: 44px 20px;
+  border: 1px dashed rgba(9,16,31,.14); border-radius: 14px; background: var(--surface);
+}
+.empty-heading { font-size: 14px; font-weight: 700; color: var(--soft); margin-bottom: 7px; }
+.empty-sub     { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 18px; }
+
+/* ── Overview specifics ──────────────────────────────────────────────────── */
+.ov-completeness { display: flex; align-items: center; gap: 16px; }
+.ov-pct-text { font-size: 13px; color: var(--soft); line-height: 1.6; }
+.ov-pct-tip  { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.info-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 13px; border-radius: 10px; background: #F8FAFC;
+  border: 1px solid rgba(9,16,31,.07); margin-bottom: 8px;
+}
+.info-row:last-child { margin-bottom: 0; }
+.info-key { font-size: 13px; font-weight: 700; color: var(--soft); }
+.info-val { font-size: 13px; color: var(--soft); }
+
+/* ── Recent interviews (overview mini) ───────────────────────────────────── */
+.mini-ses {
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 10px; align-items: center;
+  padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px;
+}
+.mini-ses:last-child { margin-bottom: 0; }
+.mini-role { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.mini-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* ── Scroll reveal ───────────────────────────────────────────────────────── */
+.reveal { opacity: 0; transform: translateY(16px); transition: opacity .45s ease, transform .45s ease; }
+.reveal.in-view { opacity: 1; transform: none; }
+
+/* ── Divider ─────────────────────────────────────────────────────────────── */
+.divider { height: 1px; background: var(--line); margin: 18px 0; }
+
+/* ── Resume card ─────────────────────────────────────────────────────────── */
+.resume-uploaded {
+  display: flex; justify-content: space-between; align-items: center; gap: 14px;
+  padding: 16px 18px; border-radius: 13px;
+  background: var(--green-lt); border: 1px solid #BBF7D0; flex-wrap: wrap;
+}
+.resume-missing {
+  padding: 16px 18px; border-radius: 13px;
+  background: #FFF5F5; border: 1px solid #FECACA;
+}
+.resume-download {
+  padding: 9px 18px; border-radius: 9px; font-size: 13px; font-weight: 700;
+  background: var(--green); color: var(--white); transition: background .15s;
+  white-space: nowrap;
+}
+.resume-download:hover { background: #0a6b3e; }
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 960px) {
+  .two-col { grid-template-columns: 1fr; }
+  .sidebar { display: none; } /* hide sidebar on mobile — content is in tabs */
+  .page { padding: 20px 20px 60px; }
+  .hero { padding: 26px 24px; }
+  .hero-heading { font-size: 22px; }
+  .topbar-inner { padding: 0 20px; }
+}
+@media (max-width: 720px) {
+  .stats-row { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .stats-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hero-inner { flex-direction: column; }
+  .field-grid { grid-template-columns: 1fr; }
+  .comp-label { width: 130px; }
+}
 </style>
 </head>
 <body>
 
-<!-- ── Loading ─────────────────────────────────────────────────────────────── -->
-<div id="loading-screen">
-  <div class="spinner"></div>
-  <p style="font-size:14px;color:#7C83A0;font-family:'Plus Jakarta Sans',system-ui,sans-serif;">Loading your dashboard…</p>
+<!-- Loading -->
+<div id="loading">
+  <div class="sk-ring"></div>
+  <p style="font-size:13.5px;color:var(--muted);">Loading your dashboard…</p>
 </div>
 
-<!-- ── Error ──────────────────────────────────────────────────────────────── -->
-<div id="error-screen">
-  <div style="text-align:center;font-family:'Plus Jakarta Sans',system-ui,sans-serif;">
-    <div style="font-size:32px;margin-bottom:12px;">⚠️</div>
-    <h2 style="font-size:18px;font-weight:800;color:#09101F;margin-bottom:8px;" id="error-title">Something went wrong</h2>
-    <p style="font-size:14px;color:#7C83A0;" id="error-msg">Unable to load your dashboard.</p>
-    <button onclick="location.reload()" style="margin-top:20px;padding:10px 24px;border-radius:10px;background:#09101F;color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Try again</button>
-  </div>
-</div>
-
-<!-- ── App ────────────────────────────────────────────────────────────────── -->
+<!-- App -->
 <div id="app">
 
-  <!-- Top nav -->
-  <nav class="topnav">
-    <div class="topnav-inner">
-      <a href="/" class="topnav-logo">
-        <span class="topnav-logo-word">AGZIT</span>
-        <span class="topnav-logo-ai">AI</span>
+  <!-- Topbar -->
+  <nav class="topbar">
+    <div class="topbar-inner">
+      <a href="https://agzit.com" class="logo">
+        <span class="logo-word">AGZIT</span>
+        <span class="logo-badge">AI</span>
       </a>
-      <div class="topnav-right">
-        <span class="topnav-name" id="nav-name"></span>
-        <a href="/logout" class="topnav-logout">Sign out</a>
+      <div class="topbar-right">
+        <span class="topbar-name" id="nav-name"></span>
+        <a href="/logout" class="btn-ghost">Sign out</a>
       </div>
     </div>
   </nav>
 
   <div class="page">
 
-    <!-- ── Hero ─────────────────────────────────────────────────────────────── -->
-    <div class="hero">
+    <!-- Hero -->
+    <div class="hero reveal" id="hero-block">
+      <div class="hero-dot-bg"></div>
+      <div class="hero-glow"></div>
       <div class="hero-inner">
         <div>
           <div class="hero-eyebrow">AGZIT DPR</div>
-          <div class="hero-greeting" id="hero-greeting">Welcome back</div>
-          <div class="hero-badges" id="hero-badges"></div>
+          <h1 class="hero-heading">Welcome back, <span id="hero-name">there</span></h1>
+          <div class="hero-meta" id="hero-meta"></div>
         </div>
-        <div class="hero-right" id="hero-actions"></div>
+        <div class="hero-right" id="hero-right"></div>
       </div>
     </div>
 
-    <!-- ── Stats ─────────────────────────────────────────────────────────────── -->
-    <div class="stats-row">
-      <div class="stat-card">
-        <div class="stat-label">Profile Status</div>
-        <div class="stat-value" id="stat-status">—</div>
-        <div class="stat-sub" id="stat-status-sub"></div>
+    <!-- Stats -->
+    <div class="stats-row reveal">
+      <div class="stat">
+        <div class="stat-label">Profile</div>
+        <div class="stat-value" id="st-profile">—</div>
+        <div class="stat-bar"><div class="stat-fill" id="st-profile-bar" style="width:0"></div></div>
+        <div class="stat-sub" id="st-profile-sub" style="margin-top:8px;"></div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">Best Score</div>
-        <div class="stat-value" id="stat-score">—</div>
-        <div class="stat-sub" id="stat-score-sub"></div>
-        <div class="stat-bar-track"><div class="stat-bar-fill" id="stat-score-bar" style="width:0%"></div></div>
+      <div class="stat">
+        <div class="stat-label">Interview Score</div>
+        <div class="stat-value" id="st-score">—</div>
+        <div class="stat-bar"><div class="stat-fill" id="st-score-bar" style="width:0"></div></div>
+        <div class="stat-sub" id="st-score-sub" style="margin-top:8px;"></div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">Resume</div>
-        <div class="stat-value" id="stat-resume">—</div>
-        <div class="stat-sub" id="stat-resume-sub"></div>
-      </div>
-      <div class="stat-card">
+      <div class="stat">
         <div class="stat-label">Sessions Taken</div>
-        <div class="stat-value" id="stat-sessions">0</div>
-        <div class="stat-sub" id="stat-sessions-sub">mock interviews</div>
+        <div class="stat-value" id="st-sessions">0</div>
+        <div class="stat-sub" id="st-sessions-sub" style="margin-top:8px;">mock interviews</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Resume</div>
+        <div class="stat-value" id="st-resume">—</div>
+        <div class="stat-sub" id="st-resume-sub" style="margin-top:8px;"></div>
       </div>
     </div>
 
-    <!-- ── Main two-col layout ──────────────────────────────────────────────── -->
+    <!-- Main content -->
     <div class="two-col">
 
-      <!-- LEFT: Main content -->
-      <div>
-
-        <!-- Tabbed card -->
-        <div class="card">
+      <!-- Tabs -->
+      <div class="reveal">
+        <div class="tabs-outer">
           <div class="tabs-nav">
-            <button class="tab-btn active" data-tab="profile">👤 Profile</button>
-            <button class="tab-btn" data-tab="scorecard">📊 Scorecard</button>
-            <button class="tab-btn" data-tab="interviews" id="tab-interviews-btn">🎙 Interviews</button>
-            <button class="tab-btn" data-tab="resume">📄 Resume</button>
-            <button class="tab-btn" data-tab="visibility">👁 Visibility</button>
+            <button class="tab-btn active" data-tab="overview">Overview</button>
+            <button class="tab-btn" data-tab="profile">Profile</button>
+            <button class="tab-btn" data-tab="scorecard">Scorecard</button>
+            <button class="tab-btn" data-tab="interviews" id="tab-btn-interviews">Interviews</button>
+            <button class="tab-btn" data-tab="resume">Resume</button>
           </div>
 
-          <!-- Profile tab -->
-          <div class="tab-pane active" id="tab-profile">
-            <div class="card-title"><span class="card-icon">👤</span> DPR Profile</div>
+          <!-- ── Overview ──────────────────────────────────────────────── -->
+          <div class="tab-pane active" id="tab-overview">
 
-            <div style="margin-bottom:18px;">
-              <div class="field-label">Profile Completeness</div>
-              <div style="display:flex;align-items:center;gap:12px;margin-top:6px;">
-                <div style="flex:1;height:8px;background:var(--surface);border-radius:999px;overflow:hidden;">
-                  <div id="profile-pct-bar" style="height:8px;background:var(--blue);border-radius:999px;width:0%;transition:width .6s;"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+
+              <!-- Left col -->
+              <div>
+
+                <div class="card" style="margin-bottom:0;">
+                  <div class="card-title">Profile Completeness</div>
+                  <div class="ov-completeness">
+                    <svg width="72" height="72" viewBox="0 0 72 72" style="flex-shrink:0;">
+                      <circle cx="36" cy="36" r="28" fill="none" stroke="#E4E6EF" stroke-width="7"/>
+                      <circle id="ov-ring" cx="36" cy="36" r="28" fill="none"
+                        stroke="#1A44C2" stroke-width="7" stroke-linecap="round"
+                        stroke-dasharray="0 176" transform="rotate(-90 36 36)"/>
+                      <text id="ov-pct-text" x="36" y="41" text-anchor="middle"
+                        font-size="13" font-weight="800" fill="#09101F"
+                        font-family="Plus Jakarta Sans,system-ui,sans-serif">0%</text>
+                    </svg>
+                    <div>
+                      <div class="ov-pct-text" id="ov-pct-label">Complete your profile</div>
+                      <div class="ov-pct-tip" id="ov-pct-tip"></div>
+                      <div class="pills" id="ov-pills" style="margin-top:10px;"></div>
+                    </div>
+                  </div>
                 </div>
-                <span id="profile-pct-text" style="font-size:13px;font-weight:800;color:var(--ink);width:36px;text-align:right;"></span>
+
+                <div class="card" style="margin-top:14px;">
+                  <div class="card-title">Profile Details</div>
+                  <div id="ov-details"></div>
+                </div>
+
+              </div>
+
+              <!-- Right col -->
+              <div>
+
+                <!-- Latest scorecard mini -->
+                <div class="card" id="ov-sc-card">
+                  <div class="card-title">Latest Score</div>
+                  <div id="ov-sc-content">
+                    <div class="empty" style="padding:24px;">
+                      <div class="empty-heading">No scorecard yet</div>
+                      <div class="empty-sub">Complete a mock interview to see your results.</div>
+                      <a href="https://agzit.com/pricing/" class="btn-blue" style="width:auto;padding:10px 20px;display:inline-flex;">Buy a Session</a>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Recent interviews (last 3) -->
+                <div class="card" style="margin-top:14px;">
+                  <div class="card-title">Recent Interviews</div>
+                  <div id="ov-recent"></div>
+                </div>
+
+                <!-- Resume status -->
+                <div class="card" style="margin-top:14px;">
+                  <div class="card-title">Resume</div>
+                  <div id="ov-resume"></div>
+                </div>
+
               </div>
             </div>
 
-            <!-- Personal -->
-            <div class="card-title" style="font-size:13px;margin-bottom:12px;margin-top:4px;">Personal Information</div>
-            <div class="field-grid" id="fields-personal"></div>
+            <!-- Quick actions -->
+            <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <a href="https://agzit.com/dpr-registration/" class="btn-primary">Update DPR Profile</a>
+              <a id="ov-preview-link" href="#" class="btn-secondary" target="_blank" style="width:auto;display:none;">Preview Public Profile</a>
+            </div>
 
-            <div class="divider"></div>
-            <div class="card-title" style="font-size:13px;margin-bottom:12px;">Professional Summary</div>
-            <div class="field-grid" id="fields-professional"></div>
-            <div style="margin-top:14px;" id="fields-bio"></div>
-
-            <div class="divider"></div>
-            <div class="card-title" style="font-size:13px;margin-bottom:12px;">Work Experience</div>
-            <div id="list-work-experience"></div>
-
-            <div class="divider"></div>
-            <div class="card-title" style="font-size:13px;margin-bottom:12px;">Education</div>
-            <div id="list-education"></div>
-
-            <div class="divider"></div>
-            <div class="card-title" style="font-size:13px;margin-bottom:12px;">Certifications</div>
-            <div id="list-certifications"></div>
-
-            <div class="divider"></div>
-            <div class="card-title" style="font-size:13px;margin-bottom:12px;">Skills & Tools</div>
-            <div id="fields-skills"></div>
           </div>
 
-          <!-- Scorecard tab -->
+          <!-- ── Profile ───────────────────────────────────────────────── -->
+          <div class="tab-pane" id="tab-profile">
+            <div id="profile-content">
+              <p style="color:var(--muted);font-size:13px;">Loading profile…</p>
+            </div>
+          </div>
+
+          <!-- ── Scorecard ─────────────────────────────────────────────── -->
           <div class="tab-pane" id="tab-scorecard">
             <div id="scorecard-content">
-              <div class="no-scorecard">
-                <div style="font-size:36px;margin-bottom:8px;">📊</div>
-                <p>No scorecard yet. Complete a mock interview to see your results.</p>
+              <div class="empty">
+                <div class="empty-heading">No scorecard yet</div>
+                <div class="empty-sub">Complete a mock interview. Your score, band, and competency breakdown will appear here automatically.</div>
+                <a href="https://agzit.com/pricing/" class="btn-blue" style="width:auto;padding:11px 22px;display:inline-flex;margin:0 auto;">Buy a Session</a>
               </div>
             </div>
           </div>
 
-          <!-- Interviews tab -->
+          <!-- ── Interviews ─────────────────────────────────────────────── -->
           <div class="tab-pane" id="tab-interviews">
-            <div class="card-title"><span class="card-icon">🎙</span> Interview History</div>
-            <div id="interviews-list"></div>
+            <div class="ent-strip" id="ent-strip"></div>
+            <div id="interviews-content">
+              <div class="empty">
+                <div class="empty-heading">No interviews yet</div>
+                <div class="empty-sub">Start an AI mock interview. Your recordings and scores will appear here.</div>
+              </div>
+            </div>
           </div>
 
-          <!-- Resume tab -->
+          <!-- ── Resume ────────────────────────────────────────────────── -->
           <div class="tab-pane" id="tab-resume">
-            <div class="card-title"><span class="card-icon">📄</span> Resume</div>
-            <div id="resume-content"></div>
-          </div>
-
-          <!-- Visibility tab -->
-          <div class="tab-pane" id="tab-visibility">
-            <div class="card-title"><span class="card-icon">👁</span> Employer Visibility</div>
+            <div id="resume-status" style="margin-bottom:22px;"></div>
+            <div class="divider"></div>
+            <div class="card-title" style="margin-bottom:16px;">Employer Visibility Settings</div>
             <p style="font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.6;">
-              Control what employers can see when they find your DPR profile.
+              Control what employers see when they view your DPR profile.
             </p>
-            <div class="vis-grid" id="vis-controls">
-
-              <div class="vis-row">
+            <div id="vis-form">
+              <div class="vis-form-row">
                 <div>
-                  <div class="vis-label">Profile Visibility</div>
-                  <div class="vis-desc">Who can find and view your profile</div>
+                  <div class="vis-form-label">Profile Visibility</div>
+                  <div class="vis-form-desc">Who can find and view your profile</div>
                 </div>
-                <select class="vis-select" id="vis-profile">
+                <select class="vis-select" id="sel-profile">
                   <option value="public">Public</option>
                   <option value="private">Private</option>
                 </select>
               </div>
-
-              <div class="vis-row">
+              <div class="vis-form-row">
                 <div>
-                  <div class="vis-label">Contact Visibility</div>
-                  <div class="vis-desc">Who can see your email & phone</div>
+                  <div class="vis-form-label">Contact Visibility</div>
+                  <div class="vis-form-desc">Who can see your email and phone number</div>
                 </div>
-                <select class="vis-select" id="vis-contact">
+                <select class="vis-select" id="sel-contact">
                   <option value="co_public">Public</option>
                   <option value="co_verified_only">Verified Employers Only</option>
                   <option value="co_private">Private</option>
                 </select>
               </div>
-
-              <div class="vis-row">
+              <div class="vis-form-row">
                 <div>
-                  <div class="vis-label">Resume Visibility</div>
-                  <div class="vis-desc">Who can download your resume</div>
+                  <div class="vis-form-label">Resume Visibility</div>
+                  <div class="vis-form-desc">Who can download your resume</div>
                 </div>
-                <select class="vis-select" id="vis-resume">
+                <select class="vis-select" id="sel-resume">
                   <option value="re_public">Public</option>
                   <option value="re_verified_only">Verified Employers Only</option>
                   <option value="re_private">Private</option>
                 </select>
               </div>
-
             </div>
-            <button id="vis-save-btn" onclick="saveVisibility()">Save Visibility</button>
+            <button class="btn-save" id="vis-save" onclick="saveVisibility()">Save Settings</button>
             <div id="vis-feedback"></div>
           </div>
 
-        </div><!-- /.card -->
-      </div><!-- /left -->
+        </div><!-- /.tabs-outer -->
+      </div>
 
-      <!-- RIGHT: Sidebar -->
-      <div>
+      <!-- Sidebar -->
+      <div class="sidebar reveal">
 
-        <!-- Session credits -->
-        <div class="sidebar-card">
-          <div class="sidebar-title">Interview Credits</div>
-          <div class="credit-row">
-            <span class="credit-label">20-min sessions</span>
-            <span class="credit-val" id="credits-20">0</span>
-          </div>
-          <div class="credit-row">
-            <span class="credit-label">30-min sessions</span>
-            <span class="credit-val" id="credits-30">0</span>
-          </div>
-          <div class="credit-row">
-            <span class="credit-label">Total remaining</span>
-            <span class="credit-val" id="credits-total">0</span>
-          </div>
-          <div class="credit-row">
-            <span class="credit-label">Valid until</span>
-            <span style="font-size:12.5px;font-weight:700;color:var(--sub);" id="credits-valid">—</span>
-          </div>
-          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
-            <a href="/checkout/?add-to-cart=19594" class="btn-blue" style="flex:1;justify-content:center;font-size:12px;padding:9px 12px;">Buy 20-min</a>
-            <a href="/checkout/?add-to-cart=19596" class="btn-blue" style="flex:1;justify-content:center;font-size:12px;padding:9px 12px;">Buy 30-min</a>
+        <!-- Credits -->
+        <div class="card">
+          <div class="card-title">Interview Credits</div>
+          <div id="sidebar-credits"></div>
+          <div style="display:grid;gap:8px;margin-top:14px;">
+            <a href="https://agzit.com/checkout/?add-to-cart=19594" class="btn-blue">Buy 20-min Plan</a>
+            <a href="https://agzit.com/checkout/?add-to-cart=19596" class="btn-secondary">Buy 30-min Plan</a>
           </div>
         </div>
 
         <!-- Quick links -->
-        <div class="sidebar-card">
-          <div class="sidebar-title">Quick Links</div>
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            <a href="/interview-room/" class="btn-primary" style="justify-content:center;font-size:13px;">Start Mock Interview</a>
-            <a href="/dpr-update/" class="btn-primary" style="background:#3A4163;justify-content:center;font-size:13px;">Edit Profile</a>
-            <a id="public-profile-link" href="#" class="btn-primary" style="background:#0B7A47;justify-content:center;font-size:13px;" target="_blank">View Public Profile</a>
+        <div class="card">
+          <div class="card-title">Quick Links</div>
+          <div style="display:grid;gap:8px;">
+            <a href="https://agzit.com/interview-room/" class="btn-primary">Start Mock Interview</a>
+            <a href="https://agzit.com/dpr-registration/" class="btn-secondary">Edit Profile</a>
+            <a id="sb-preview" href="#" class="btn-secondary" style="display:none;" target="_blank">View Public Profile</a>
           </div>
         </div>
 
-        <!-- Latest scorecard mini -->
-        <div class="sidebar-card" id="sidebar-scorecard" style="display:none;">
-          <div class="sidebar-title">Latest Score</div>
-          <div style="text-align:center;padding:12px 0;">
-            <div style="font-size:40px;font-weight:800;color:var(--ink);letter-spacing:-2px;" id="sidebar-score">—</div>
-            <div style="font-size:12px;color:var(--muted);margin-top:4px;">out of 100</div>
-            <div id="sidebar-perf-badge" style="margin-top:10px;"></div>
-          </div>
-        </div>
+        <!-- Visibility summary -->
+        <div class="card" id="sb-vis-card"></div>
 
-      </div><!-- /sidebar -->
+      </div>
+
     </div><!-- /.two-col -->
-
   </div><!-- /.page -->
 </div><!-- /#app -->
 
+<!-- Media modals container -->
+<div id="modals"></div>
+
 <script>
 (function () {
-  'use strict';
+'use strict';
 
-  // ── Fetch dashboard data ──────────────────────────────────────────────────
-  async function init() {
-    let data;
-    try {
-      const res = await fetch('/api/candidate/dashboard', {
-        credentials: 'include',
-        headers: { 'Accept': 'application/json' },
-      });
-      if (res.status === 401) {
-        window.location.href = '/login?next=/dashboard';
-        return;
-      }
-      if (!res.ok) {
-        showError('Server error (' + res.status + ')', 'Please try again in a moment.');
-        return;
-      }
-      data = await res.json();
-      if (!data.ok) {
-        showError('Failed to load dashboard', data.error || 'Unknown error');
-        return;
-      }
-    } catch (e) {
-      showError('Network error', 'Could not reach the server. Check your connection.');
-      return;
-    }
+/* ── Helpers ──────────────────────────────────────────────────────────────── */
+const el = id => document.getElementById(id);
 
-    // Also load full profile and interviews in background for tabs
-    let profileData = null, interviewData = null;
-    try {
-      const [pr, ir] = await Promise.all([
-        fetch('/api/candidate/profile',    { credentials: 'include' }),
-        fetch('/api/candidate/interviews', { credentials: 'include' }),
-      ]);
-      if (pr.ok)  profileData   = (await pr.json());
-      if (ir.ok)  interviewData = (await ir.json());
-    } catch (_) {}
+function esc(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
-    render(data, profileData, interviewData);
+function fmtDate(d) {
+  if (!d) return '';
+  const t = Date.parse(d);
+  if (!t) return String(d);
+  return new Date(t).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+
+function fmtDT(d) {
+  if (!d) return '';
+  const t = Date.parse(d);
+  if (!t) return String(d);
+  return new Date(t).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function setSelectVal(id, val) {
+  const s = el(id);
+  if (!s) return;
+  for (let i = 0; i < s.options.length; i++) {
+    if (s.options[i].value === val) { s.selectedIndex = i; return; }
+  }
+}
+
+/* ── Performance level helpers ────────────────────────────────────────────── */
+const PERF_BANDS = {
+  'Interview Ready':           { cls:'pb-5', desc:'You are performing at a high level and demonstrating strong readiness for this role.' },
+  'Strong Potential':          { cls:'pb-4', desc:'You show clear potential with solid foundations. Minor refinements will strengthen your delivery.' },
+  'Developing Professional':   { cls:'pb-3', desc:'Good foundational understanding. Continue practising structured answers and role-specific workflow depth.' },
+  'Needs Structured Practice': { cls:'pb-2', desc:'Several areas need focused attention. Structured practice and role revision will make a significant difference.' },
+  'Foundation Level':          { cls:'pb-1', desc:'Core gaps need to be addressed. Focus on fundamental processes and domain-specific knowledge.' },
+};
+
+function perfBadge(level) {
+  if (!level) return '';
+  const b = PERF_BANDS[level] || { cls:'pb-3', desc:'' };
+  return `<span class="perf-badge ${b.cls}">${esc(level)}</span>`;
+}
+
+function perfDesc(level) {
+  return (PERF_BANDS[level] || {}).desc || '';
+}
+
+/* ── Status helpers ───────────────────────────────────────────────────────── */
+function statusLabel(s) {
+  return { approved:'Approved', publish:'Approved', pending:'Under Review', draft:'Incomplete' }[s] || (s || 'Incomplete');
+}
+function statusDot(s) {
+  return { approved:'#16a34a', publish:'#16a34a', pending:'#D97706', draft:'#94A3B8' }[s] || '#94A3B8';
+}
+function statusStyle(s) {
+  if (s === 'approved' || s === 'publish') return 'background:#DCFCE7;border:1px solid #86EFAC;color:#166534;';
+  if (s === 'pending') return 'background:#FEF3C7;border:1px solid #FCD34D;color:#92400E;';
+  return 'background:#F1F5F9;border:1px solid #CBD5E1;color:#475569;';
+}
+
+/* ── Visibility label helper ──────────────────────────────────────────────── */
+function visLabel(v) {
+  const m = { public:'Public', co_public:'Public', re_public:'Public', private:'Private', co_private:'Private', re_private:'Private', co_verified_only:'Verified Only', re_verified_only:'Verified Only' };
+  return m[v] || v || '—';
+}
+function visCls(v) {
+  if (!v) return 'vv-verified';
+  if (v.includes('public'))  return 'vv-public';
+  if (v.includes('private')) return 'vv-private';
+  return 'vv-verified';
+}
+
+/* ── Main fetch ───────────────────────────────────────────────────────────── */
+async function init() {
+  let dash;
+  try {
+    const r = await fetch('/api/candidate/dashboard', { credentials:'include' });
+    if (r.status === 401) { window.location.href = '/login'; return; }
+    if (!r.ok) { showErr('Server error (' + r.status + ')', 'Please refresh and try again.'); return; }
+    dash = await r.json();
+    if (!dash.ok) { showErr('Load failed', dash.error || 'Unknown error'); return; }
+  } catch (e) {
+    showErr('Network error', 'Could not connect. Check your internet and try again.');
+    return;
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
-  function render(d, pd, id) {
-    const user   = d.user   || {};
-    const prof   = d.profile || {};
-    const ent    = d.entitlements || {};
-    const recent = d.recent_interviews || [];
-    const sc     = d.latest_scorecard;
-
-    const firstName = user.first_name || user.email?.split('@')[0] || 'there';
-
-    // Nav
-    el('nav-name').textContent = firstName;
-
-    // Hero
-    el('hero-greeting').textContent = 'Welcome back, ' + firstName;
-    const badges = el('hero-badges');
-
-    if (prof.dpr_id) {
-      badges.appendChild(mkBadge('🪪 ' + prof.dpr_id, ''));
-    }
-    const statusClass = {
-      approved: 'status-approved',
-      publish:  'status-approved',
-      pending:  'status-pending',
-      draft:    'status-draft',
-    }[prof.dpr_status || 'draft'] || 'status-draft';
-    const statusLabel = { approved:'Approved', publish:'Approved', pending:'Pending', draft:'Draft' }[prof.dpr_status] || (prof.dpr_status || 'Unknown');
-    const dotColor = { approved:'#16a34a', publish:'#16a34a', pending:'#D97706', draft:'#94A3B8' }[prof.dpr_status] || '#94A3B8';
-    const dot = '<span style="width:7px;height:7px;border-radius:50%;background:' + dotColor + ';display:inline-block;"></span>';
-    const sb = document.createElement('span');
-    sb.className = 'hero-badge ' + statusClass;
-    sb.innerHTML = dot + ' ' + statusLabel;
-    badges.appendChild(sb);
-
-    if (prof.open_for_work_badge === '1' || prof.open_for_work_badge === true) {
-      badges.appendChild(mkBadge('✅ Open to Work', 'status-approved'));
-    }
-
-    // Hero actions
-    const ha = el('hero-actions');
-    ha.innerHTML = '<a href="/interview-room/" class="hero-btn hero-btn-primary">Start Interview →</a>' +
-                   '<a href="/dpr-update/" class="hero-btn hero-btn-outline">Edit Profile</a>';
-
-    // Public profile link
-    if (prof.dpr_id && (prof.dpr_status === 'publish' || prof.dpr_status === 'approved')) {
-      el('public-profile-link').href = '/view-profile/?dpr_id=' + encodeURIComponent(prof.dpr_id);
-    }
-
-    // ── Stat cards ──────────────────────────────────────────────────────────
-    el('stat-status').textContent  = statusLabel;
-    el('stat-status-sub').textContent = 'Profile: ' + (prof.profile_visibility || 'public');
-
-    const bestScore = recent.reduce((m, s) => Math.max(m, parseInt(s.mock_overall_score)||0), 0);
-    el('stat-score').textContent = bestScore || '—';
-    el('stat-score-sub').textContent = sc ? (sc.mock_performance_level || '') : 'No score yet';
-    el('stat-score-bar').style.width = bestScore + '%';
-
-    el('stat-resume').textContent    = '—';
-    el('stat-resume-sub').textContent = 'No resume uploaded';
-
-    el('stat-sessions').textContent = recent.length;
-    el('stat-sessions-sub').textContent = 'mock interviews';
-
-    // ── Credits sidebar ──────────────────────────────────────────────────────
-    setCredit('credits-20',    ent.sessions_20);
-    setCredit('credits-30',    ent.sessions_30);
-    setCredit('credits-total', ent.total);
-    el('credits-valid').textContent = ent.valid_until
-      ? fmtDate(ent.valid_until) : '—';
-
-    // ── Sidebar scorecard ────────────────────────────────────────────────────
-    if (sc && sc.mock_overall_score) {
-      el('sidebar-scorecard').style.display = 'block';
-      el('sidebar-score').textContent = sc.mock_overall_score;
-      el('sidebar-perf-badge').innerHTML = perfBadge(sc.mock_performance_level);
-    }
-
-    // ── Profile tab ──────────────────────────────────────────────────────────
-    const fp = pd?.profile || {};
-    renderProfileFields(fp);
-
-    // ── Scorecard tab ────────────────────────────────────────────────────────
-    renderScorecard(sc);
-
-    // ── Interviews tab ───────────────────────────────────────────────────────
-    const sessions = id?.sessions || recent;
-    renderInterviews(sessions);
-    const badge = el('tab-interviews-btn');
-    if (sessions.length) {
-      badge.innerHTML = '🎙 Interviews <span class="tab-badge">' + sessions.length + '</span>';
-    }
-
-    // ── Resume tab ───────────────────────────────────────────────────────────
-    renderResume(fp);
-
-    // ── Visibility ───────────────────────────────────────────────────────────
-    if (fp.profile_visibility) setSelectVal('vis-profile', fp.profile_visibility);
-    if (fp.contact_visibility) setSelectVal('vis-contact', fp.contact_visibility);
-    if (fp.resume_visibility)  setSelectVal('vis-resume',  fp.resume_visibility);
-
-    // ── Show app ─────────────────────────────────────────────────────────────
-    el('loading-screen').style.display = 'none';
-    el('app').style.display = 'block';
-  }
-
-  // ── Profile tab renderer ──────────────────────────────────────────────────
-  function renderProfileFields(p) {
-    // Completeness bar
-    const pct = parseInt(p.profile_completeness) || calcCompleteness(p);
-    el('profile-pct-bar').style.width  = pct + '%';
-    el('profile-pct-text').textContent = pct + '%';
-
-    // Personal
-    el('fields-personal').innerHTML = fields([
-      ['DPR ID',        p.dpr_id],
-      ['Full Name',     p.full_name],
-      ['Email',         p.email_address],
-      ['Phone',         p.phone_number],
-      ['Gender',        p.gender],
-      ['Date of Birth', fmtDate(p.date_of_birth)],
-      ['Nationality',   p.country_of_nationality],
-      ['LinkedIn',      p.linkedin_url ? '<a href="' + esc(p.linkedin_url) + '" target="_blank" style="color:var(--blue);">View Profile</a>' : null, true],
-      ['City',          p.residential_city],
-      ['Country',       p.residential_country],
+  // Parallel fetch for profile + interviews (non-blocking)
+  let profileData = null, interviewData = null;
+  try {
+    const [pr, ir] = await Promise.all([
+      fetch('/api/candidate/profile',    { credentials:'include' }),
+      fetch('/api/candidate/interviews', { credentials:'include' }),
     ]);
+    if (pr.ok) profileData   = await pr.json();
+    if (ir.ok) interviewData = await ir.json();
+  } catch (_) {}
 
-    // Professional
-    el('fields-professional').innerHTML = fields([
-      ['Industry / Domain', p.compliance_domains],
-      ['Career Level',      p.current_career_level],
-      ['Total Experience',  p.total_work_experience ? p.total_work_experience + ' yrs' : null],
-      ['Employment Status', p.current_employment_status],
-      ['Notice Period',     p.notice_period_in_days ? p.notice_period_in_days + ' days' : null],
-      ['Current CTC',       p.current_annual_ctc_with_currency],
-      ['Expected CTC',      p.expected_annual_ctc_with_currency],
-      ['Desired Role',      p.desired_role],
-      ['Work Level',        p.work_level],
-      ['Preferred Type',    p.preferred_work_type],
-      ['Open to Relocate',  p.open_to_relocate === '1' ? 'Yes' : p.open_to_relocate === '0' ? 'No' : null],
-    ]);
+  render(dash, profileData, interviewData);
+}
 
-    // Bio (full width)
-    el('fields-bio').innerHTML = p.professional_summary_bio
-      ? '<div class="field-label">Professional Summary</div><div style="font-size:13.5px;color:var(--sub);line-height:1.7;margin-top:4px;">' + esc(p.professional_summary_bio) + '</div>'
-      : '';
+/* ── Render ───────────────────────────────────────────────────────────────── */
+function render(d, pd, id) {
+  const user = d.user   || {};
+  const prof = d.profile || {};
+  const ent  = d.entitlements || {};
+  const sc   = d.latest_scorecard;
+  const recent = d.recent_interviews || [];
 
-    // Work experience
-    const we = p.work_experience || [];
-    el('list-work-experience').innerHTML = we.length
-      ? we.map(w => '<div class="repeater-item">' +
-          '<div class="repeater-title">' + esc(w.job_title||'Role') + '</div>' +
-          '<div class="repeater-sub">' + esc(w.company_name||'') +
-            (w.office_city ? ' · ' + esc(w.office_city) : '') +
-            (w.office_country ? ', ' + esc(w.office_country) : '') + '</div>' +
-          '<div class="repeater-sub">' +
-            (fmtDate(w.start_date)||'') + ' – ' +
-            (w.Currently_working === '1' ? 'Present' : fmtDate(w.end_date)||'Present') +
-            ' · ' + esc(w.employment_type||'') + '</div>' +
-          (w.key_responsibilities ? '<div class="repeater-body">' + esc(w.key_responsibilities) + '</div>' : '') +
-        '</div>').join('')
-      : '<div class="empty-state">No work experience added yet.</div>';
+  const firstName = user.first_name || (user.email || '').split('@')[0] || 'there';
 
-    // Education
-    const edu = p.education || [];
-    el('list-education').innerHTML = edu.length
-      ? edu.map(e => '<div class="repeater-item">' +
-          '<div class="repeater-title">' + esc(e.degree||'Degree') + '</div>' +
-          '<div class="repeater-sub">' + esc(e.institution_name||'') +
-            (e.edu_city ? ' · ' + esc(e.edu_city) : '') +
-            (e.edu_country ? ', ' + esc(e.edu_country) : '') + '</div>' +
-          '<div class="repeater-sub">' + (fmtDate(e.edu_start_date)||'') + ' – ' + (fmtDate(e.edu_end_date)||'') + '</div>' +
-        '</div>').join('')
-      : '<div class="empty-state">No education added yet.</div>';
+  /* topbar */
+  el('nav-name').textContent = firstName;
 
-    // Certifications
-    const cert = p.certifications || [];
-    el('list-certifications').innerHTML = cert.length
-      ? cert.map(c => '<div class="repeater-item">' +
-          '<div class="repeater-title">' + esc(c.certification_name||'Certificate') + '</div>' +
-          '<div class="repeater-sub">' + esc(c.issuing_organization||'') + '</div>' +
-          '<div class="repeater-sub">' +
-            (c.cert_issue_date ? 'Issued: ' + fmtDate(c.cert_issue_date) : '') +
-            (c.cert_expiry_date ? ' · Expires: ' + fmtDate(c.cert_expiry_date) : '') +
-            (c.credential_id ? ' · ID: ' + esc(c.credential_id) : '') + '</div>' +
-        '</div>').join('')
-      : '<div class="empty-state">No certifications added yet.</div>';
-
-    // Skills
-    const tools = (p.compliance_tools || []).map(t => t.tool_name).filter(Boolean);
-    const langs = (p.language_proficiency || []).map(l => l.language).filter(Boolean);
-    let skillsHtml = '';
-    if (p.soft_skills) skillsHtml += '<div class="field-label" style="margin-bottom:6px;">Skills</div><div style="font-size:13px;color:var(--sub);line-height:1.7;margin-bottom:12px;">' + esc(p.soft_skills) + '</div>';
-    if (tools.length)  skillsHtml += '<div class="field-label" style="margin-bottom:6px;">Tools & Software</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">' + tools.map(t => '<span class="pill">' + esc(t) + '</span>').join('') + '</div>';
-    if (langs.length)  skillsHtml += '<div class="field-label" style="margin-bottom:6px;">Languages</div><div style="display:flex;flex-wrap:wrap;gap:6px;">' + langs.map(l => '<span class="pill">' + esc(l) + '</span>').join('') + '</div>';
-    el('fields-skills').innerHTML = skillsHtml || '<div class="empty-state">No skills added yet.</div>';
+  /* hero */
+  el('hero-name').textContent = firstName;
+  const metaEl = el('hero-meta');
+  if (prof.dpr_id) {
+    const id = document.createElement('span');
+    id.className = 'hero-dpr-id'; id.textContent = prof.dpr_id;
+    metaEl.appendChild(id);
+  }
+  const sb = document.createElement('span');
+  sb.className = 'status-pill';
+  sb.style.cssText = statusStyle(prof.dpr_status);
+  sb.innerHTML = `<span class="status-dot" style="background:${statusDot(prof.dpr_status)};"></span>${esc(statusLabel(prof.dpr_status))}`;
+  metaEl.appendChild(sb);
+  if (prof.open_for_work_badge === '1' || prof.open_for_work_badge === true) {
+    const owb = document.createElement('span');
+    owb.className = 'status-pill';
+    owb.style.cssText = 'background:#DCFCE7;border:1px solid #86EFAC;color:#166534;';
+    owb.innerHTML = `<span class="status-dot" style="background:#16a34a;"></span>Open to Work`;
+    metaEl.appendChild(owb);
   }
 
-  // ── Scorecard renderer ────────────────────────────────────────────────────
-  function renderScorecard(sc) {
-    if (!sc || !sc.mock_overall_score) return;
-
-    const score = parseInt(sc.mock_overall_score) || 0;
-    const circ  = 2 * Math.PI * 44; // r=44
-    const dash  = ((score / 100) * circ).toFixed(1);
-
-    const competencies = [
-      ['Communication',      sc.score_communication],
-      ['Answer Structure',   sc.score_structure],
-      ['Role Knowledge',     sc.score_role_knowledge],
-      ['Domain Application', sc.score_domain_application],
-      ['Problem Solving',    sc.score_problem_solving],
-      ['Confidence',         sc.score_confidence],
-      ['Question Handling',  sc.score_question_handling],
-      ['Experience Relevance', sc.score_experience_relevance],
-      ['Resume Alignment',   sc.score_resume_alignment],
-    ];
-
-    const bars = competencies.map(([label, val]) => {
-      const v = parseInt(val) || 0;
-      return '<div class="competency-row">' +
-        '<div class="competency-label">' + esc(label) + '</div>' +
-        '<div class="competency-track"><div class="competency-fill" style="width:' + (v * 10) + '%"></div></div>' +
-        '<div class="competency-score">' + v + '/10</div>' +
-      '</div>';
-    }).join('');
-
-    const fb = [
-      ['💪 Strengths',       sc.mock_strengths],
-      ['🎯 Improvements',    sc.mock_improvements],
-      ['🔍 Attention Areas', sc.mock_attention_areas],
-      ['📌 Next Focus',      sc.mock_next_focus],
-    ].filter(([,v]) => v).map(([t, v]) =>
-      '<div class="feedback-block">' +
-        '<div class="feedback-title">' + t + '</div>' +
-        '<div class="feedback-text">' + esc(v) + '</div>' +
-      '</div>'
-    ).join('');
-
-    el('scorecard-content').innerHTML =
-      '<div class="score-ring-wrap">' +
-        '<svg class="score-ring-svg" width="110" height="110" viewBox="0 0 110 110">' +
-          '<circle cx="55" cy="55" r="44" fill="none" stroke="#E4E6EF" stroke-width="9"/>' +
-          '<circle cx="55" cy="55" r="44" fill="none" stroke="#1A44C2" stroke-width="9"' +
-          '  stroke-dasharray="' + dash + ' ' + circ + '"' +
-          '  stroke-dashoffset="' + (circ * 0.25).toFixed(1) + '"' +
-          '  stroke-linecap="round" transform="rotate(-90 55 55)"/>' +
-          '<text x="55" y="60" text-anchor="middle" font-size="22" font-weight="800" fill="#09101F" font-family="Plus Jakarta Sans,system-ui,sans-serif">' + score + '</text>' +
-        '</svg>' +
-        '<div class="score-ring-info">' +
-          '<div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;">' +
-            esc(sc.interview_role || 'Mock Interview') + ' · ' + fmtDate(sc.started_at) +
-          '</div>' +
-          '<h2>' + score + ' <span style="font-size:16px;color:var(--muted);font-weight:600;">/100</span></h2>' +
-          '<div>' + perfBadge(sc.mock_performance_level) + '</div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="divider"></div>' +
-      '<div class="card-title" style="font-size:13px;margin-bottom:14px;">Competency Breakdown</div>' +
-      bars +
-      (fb ? '<div class="divider"></div>' + fb : '');
+  /* hero right */
+  const hr = el('hero-right');
+  const dprId = prof.dpr_id;
+  const isApproved = (prof.dpr_status === 'publish' || prof.dpr_status === 'approved');
+  if (dprId && isApproved) {
+    const pubUrl = `https://agzit.com/view-profile/?dpr_id=${encodeURIComponent(dprId)}`;
+    hr.innerHTML = `<div class="hero-link-label">Your Permanent DPR Link</div>
+      <div class="hero-actions">
+        <a href="${pubUrl}" target="_blank" class="btn-hero-ghost">Preview</a>
+        <button type="button" class="btn-hero-primary" onclick="copyLink('${pubUrl}', this)">Copy Link</button>
+      </div>`;
+    el('ov-preview-link').href = pubUrl; el('ov-preview-link').style.display = '';
+    el('sb-preview').href = pubUrl; el('sb-preview').style.display = '';
+  } else {
+    hr.innerHTML = `<div class="hero-pending-note">Public profile link activates after approval.</div>`;
   }
 
-  // ── Interviews renderer ───────────────────────────────────────────────────
-  function renderInterviews(sessions) {
-    if (!sessions || !sessions.length) {
-      el('interviews-list').innerHTML = '<div class="empty-state">No interviews recorded yet.</div>';
-      return;
+  /* ── Stat cards ─────────────────────────────────────────────────────────── */
+  const pct = parseInt(prof.profile_completeness) || 0;
+  el('st-profile').textContent = pct + '%';
+  el('st-profile-bar').style.width = pct + '%';
+  el('st-profile-sub').textContent = statusLabel(prof.dpr_status);
+
+  const bestScore = recent.reduce((m, s) => Math.max(m, parseInt(s.mock_overall_score)||0), 0);
+  el('st-score').textContent = bestScore ? bestScore + '/100' : 'None yet';
+  el('st-score-bar').style.width = bestScore + '%';
+  el('st-score-sub').textContent = sc ? (sc.mock_performance_level || '') : 'No interview yet';
+
+  el('st-sessions').textContent = recent.length || (d.recent_interviews || []).length;
+
+  /* resume stat — we'll update when profile loads */
+
+  /* ── Entitlement strip ───────────────────────────────────────────────────── */
+  const strip = el('ent-strip');
+  strip.innerHTML = `<span class="ent-label">Credits</span>
+    <span class="ent-chip c20">20-min: ${ent.sessions_20||0}</span>
+    <span class="ent-chip c30">30-min: ${ent.sessions_30||0}</span>
+    ${ent.valid_until ? `<span class="ent-meta">Valid until: ${fmtDate(ent.valid_until)}</span>` : ''}
+    <a href="https://agzit.com/checkout/?add-to-cart=19594" style="margin-left:auto;padding:8px 16px;border-radius:9px;font-size:12.5px;font-weight:700;background:var(--blue);color:#fff;white-space:nowrap;">Buy Sessions</a>`;
+
+  /* ── Sidebar credits ─────────────────────────────────────────────────────── */
+  el('sidebar-credits').innerHTML = [
+    ['20-min sessions', ent.sessions_20||0],
+    ['30-min sessions', ent.sessions_30||0],
+    ['Total remaining', ent.total||0],
+    ['Valid until', ent.valid_until ? fmtDate(ent.valid_until) : '—'],
+  ].map(([k,v]) => `<div class="info-row"><span class="info-key">${esc(k)}</span><span class="info-val" style="${!v||v==='—'?'color:var(--muted);':''}">${esc(String(v))}</span></div>`).join('');
+
+  /* ── Overview panel ──────────────────────────────────────────────────────── */
+  /* ring + completeness */
+  const circ = 2 * Math.PI * 28;
+  const dash2 = ((pct / 100) * circ).toFixed(1);
+  el('ov-ring').setAttribute('stroke-dasharray', `${dash2} ${circ.toFixed(1)}`);
+  el('ov-pct-text').textContent = pct + '%';
+  el('ov-pct-label').textContent = pct === 100 ? 'Profile complete' : pct >= 80 ? 'Almost there' : pct >= 50 ? 'Keep going' : 'Profile incomplete';
+  const tip = pct < 60 ? 'Add Work Experience and Education to increase employer trust.'
+            : pct < 85 ? 'Add Certifications to strengthen your credibility.'
+            : pct < 100 ? 'Fill remaining fields to reach 100%.'
+            : 'Your profile is fully complete.';
+  el('ov-pct-tip').textContent = tip;
+
+  /* overview details */
+  el('ov-details').innerHTML = [
+    ['DPR ID',      prof.dpr_id],
+    ['Status',      statusLabel(prof.dpr_status)],
+    ['Industry',    prof.compliance_domains],
+    ['Career Level', prof.current_career_level],
+  ].map(([k,v]) => v ? `<div class="info-row"><span class="info-key">${esc(k)}</span><span class="info-val">${esc(String(v))}</span></div>` : '').join('');
+
+  /* overview scorecard mini */
+  if (sc && sc.mock_overall_score) {
+    const score = parseInt(sc.mock_overall_score);
+    el('ov-sc-content').innerHTML = `
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;">
+        <div style="font-size:38px;font-weight:800;color:var(--ink);letter-spacing:-2px;">${score}</div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.6px;">out of 100</div>
+          ${perfBadge(sc.mock_performance_level)}
+          <div style="font-size:12px;color:var(--muted);margin-top:5px;">${esc(sc.interview_role||'')} &middot; ${fmtDate(sc.started_at)}</div>
+        </div>
+      </div>
+      <div style="height:6px;background:var(--surface);border-radius:999px;overflow:hidden;">
+        <div style="height:6px;background:var(--blue);border-radius:999px;width:${score}%;"></div>
+      </div>`;
+    /* sidebar mini */
+    el('sidebar-credits').insertAdjacentHTML('afterend', '');
+  }
+
+  /* overview recent interviews */
+  if (recent.length) {
+    el('ov-recent').innerHTML = recent.slice(0,3).map(s => `
+      <div class="mini-ses">
+        <div>
+          <div class="mini-role">${esc(s.interview_role||'Mock Interview')}</div>
+          <div class="mini-meta">${fmtDate(s.started_at)} &middot; ${s.duration_minutes||'—'} min</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <span class="status-pill" style="${s.interview_status==='completed'?'background:var(--green-lt);color:var(--green);':'background:#DBEAFE;color:#1D4ED8;'}font-size:11.5px;font-weight:700;padding:3px 10px;">
+            ${esc(s.interview_status==='completed'?'Completed':'In Progress')}
+          </span>
+          ${s.mock_overall_score ? `<span class="score-chip">${s.mock_overall_score}/100</span>` : ''}
+        </div>
+      </div>`).join('') +
+    (recent.length > 3 ? `<div style="text-align:center;margin-top:10px;"><button class="btn-sm" onclick="switchTab('interviews')">View all ${recent.length} sessions</button></div>` : '');
+  } else {
+    el('ov-recent').innerHTML = '<div style="font-size:13px;color:var(--muted);padding:12px 0;">No interviews yet.</div>';
+  }
+
+  /* ── Visibility sidebar card ─────────────────────────────────────────────── */
+  if (prof.profile_visibility || prof.contact_visibility || prof.resume_visibility) {
+    el('sb-vis-card').innerHTML = `<div class="card-title" style="margin-bottom:12px;">Visibility</div>` +
+      [['Profile', prof.profile_visibility],['Contact', prof.contact_visibility],['Resume', prof.resume_visibility]]
+      .map(([k,v]) => `<div class="vis-row"><span class="vis-row-label">${k}</span><span class="vis-val ${visCls(v)}">${visLabel(v)}</span></div>`)
+      .join('') +
+      `<div style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.55;">Controls what employers see on your public DPR page.</div>`;
+  }
+
+  /* ── Scorecard tab ───────────────────────────────────────────────────────── */
+  if (sc && sc.mock_overall_score) renderScorecard(sc);
+
+  /* ── Interviews tab ──────────────────────────────────────────────────────── */
+  if (recent.length) renderInterviews(recent, id);
+
+  /* ── Profile tab ─────────────────────────────────────────────────────────── */
+  if (pd && pd.profile) renderProfile(pd.profile);
+
+  /* ── Resume tab ──────────────────────────────────────────────────────────── */
+  if (pd && pd.profile) {
+    renderResume(pd.profile);
+    setSelectVal('sel-profile', pd.profile.profile_visibility);
+    setSelectVal('sel-contact', pd.profile.contact_visibility);
+    setSelectVal('sel-resume',  pd.profile.resume_visibility);
+  }
+
+  /* ── Show app ─────────────────────────────────────────────────────────────── */
+  el('loading').style.display = 'none';
+  el('app').style.display     = 'block';
+
+  /* Scroll reveal */
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in-view'); observer.unobserve(e.target); } });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+}
+
+/* ── Scorecard renderer ───────────────────────────────────────────────────── */
+function renderScorecard(sc) {
+  const score = parseInt(sc.mock_overall_score) || 0;
+  const circ  = 2 * Math.PI * 44;
+  const dash  = ((score / 100) * circ).toFixed(1);
+  const comps = [
+    ['Communication',      sc.score_communication],
+    ['Answer Structure',   sc.score_structure],
+    ['Role Knowledge',     sc.score_role_knowledge],
+    ['Domain Application', sc.score_domain_application],
+    ['Problem Solving',    sc.score_problem_solving],
+    ['Confidence',         sc.score_confidence],
+    ['Question Handling',  sc.score_question_handling],
+    ['Experience Relevance', sc.score_experience_relevance],
+    ['Resume Alignment',   sc.score_resume_alignment],
+  ];
+
+  const bars = comps.map(([label, val]) => {
+    const v = parseInt(val) || 0;
+    return `<div class="comp-row">
+      <span class="comp-label">${esc(label)}</span>
+      <div class="comp-track"><div class="comp-fill" style="width:${v*10}%"></div></div>
+      <span class="comp-val">${v}/10</span>
+    </div>`;
+  }).join('');
+
+  const feedbacks = [
+    ['Strengths',       sc.mock_strengths],
+    ['Areas to Improve', sc.mock_improvements],
+    ['Attention Areas', sc.mock_attention_areas],
+    ['Next Focus',      sc.mock_next_focus],
+  ].filter(([,v]) => v).map(([label, val]) =>
+    `<div class="fb-block"><div class="fb-label">${esc(label)}</div><div class="fb-text">${esc(val)}</div></div>`
+  ).join('');
+
+  el('scorecard-content').innerHTML = `
+    <div class="score-ring-row">
+      <svg width="110" height="110" viewBox="0 0 110 110" style="flex-shrink:0;">
+        <circle cx="55" cy="55" r="44" fill="none" stroke="#E4E6EF" stroke-width="9"/>
+        <circle cx="55" cy="55" r="44" fill="none" stroke="#1A44C2" stroke-width="9"
+          stroke-dasharray="${dash} ${circ.toFixed(1)}"
+          stroke-linecap="round" transform="rotate(-90 55 55)"/>
+        <text x="55" y="60" text-anchor="middle" font-size="22" font-weight="800"
+          fill="#09101F" font-family="Plus Jakarta Sans,system-ui,sans-serif">${score}</text>
+      </svg>
+      <div class="score-ring-meta">
+        <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;">${esc(sc.interview_role||'Mock Interview')} &middot; ${fmtDate(sc.started_at)}</div>
+        <h2>${score} <span style="font-size:16px;color:var(--muted);font-weight:600;">/100</span></h2>
+        <div>${perfBadge(sc.mock_performance_level)}</div>
+        <div style="font-size:12.5px;color:var(--soft);margin-top:8px;line-height:1.55;max-width:340px;">${esc(perfDesc(sc.mock_performance_level))}</div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="card-title" style="margin-bottom:14px;">Competency Breakdown</div>
+    ${bars}
+    ${feedbacks ? `<div class="divider"></div>${feedbacks}` : ''}`;
+}
+
+/* ── Interviews renderer ──────────────────────────────────────────────────── */
+function renderInterviews(sessions, id) {
+  const list = (id && id.sessions && id.sessions.length) ? id.sessions : sessions;
+  if (!list || !list.length) return;
+
+  /* update tab count badge */
+  el('tab-btn-interviews').innerHTML = `Interviews <span class="tab-count">${list.length}</span>`;
+
+  let html = '';
+  list.forEach((s, idx) => {
+    const status   = (s.interview_status || '').toLowerCase();
+    const cls      = status === 'completed' ? 'ses-completed' : status === 'in_progress' ? 'ses-in-progress' : '';
+    const statusTx = status === 'completed' ? 'Completed' : status === 'in_progress' ? 'In Progress' : (s.interview_status||'Unknown');
+    const stStyle  = status === 'completed' ? 'background:var(--green-lt);color:var(--green);' : 'background:#DBEAFE;color:#1D4ED8;';
+    const vidId    = `vid_${idx}`;
+    const audId    = `aud_${idx}`;
+    const hasScore = s.mock_overall_score;
+
+    html += `<div class="ses-card ${cls}">
+      <div class="ses-top">
+        <div>
+          <div class="ses-role">${esc(s.interview_role||'Mock Interview')}</div>
+          <div class="ses-meta">
+            <span style="font-family:ui-monospace,monospace;font-size:11px;color:var(--muted);">${esc(s.session_id||'')}</span>
+            ${s.started_at ? ` &mdash; ${fmtDT(s.started_at)}` : ''}
+            ${s.duration_minutes ? ` &mdash; ${s.duration_minutes} min` : ''}
+            ${s.target_career_level ? ` &mdash; ${esc(s.target_career_level)}` : ''}
+          </div>
+        </div>
+        <div class="ses-right">
+          <span class="status-pill" style="${stStyle}font-size:11.5px;font-weight:700;padding:4px 11px;">${esc(statusTx)}</span>
+          ${hasScore ? `<span class="score-chip">${s.mock_overall_score}/100</span>` : ''}
+          ${s.mock_performance_level ? perfBadge(s.mock_performance_level) : ''}
+        </div>
+      </div>`;
+
+    if (s.video_url || s.audio_url) {
+      html += `<div class="ses-actions">`;
+      if (s.video_url) html += `<button class="btn-sm" onclick="openModal('${vidId}')">Play Video</button>`;
+      if (s.audio_url) html += `<button class="btn-sm" onclick="openModal('${audId}')">Play Audio</button>`;
+      html += `</div>`;
+    } else if (status !== 'completed') {
+      html += `<div style="font-size:12.5px;color:var(--muted);font-style:italic;margin-top:8px;">Recording will appear here once processing is complete.</div>`;
     }
-    el('interviews-list').innerHTML = '<div class="interview-list">' +
-      sessions.map(s => {
-        const statusCls = s.interview_status === 'completed' ? 'status-completed'
-                        : s.interview_status === 'in_progress' ? 'status-in_progress'
-                        : 'status-default';
-        const statusLbl = s.interview_status === 'in_progress' ? 'In Progress'
-                        : (s.interview_status || 'Unknown').charAt(0).toUpperCase() + (s.interview_status||'').slice(1);
 
-        const links = [
-          s.audio_url ? '<a href="' + esc(s.audio_url) + '" target="_blank" class="media-btn">▶ Audio</a>' : '',
-          s.video_url ? '<a href="' + esc(s.video_url) + '" target="_blank" class="media-btn">🎬 Video</a>' : '',
-        ].filter(Boolean).join('');
-
-        return '<div class="interview-row">' +
-          '<div>' +
-            '<div class="interview-role">' + esc(s.interview_role || 'Mock Interview') + '</div>' +
-            '<div class="interview-meta">' +
-              (s.started_at ? fmtDateTime(s.started_at) : '—') +
-              ' · ' + (s.duration_minutes || '—') + ' min' +
-              ' · ' + esc(s.target_career_level || '') +
-            '</div>' +
-          '</div>' +
-          '<div class="interview-right">' +
-            '<span class="status-pill ' + statusCls + '">' + statusLbl + '</span>' +
-            (s.mock_overall_score ? '<span class="score-chip">' + s.mock_overall_score + '/100</span>' : '') +
-            (links ? '<div class="interview-links">' + links + '</div>' : '') +
-          '</div>' +
-        '</div>';
-      }).join('') +
-    '</div>';
-  }
-
-  // ── Resume renderer ───────────────────────────────────────────────────────
-  function renderResume(p) {
-    const hasResume = !!(p.resume_upload);
-    const vis = { re_public:'Public', re_verified_only:'Verified Employers Only', re_private:'Private' }[p.resume_visibility] || 'Verified Employers Only';
-
-    // Update stat card
-    el('stat-resume').textContent    = hasResume ? '✓' : '✗';
-    el('stat-resume-sub').textContent = hasResume ? 'Uploaded' : 'No resume uploaded';
-
-    el('resume-content').innerHTML =
-      '<div class="resume-row">' +
-        '<div class="resume-info">' +
-          '<h3>' + esc(p.full_name || 'Resume') + '</h3>' +
-          '<p>' + esc(p.email_address||'') + (p.phone_number ? ' · ' + esc(p.phone_number) : '') + '</p>' +
-          '<p style="margin-top:6px;">Visibility: <strong>' + vis + '</strong></p>' +
-        '</div>' +
-        (hasResume
-          ? '<a href="/dpr-download/?type=resume&dpr_id=' + encodeURIComponent(p.dpr_id||'') + '" class="btn-primary" target="_blank">⬇ Download</a>'
-          : '<a href="/dpr-update/" class="btn-blue">Upload Resume</a>'
-        ) +
-      '</div>';
-  }
-
-  // ── Visibility save ───────────────────────────────────────────────────────
-  window.saveVisibility = async function () {
-    const btn  = el('vis-save-btn');
-    const fbEl = el('vis-feedback');
-    btn.disabled = true;
-    btn.textContent = 'Saving…';
-    fbEl.textContent = '';
-    fbEl.className = '';
-
-    try {
-      const res = await fetch('/api/candidate/visibility', {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          profile_visibility: el('vis-profile').value,
-          contact_visibility: el('vis-contact').value,
-          resume_visibility:  el('vis-resume').value,
-        }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        fbEl.textContent = '✓ Visibility updated.';
-        fbEl.className   = 'ok';
-      } else {
-        fbEl.textContent = data.error || 'Save failed.';
-        fbEl.className   = 'err';
-      }
-    } catch (e) {
-      fbEl.textContent = 'Network error. Please try again.';
-      fbEl.className   = 'err';
-    } finally {
-      btn.disabled    = false;
-      btn.textContent = 'Save Visibility';
+    /* inline scorecard */
+    if (hasScore) {
+      const score2 = parseInt(s.mock_overall_score) || 0;
+      html += `<div class="ses-scorecard">
+        <div class="ses-sc-header">
+          <div class="ses-sc-score">${score2}/100</div>
+          <div>${perfBadge(s.mock_performance_level)}</div>
+        </div>`;
+      const comps2 = [
+        ['Communication', s.score_communication], ['Structure', s.score_structure],
+        ['Role Knowledge', s.score_role_knowledge], ['Domain', s.score_domain_application],
+        ['Problem Solving', s.score_problem_solving],
+      ];
+      html += comps2.map(([l, v]) => {
+        const n = parseInt(v)||0;
+        return `<div class="comp-row"><span class="comp-label" style="font-size:12px;width:140px;">${esc(l)}</span>
+          <div class="comp-track"><div class="comp-fill" style="width:${n*10}%"></div></div>
+          <span class="comp-val">${n}/10</span></div>`;
+      }).join('');
+      html += `</div>`;
     }
-  };
 
-  // ── Tabs ──────────────────────────────────────────────────────────────────
-  document.querySelectorAll('.tab-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      const tab = btn.dataset.tab;
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      const pane = document.getElementById('tab-' + tab);
-      if (pane) pane.classList.add('active');
-    });
+    html += `</div>`;
+
+    /* modals */
+    const modCont = el('modals');
+    if (s.video_url) {
+      modCont.insertAdjacentHTML('beforeend', `
+        <div class="modal" id="${vidId}" onclick="if(event.target===this)closeModal('${vidId}')">
+          <div class="modal-inner">
+            <div class="modal-head">
+              <div class="modal-title">Video Recording &mdash; ${esc(s.session_id||'Session #'+(idx+1))}</div>
+              <button class="modal-close" onclick="closeModal('${vidId}')">Close</button>
+            </div>
+            <div class="modal-body">
+              <video class="modal-player" controls playsinline preload="metadata">
+                <source src="${esc(s.video_url)}">Your browser does not support video playback.
+              </video>
+            </div>
+          </div>
+        </div>`);
+    }
+    if (s.audio_url) {
+      modCont.insertAdjacentHTML('beforeend', `
+        <div class="modal" id="${audId}" onclick="if(event.target===this)closeModal('${audId}')">
+          <div class="modal-inner audio">
+            <div class="modal-head">
+              <div class="modal-title">Audio Recording &mdash; ${esc(s.session_id||'Session #'+(idx+1))}</div>
+              <button class="modal-close" onclick="closeModal('${audId}')">Close</button>
+            </div>
+            <div class="modal-body">
+              <audio controls preload="metadata" style="width:100%;border-radius:10px;">
+                <source src="${esc(s.audio_url)}">Your browser does not support audio playback.
+              </audio>
+            </div>
+          </div>
+        </div>`);
+    }
   });
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  function el(id) { return document.getElementById(id); }
+  el('interviews-content').innerHTML = html;
+}
 
-  function esc(s) {
-    if (!s) return '';
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+/* ── Profile renderer ─────────────────────────────────────────────────────── */
+function renderProfile(p) {
+  if (!p) return;
+
+  /* resume stat update */
+  const hasRes = !!(p.resume_upload);
+  el('st-resume').textContent    = hasRes ? 'Uploaded' : 'Missing';
+  el('st-resume-sub').textContent = hasRes ? 'On file' : 'No resume uploaded';
+
+  /* overview pills */
+  const weC = (p.work_experience||[]).length, eduC = (p.education||[]).length, cerC = (p.certifications||[]).length;
+  el('ov-pills').innerHTML = [
+    ['Work', weC], ['Education', eduC], ['Certs', cerC],
+    ['Resume', hasRes ? 'Yes' : 'No'],
+  ].map(([l,v]) => `<span class="pill" style="${v==='No'?'background:#FFF5F5;border-color:#FECACA;color:#991B1B;':''}">${esc(String(l))}: ${esc(String(v))}</span>`).join('');
+
+  /* overview resume card */
+  el('ov-resume').innerHTML = hasRes
+    ? `<div class="resume-uploaded">
+        <div>
+          <div style="font-weight:700;color:var(--green);font-size:14px;">Resume uploaded</div>
+          <div style="font-size:12.5px;color:var(--muted);margin-top:3px;">To replace, go to Update DPR Profile.</div>
+        </div>
+        <a href="https://agzit.com/dpr-download/?type=resume&dpr_id=${encodeURIComponent(p.dpr_id||'')}" target="_blank" class="resume-download">Download PDF</a>
+      </div>`
+    : `<div class="resume-missing">
+        <div style="font-weight:700;color:#991B1B;font-size:14px;">No resume uploaded</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:3px;">Upload your resume via <strong>Update DPR Profile</strong>.</div>
+      </div>`;
+
+  /* profile tab */
+  const html = `
+    <div class="section-title">Personal Information</div>
+    <div class="field-grid">
+      ${fld('DPR ID',         p.dpr_id)}
+      ${fld('Full Name',      p.full_name)}
+      ${fld('Email',          p.email_address)}
+      ${fld('Phone',          p.phone_number)}
+      ${fld('Gender',         p.gender)}
+      ${fld('Date of Birth',  fmtDate(p.date_of_birth))}
+      ${fld('Nationality',    p.country_of_nationality)}
+      ${fld('City',           p.residential_city)}
+      ${fld('State',          p.residential_state)}
+      ${fld('Country',        p.residential_country)}
+      ${fld('LinkedIn',       p.linkedin_url ? `<a href="${esc(p.linkedin_url)}" target="_blank" style="color:var(--blue);font-weight:700;">View Profile</a>` : null, true)}
+      ${fld('Profile Views',  p.dpr_id_view_count||'0')}
+    </div>
+
+    <div class="section-title">Professional Summary</div>
+    <div class="field-grid">
+      ${fld('Industry / Domain',   p.compliance_domains)}
+      ${fld('Career Level',        p.current_career_level)}
+      ${fld('Total Experience',    p.total_work_experience ? p.total_work_experience + ' years' : null)}
+      ${fld('Employment Status',   p.current_employment_status)}
+      ${fld('Notice Period',       p.notice_period_in_days ? p.notice_period_in_days + ' days' : null)}
+      ${fld('Current CTC',         p.current_annual_ctc_with_currency)}
+      ${fld('Expected CTC',        p.expected_annual_ctc_with_currency)}
+      ${fld('Desired Role',        p.desired_role)}
+      ${fld('Work Level',          p.work_level)}
+      ${fld('Work Type',           p.preferred_work_type)}
+      ${fld('Open to Relocate',    p.open_to_relocate === '1' ? 'Yes' : p.open_to_relocate === '0' ? 'No' : null)}
+    </div>
+    ${p.professional_summary_bio ? `<div class="field-label" style="margin-top:12px;">Professional Summary</div><div class="field-val" style="margin-top:4px;font-size:13.5px;color:var(--soft);line-height:1.7;">${esc(p.professional_summary_bio)}</div>` : ''}
+
+    <div class="section-title">Work Experience</div>
+    ${(p.work_experience||[]).length ? (p.work_experience.map(w => `
+      <div class="rep-item">
+        <div class="rep-title">${esc(w.job_title||'Role')}</div>
+        <div class="rep-sub">${esc(w.company_name||'')}${w.office_city ? ' &middot; ' + esc(w.office_city) : ''}${w.office_country ? ', ' + esc(w.office_country) : ''}</div>
+        <div class="rep-sub">${fmtDate(w.start_date)||''} &ndash; ${w.Currently_working==='1'?'Present':fmtDate(w.end_date)||'Present'} &middot; ${esc(w.employment_type||'')}</div>
+        ${w.key_responsibilities ? `<div class="rep-body">${esc(w.key_responsibilities)}</div>` : ''}
+      </div>`).join(''))
+    : '<div style="font-size:13px;color:var(--muted);padding:8px 0;">No work experience added yet.</div>'}
+
+    <div class="section-title">Education</div>
+    ${(p.education||[]).length ? (p.education.map(e => `
+      <div class="rep-item" style="border-left-color:var(--green);">
+        <div class="rep-title">${esc(e.degree||'Degree')}</div>
+        <div class="rep-sub">${esc(e.institution_name||'')}${e.edu_city ? ' &middot; ' + esc(e.edu_city) : ''}${e.edu_country ? ', ' + esc(e.edu_country) : ''}</div>
+        <div class="rep-sub">${fmtDate(e.edu_start_date)||''} &ndash; ${fmtDate(e.edu_end_date)||''}</div>
+      </div>`).join(''))
+    : '<div style="font-size:13px;color:var(--muted);padding:8px 0;">No education added yet.</div>'}
+
+    <div class="section-title">Certifications</div>
+    ${(p.certifications||[]).length ? (p.certifications.map(c => `
+      <div class="rep-item" style="border-left-color:#D97706;">
+        <div class="rep-title">${esc(c.certification_name||'Certificate')}</div>
+        <div class="rep-sub">${esc(c.issuing_organization||'')}${c.credential_id ? ' &middot; ID: ' + esc(c.credential_id) : ''}</div>
+        <div class="rep-sub">${c.cert_issue_date ? 'Issued: ' + fmtDate(c.cert_issue_date) : ''}${c.cert_expiry_date ? ' &middot; Expires: ' + fmtDate(c.cert_expiry_date) : ''}</div>
+      </div>`).join(''))
+    : '<div style="font-size:13px;color:var(--muted);padding:8px 0;">No certifications added yet.</div>'}
+
+    <div class="section-title">Skills &amp; Tools</div>
+    ${p.soft_skills ? `<div class="field-label" style="margin-bottom:6px;">Skills</div><div style="font-size:13px;color:var(--soft);line-height:1.7;margin-bottom:12px;">${esc(p.soft_skills)}</div>` : ''}
+    ${(p.compliance_tools||[]).length ? `<div class="field-label" style="margin-bottom:6px;">Tools &amp; Software</div><div class="pills" style="margin-bottom:12px;">${(p.compliance_tools||[]).filter(t=>t.tool_name).map(t=>`<span class="pill">${esc(t.tool_name)}</span>`).join('')}</div>` : ''}
+    ${(p.language_proficiency||[]).length ? `<div class="field-label" style="margin-bottom:6px;">Languages</div><div class="pills">${(p.language_proficiency||[]).filter(l=>l.language).map(l=>`<span class="pill">${esc(l.language)}</span>`).join('')}</div>` : ''}
+  `;
+  el('profile-content').innerHTML = html;
+
+  /* resume tab */
+  renderResume(p);
+}
+
+/* ── Resume renderer ──────────────────────────────────────────────────────── */
+function renderResume(p) {
+  const hasRes = !!(p.resume_upload);
+  el('resume-status').innerHTML = hasRes
+    ? `<div class="resume-uploaded">
+        <div>
+          <div style="font-weight:700;color:var(--green);font-size:14px;">Resume uploaded</div>
+          <div style="font-size:12.5px;color:var(--muted);margin-top:3px;">
+            To replace, go to <a href="https://agzit.com/dpr-registration/" style="color:var(--blue);font-weight:700;">Update DPR Profile</a>.
+          </div>
+        </div>
+        <a href="https://agzit.com/dpr-download/?type=resume&dpr_id=${encodeURIComponent(p.dpr_id||'')}" target="_blank" class="resume-download">Download PDF</a>
+      </div>`
+    : `<div class="resume-missing">
+        <div style="font-weight:700;color:#991B1B;font-size:14px;">No resume uploaded</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:4px;">Upload your resume via <a href="https://agzit.com/dpr-registration/" style="color:var(--blue);font-weight:700;">Update DPR Profile</a>.</div>
+      </div>`;
+}
+
+/* ── Field helper ─────────────────────────────────────────────────────────── */
+function fld(label, val, raw) {
+  const empty = !val || val === '—';
+  return `<div class="field-item${raw?'':' '}">
+    <div class="field-label">${esc(label)}</div>
+    <div class="field-val${empty?' empty':''}">${raw ? (val||'—') : esc(val||'—')}</div>
+  </div>`;
+}
+
+/* ── Visibility save ──────────────────────────────────────────────────────── */
+window.saveVisibility = async function () {
+  const btn  = el('vis-save');
+  const fbEl = el('vis-feedback');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  fbEl.textContent = ''; fbEl.className = '';
+  try {
+    const res = await fetch('/api/candidate/visibility', {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        profile_visibility: el('sel-profile').value,
+        contact_visibility: el('sel-contact').value,
+        resume_visibility:  el('sel-resume').value,
+      }),
+    });
+    const data = await res.json();
+    if (data.ok) { fbEl.textContent = 'Settings saved.'; fbEl.className = 'ok'; }
+    else { fbEl.textContent = data.error || 'Save failed.'; fbEl.className = 'err'; }
+  } catch (e) {
+    fbEl.textContent = 'Network error. Please try again.'; fbEl.className = 'err';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save Settings';
   }
+};
 
-  function fields(pairs) {
-    return pairs.map(([label, val, raw]) => {
-      const empty = !val || val === '—';
-      return '<div class="field-item">' +
-        '<div class="field-label">' + esc(label) + '</div>' +
-        '<div class="field-value' + (empty ? ' empty' : '') + '">' +
-          (raw ? (val || '—') : esc(val || '—')) +
-        '</div>' +
-      '</div>';
-    }).join('');
+/* ── Modal helpers ────────────────────────────────────────────────────────── */
+window.openModal  = id => { const m = el(id); if(m){ m.classList.add('open'); document.body.style.overflow='hidden'; } };
+window.closeModal = id => {
+  const m = el(id); if(!m) return;
+  m.classList.remove('open'); document.body.style.overflow = '';
+  m.querySelectorAll('video,audio').forEach(el => { try { el.pause(); } catch(_){} });
+};
+document.addEventListener('keydown', e => { if(e.key==='Escape') document.querySelectorAll('.modal.open').forEach(m=>closeModal(m.id)); });
+
+/* ── Tab switching ────────────────────────────────────────────────────────── */
+window.switchTab = function(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  const btn = document.querySelector(`[data-tab="${name}"]`);
+  if (btn) btn.classList.add('active');
+  const pane = el('tab-' + name);
+  if (pane) pane.classList.add('active');
+};
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+/* ── Copy link ────────────────────────────────────────────────────────────── */
+window.copyLink = function(url, btn) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => {
+      const orig = btn.textContent; btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = orig; }, 2000);
+    });
   }
+};
 
-  function mkBadge(text, cls) {
-    const s = document.createElement('span');
-    s.className = 'hero-badge ' + (cls || '');
-    s.textContent = text;
-    return s;
-  }
+/* ── Error screen ─────────────────────────────────────────────────────────── */
+function showErr(title, msg) {
+  el('loading').innerHTML = `
+    <div style="text-align:center;font-family:var(--font);padding:32px;">
+      <div style="font-size:18px;font-weight:800;color:var(--ink);margin-bottom:8px;">${esc(title)}</div>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:20px;">${esc(msg)}</p>
+      <button onclick="location.reload()" style="padding:10px 24px;border-radius:10px;background:var(--ink);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font);">Retry</button>
+    </div>`;
+}
 
-  function setCredit(id, val) {
-    const n = parseInt(val) || 0;
-    const e = el(id);
-    e.textContent = n;
-    e.className   = 'credit-val' + (n === 0 ? ' zero' : '');
-  }
-
-  function setSelectVal(id, val) {
-    const s = el(id);
-    if (!s) return;
-    for (let i = 0; i < s.options.length; i++) {
-      if (s.options[i].value === val) { s.selectedIndex = i; break; }
-    }
-  }
-
-  function fmtDate(d) {
-    if (!d) return '';
-    const ts = Date.parse(d);
-    if (!ts) return d;
-    return new Date(ts).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
-  }
-
-  function fmtDateTime(d) {
-    if (!d) return '';
-    const ts = Date.parse(d);
-    if (!ts) return d;
-    return new Date(ts).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
-  }
-
-  function perfBadge(level) {
-    if (!level) return '';
-    const cls = {
-      'Interview Ready':           'perf-interview-ready',
-      'Strong Potential':          'perf-strong-potential',
-      'Developing Professional':   'perf-developing',
-      'Needs Structured Practice': 'perf-needs-practice',
-      'Foundation Level':          'perf-foundation',
-    }[level] || 'perf-developing';
-    return '<span class="perf-badge ' + cls + '">' + esc(level) + '</span>';
-  }
-
-  function calcCompleteness(p) {
-    const checks = ['full_name','linkedin_url','professional_summary_bio','soft_skills','residential_country','country_of_nationality'];
-    let pts = 0, total = checks.length + 3;
-    checks.forEach(f => { if (p[f]) pts++; });
-    if ((p.work_experience||[]).length)  pts++;
-    if ((p.education||[]).length)        pts++;
-    if ((p.certifications||[]).length)   pts++;
-    return Math.min(100, Math.round((pts / total) * 100));
-  }
-
-  function showError(title, msg) {
-    el('loading-screen').style.display = 'none';
-    el('error-screen').style.display   = 'flex';
-    el('error-title').textContent = title;
-    el('error-msg').textContent   = msg;
-  }
-
-  // ── Boot ──────────────────────────────────────────────────────────────────
-  init();
+/* ── Boot ─────────────────────────────────────────────────────────────────── */
+init();
 
 }());
 </script>
