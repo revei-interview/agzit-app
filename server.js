@@ -37,9 +37,13 @@ app.get('/register', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/register/index.html'));
 });
 
-// Placeholder dashboard routes (will be full pages next session)
+// Candidate dashboard
 app.get('/dashboard', (req, res) => {
-  res.redirect('/login?next=/dashboard');
+  if (req.cookies?.agzit_token) {
+    res.sendFile(path.join(__dirname, 'public/dashboard/index.html'));
+  } else {
+    res.redirect('/login?next=/dashboard');
+  }
 });
 
 app.get('/employer', (req, res) => {
