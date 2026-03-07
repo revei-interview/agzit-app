@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Application Status — AGZIT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink:      #09101F;
+      --soft:     #3A4163;
+      --muted:    #7C83A0;
+      --line:     #E4E6EF;
+      --surface:  #F5F6FA;
+      --blue:     #1A44C2;
+      --blue-lt:  #EAF0FF;
+      --green:    #0B7A47;
+      --green-lt: #E4F5EE;
+      --orange:   #B45309;
+      --orange-lt:#FFF7ED;
+      --red:      #B91C1C;
+      --red-lt:   #FEF2F2;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--surface);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Nav ── */
+    nav {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      padding: 0 1.5rem;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    nav .logo { font-weight: 800; font-size: 1.2rem; color: var(--ink); text-decoration: none; }
+    nav .nav-actions { display: flex; gap: 1rem; align-items: center; }
+    nav a { color: var(--soft); text-decoration: none; font-size: .9rem; }
+    nav a:hover { color: var(--blue); }
+
+    /* ── Page ── */
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    .status-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      max-width: 520px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .status-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.5rem;
+      font-size: 2rem;
+    }
+    .status-icon.pending  { background: var(--orange-lt); }
+    .status-icon.verified { background: var(--blue-lt);   }
+    .status-icon.approved { background: var(--green-lt);  }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .3rem .8rem;
+      border-radius: 999px;
+      font-size: .8rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+    }
+    .badge-pending  { background: var(--orange-lt); color: var(--orange); }
+    .badge-verified { background: var(--blue-lt);   color: var(--blue);   }
+    .badge-approved { background: var(--green-lt);  color: var(--green);  }
+
+    h1 { font-size: 1.4rem; font-weight: 800; color: var(--ink); margin-bottom: .75rem; }
+    p  { color: var(--soft); line-height: 1.6; font-size: .95rem; }
+
+    .steps {
+      margin: 1.75rem 0;
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: .75rem;
+    }
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: .75rem;
+      padding: .75rem 1rem;
+      border-radius: 10px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+    }
+    .step.done   { background: var(--green-lt); border-color: #A7F3D0; }
+    .step.active { background: var(--blue-lt);  border-color: #BFDBFE; }
+
+    .step-dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .75rem;
+      font-weight: 700;
+      margin-top: 1px;
+    }
+    .step.done   .step-dot { background: var(--green); color: #fff; }
+    .step.active .step-dot { background: var(--blue);  color: #fff; }
+    .step.wait   .step-dot { background: var(--line);  color: var(--muted); }
+
+    .step-label { font-size: .9rem; font-weight: 600; color: var(--ink); }
+    .step-desc  { font-size: .8rem; color: var(--muted); margin-top: 2px; }
+
+    .btn {
+      display: inline-block;
+      padding: .7rem 1.5rem;
+      border-radius: 8px;
+      font-size: .95rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .88; }
+    .btn-primary { background: var(--blue); color: #fff; }
+    .btn-outline { background: transparent; color: var(--blue); border: 1.5px solid var(--blue); }
+
+    .actions { display: flex; gap: .75rem; justify-content: center; flex-wrap: wrap; margin-top: 1.75rem; }
+
+    #loading { color: var(--muted); padding: 2rem; font-size: .95rem; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="/">AGZIT</a>
+  <div class="nav-actions">
+    <a href="/employer">Dashboard</a>
+    <a href="/logout">Log out</a>
+  </div>
+</nav>
+
+<main>
+  <div id="loading">Loading your application status...</div>
+  <div id="status-card" class="status-card" style="display:none"></div>
+</main>
+
+<script>
+(async () => {
+  const card = document.getElementById('status-card');
+  const loading = document.getElementById('loading');
+
+  try {
+    const res  = await fetch('/api/employer/profile', { credentials: 'include' });
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      loading.textContent = 'Unable to load your application. Please try refreshing.';
+      return;
+    }
+
+    loading.style.display = 'none';
+    card.style.display    = 'block';
+
+    const status = data.profile.application_status || 'otp_sent';
+
+    // If approved, redirect to employer dashboard
+    if (status === 'approved') {
+      window.location.href = '/employer';
+      return;
+    }
+
+    let iconEmoji  = '';
+    let badgeClass = '';
+    let badgeText  = '';
+    let headline   = '';
+    let body       = '';
+
+    const steps = [
+      { key: 'otp_sent',       label: 'Application Submitted',   desc: 'Your employer application has been received.' },
+      { key: 'email_verified', label: 'Work Email Verified',      desc: 'Your work email address has been confirmed.' },
+      { key: 'approved',       label: 'Account Approved',         desc: 'Full access to candidate profiles granted.' },
+    ];
+
+    const statusOrder = { otp_sent: 0, email_verified: 1, approved: 2 };
+    const currentIdx  = statusOrder[status] ?? 0;
+
+    if (status === 'otp_sent') {
+      iconEmoji  = '&#9203;';
+      badgeClass = 'badge-pending';
+      badgeText  = 'Pending Verification';
+      headline   = 'Verify your work email';
+      body       = 'We sent a 6-digit code to your work email address. Please check your inbox and enter it below to continue.';
+    } else if (status === 'email_verified') {
+      iconEmoji  = '&#128338;';
+      badgeClass = 'badge-verified';
+      badgeText  = 'Under Review';
+      headline   = 'Email verified — awaiting admin approval';
+      body       = 'Your work email has been confirmed. Our team will review your application and approve your account within 1-2 business days.';
+    }
+
+    const stepsHTML = steps.map((s, i) => {
+      const cls = i < currentIdx ? 'done' : i === currentIdx ? 'active' : 'wait';
+      const dot  = i < currentIdx ? '&#10003;' : String(i + 1);
+      return `<div class="step ${cls}">
+        <div class="step-dot">${dot}</div>
+        <div>
+          <div class="step-label">${s.label}</div>
+          <div class="step-desc">${s.desc}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    const actionsHTML = status === 'otp_sent'
+      ? `<a href="${window.location.origin.replace('agzit-app', 'agzit')}/employer-otp/" class="btn btn-primary">Enter Verification Code</a>`
+      : `<a href="/employer" class="btn btn-primary">Go to Dashboard</a>`;
+
+    card.innerHTML = `
+      <div class="status-icon ${status === 'email_verified' ? 'verified' : 'pending'}">${iconEmoji}</div>
+      <span class="status-badge ${badgeClass}">${badgeText}</span>
+      <h1>${headline}</h1>
+      <p>${body}</p>
+      <div class="steps">${stepsHTML}</div>
+      <div class="actions">
+        ${actionsHTML}
+        <a href="/logout" class="btn btn-outline">Log out</a>
+      </div>
+    `;
+  } catch (err) {
+    loading.textContent = 'Something went wrong. Please try again.';
+    console.error(err);
+  }
+})();
+</script>
+</body>
+</html>

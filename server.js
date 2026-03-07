@@ -26,6 +26,14 @@ app.use('/api/auth',      require('./routes/auth'));
 app.use('/api/candidate', require('./routes/candidate'));
 app.use('/api/employer',  require('./routes/employer'));
 
+// Internal endpoints called by agzit-daily-backend (not browsers)
+// Auth via x-wp-app-token header. Must be mounted BEFORE express.json() would interfere.
+app.use('/api/internal',  require('./routes/internal'));
+
+// Inbound webhooks — WooCommerce, etc.
+// express.raw() is applied per-route inside webhooks.js so JSON parsing is bypassed.
+app.use('/api/webhooks',  require('./routes/webhooks'));
+
 // ── Page Routes ────────────────────────────────────────────────────────────
 
 // Login page
@@ -56,6 +64,16 @@ app.get('/interview-start', requireAuth, requireRole('dpr_candidate'), (req, res
 // Interview room — Vapi launcher (candidate only)
 app.get('/interview-room', requireAuth, requireRole('dpr_candidate'), (req, res) => {
   res.sendFile(path.join(__dirname, 'public/interview-room/index.html'));
+});
+
+// Employer verification status page
+app.get('/employer-review', requireAuth, requireRole('dpr_employer', 'verified_employer'), (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/employer-review/index.html'));
+});
+
+// Public candidate profile viewer (employers + admins)
+app.get('/profile', requireAuth, requireRole('dpr_employer', 'verified_employer'), (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/profile/index.html'));
 });
 
 // Logout (GET for simple link clicks)

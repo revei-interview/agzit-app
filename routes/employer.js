@@ -713,4 +713,172 @@ router.post('/interviews/:id/cancel', ...guardAny, async (req, res) => {
   }
 });
 
+// ── GET /api/employer/profile-view?dpr_id=... ────────────────────────────────
+// Full candidate profile for employer view (replaces dpr-public-profile-viewer shortcode)
+// Enforces profile_visibility, contact_visibility, resume_visibility per ACF settings
+// Increments dpr_id_view_count on each call
+
+router.get('/profile-view', ...guardVerified, async (req, res) => {
+  try {
+    const dprId = typeof req.query.dpr_id === 'string' ? req.query.dpr_id.trim().toUpperCase() : '';
+    if (!dprId) return res.status(400).json({ ok: false, error: 'dpr_id is required' });
+
+    // Find profile post by dpr_id
+    const [[idRow]] = await pool.execute(
+      "SELECT post_id FROM wp_postmeta WHERE meta_key = 'dpr_id' AND meta_value = ? LIMIT 1",
+      [dprId]
+    );
+    if (!idRow) return res.status(404).json({ ok: false, error: 'Candidate not found' });
+
+    const postId = idRow.post_id;
+
+    // Verify published + approved
+    const [[post]] = await pool.execute(
+      "SELECT ID, post_status FROM wp_posts WHERE ID = ? AND post_type = 'dpr_profile' LIMIT 1",
+      [postId]
+    );
+    if (!post || post.post_status !== 'publish') {
+      return res.status(404).json({ ok: false, error: 'Candidate not found' });
+    }
+
+    const FULL_KEYS = [
+      'dpr_id', 'dpr_status', 'full_name', 'email_address', 'phone_number',
+      'gender', 'date_of_birth', 'country_of_nationality',
+      'residential_city', 'residential_country',
+      'linkedin_url', 'profile_photo',
+      'professional_summary_bio', 'total_work_experience',
+      'compliance_domains', 'current_employment_status', 'notice_period_in_days',
+      'current_annual_ctc_with_currency', 'expected_annual_ctc_with_currency',
+      'open_to_relocate', 'open_for_work_badge', 'current_career_level',
+      'soft_skills', 'desired_role', 'work_level', 'preferred_work_type',
+      'resume_upload',
+      'id_verified', 'address_verified', 'experience_verified', 'certificate_verified',
+      'public_name_mode', 'profile_completeness', 'dpr_id_view_count',
+      'profile_visibility', 'contact_visibility', 'resume_visibility',
+      // Repeater counts
+      'work_experience', 'education', 'certifications', 'compliance_tools', 'language_proficiency',
+    ];
+
+    const m = await fetchPostMeta(postId, FULL_KEYS);
+
+    if (m.profile_visibility !== 'public' || m.dpr_status !== 'approved') {
+      return res.status(404).json({ ok: false, error: 'Candidate not found' });
+    }
+
+    // Check unlock status
+    let isUnlocked = false;
+    if (req.user.wp_user_id) {
+      const empMeta = await fetchUserMeta(req.user.wp_user_id, ['unlocked_profiles']);
+      isUnlocked = isProfileUnlocked(parseUnlockedMap(empMeta.unlocked_profiles), dprId);
+    }
+
+    const contactVis = m.contact_visibility || 'co_verified_only';
+    const resumeVis  = m.resume_visibility  || 're_verified_only';
+    const revealContact = isUnlocked || contactVis === 'co_public';
+    const revealResume  = isUnlocked || resumeVis  === 're_public';
+
+    // Increment view count (non-blocking)
+    const currentViews = parseInt(m.dpr_id_view_count) || 0;
+    pool.execute(
+      "UPDATE wp_postmeta SET meta_value = ? WHERE post_id = ? AND meta_key = 'dpr_id_view_count'",
+      [String(currentViews + 1), postId]
+    ).catch(e => console.error('[profile-view] view count update failed:', e.message));
+
+    // Fetch repeater rows
+    const WORK_EXP_FIELDS = [
+      'job_title', 'company_name', 'office_country', 'office_city',
+      'start_date', 'end_date', 'Currently_working',
+      'key_responsibilities', 'employment_type', 'key_achievements',
+    ];
+    const EDU_FIELDS  = ['degree', 'institution_name', 'edu_country', 'edu_city', 'edu_start_date', 'edu_end_date'];
+    const CERT_FIELDS = ['certification_name', 'credential_id', 'issuing_organization', 'cert_issue_date', 'cert_expiry_date', 'certificate_pdf'];
+    const TOOL_FIELDS = ['tool_name'];
+    const LANG_FIELDS = ['language'];
+
+    function parseRepeaterLocal(count, prefix, fields) {
+      const rows = [];
+      for (let i = 0; i < count; i++) {
+        const row = {};
+        for (const f of fields) row[f] = m[`${prefix}_${i}_${f}`] ?? null;
+        rows.push(row);
+      }
+      return rows;
+    }
+
+    // Fetch all repeater subfield meta in one query
+    const [repRows] = await pool.execute(
+      "SELECT meta_key, meta_value FROM wp_postmeta WHERE post_id = ? AND (meta_key LIKE 'work_experience_%' OR meta_key LIKE 'education_%' OR meta_key LIKE 'certifications_%' OR meta_key LIKE 'compliance_tools_%' OR meta_key LIKE 'language_proficiency_%') AND meta_key NOT LIKE '\\_%%'",
+      [postId]
+    );
+    for (const r of repRows) m[r.meta_key] = r.meta_value;
+
+    const workExperience  = parseRepeaterLocal(parseInt(m.work_experience)       || 0, 'work_experience',  WORK_EXP_FIELDS);
+    const education       = parseRepeaterLocal(parseInt(m.education)             || 0, 'education',        EDU_FIELDS);
+    const certifications  = parseRepeaterLocal(parseInt(m.certifications)        || 0, 'certifications',   CERT_FIELDS);
+    const complianceTools = parseRepeaterLocal(parseInt(m.compliance_tools)      || 0, 'compliance_tools', TOOL_FIELDS);
+    const languages       = parseRepeaterLocal(parseInt(m.language_proficiency)  || 0, 'language_proficiency', LANG_FIELDS);
+
+    res.json({
+      ok:         true,
+      is_unlocked: isUnlocked,
+      candidate: {
+        dpr_id:               m.dpr_id,
+        full_name:            m.full_name           || null,
+        profile_photo:        m.profile_photo        || null,
+        public_name_mode:     m.public_name_mode     || null,
+
+        // Contact — revealed only when unlocked or co_public
+        email_address:        revealContact ? (m.email_address || null) : maskEmail(m.email_address),
+        phone_number:         revealContact ? (m.phone_number  || null) : maskPhone(m.phone_number),
+        linkedin_url:         isUnlocked    ? (m.linkedin_url  || null) : null,
+        contact_visibility:   contactVis,
+
+        // Professional
+        professional_summary_bio:          m.professional_summary_bio         || null,
+        compliance_domains:                m.compliance_domains               || null,
+        current_career_level:              m.current_career_level             || null,
+        current_employment_status:         m.current_employment_status        || null,
+        total_work_experience:             m.total_work_experience            || null,
+        desired_role:                      m.desired_role                     || null,
+        open_for_work_badge:               m.open_for_work_badge === '1',
+        open_to_relocate:                  m.open_to_relocate === '1',
+        notice_period_in_days:             m.notice_period_in_days            || null,
+        preferred_work_type:               m.preferred_work_type              || null,
+
+        // CTC — revealed only when unlocked
+        current_annual_ctc_with_currency:  isUnlocked ? (m.current_annual_ctc_with_currency  || null) : null,
+        expected_annual_ctc_with_currency: isUnlocked ? (m.expected_annual_ctc_with_currency || null) : null,
+
+        // Location
+        residential_city:    m.residential_city    || null,
+        residential_country: m.residential_country || null,
+
+        // Skills
+        soft_skills:         m.soft_skills         || null,
+        compliance_tools:    complianceTools,
+        language_proficiency: languages,
+
+        // Resume — controlled by resume_visibility
+        resume_upload:       revealResume ? (m.resume_upload || null) : null,
+        resume_visibility:   resumeVis,
+
+        // Verification badges
+        id_verified:          m.id_verified          === '1',
+        address_verified:     m.address_verified      === '1',
+        experience_verified:  m.experience_verified   === '1',
+        certificate_verified: m.certificate_verified  === '1',
+        profile_completeness: parseInt(m.profile_completeness) || 0,
+
+        // Repeaters
+        work_experience:  workExperience,
+        education:        education,
+        certifications:   certifications,
+      },
+    });
+  } catch (err) {
+    console.error('[employer/profile-view]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
 module.exports = router;

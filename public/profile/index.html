@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Candidate Profile — AGZIT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink:      #09101F;
+      --soft:     #3A4163;
+      --muted:    #7C83A0;
+      --line:     #E4E6EF;
+      --surface:  #F5F6FA;
+      --blue:     #1A44C2;
+      --blue-lt:  #EAF0FF;
+      --green:    #0B7A47;
+      --green-lt: #E4F5EE;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--surface);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Nav ── */
+    nav {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      padding: 0 1.5rem;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    nav .logo { font-weight: 800; font-size: 1.2rem; color: var(--ink); text-decoration: none; }
+    nav .nav-links { display: flex; gap: 1.25rem; align-items: center; }
+    nav a { color: var(--soft); text-decoration: none; font-size: .9rem; }
+    nav a:hover { color: var(--blue); }
+
+    /* ── Layout ── */
+    .page { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; width: 100%; }
+
+    /* ── Hero card ── */
+    .hero-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 2rem;
+      display: flex;
+      gap: 1.5rem;
+      align-items: flex-start;
+      margin-bottom: 1.25rem;
+    }
+    .avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: var(--blue-lt);
+      color: var(--blue);
+      font-size: 1.75rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    .hero-info { flex: 1; }
+    .hero-name {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      flex-wrap: wrap;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      padding: .2rem .65rem;
+      border-radius: 999px;
+      font-size: .75rem;
+      font-weight: 600;
+    }
+    .badge-green  { background: var(--green-lt); color: var(--green); }
+    .badge-blue   { background: var(--blue-lt);  color: var(--blue); }
+    .badge-muted  { background: #F1F2F6; color: var(--muted); }
+    .hero-sub     { color: var(--soft); font-size: .95rem; margin-top: .4rem; }
+    .hero-meta    { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; margin-top: .75rem; font-size: .85rem; color: var(--muted); }
+    .hero-meta span::before { content: ''; display: inline-block; width: 4px; height: 4px; background: var(--muted); border-radius: 50%; margin-right: .4rem; vertical-align: middle; }
+
+    .hero-actions { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: 1.25rem; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .55rem 1.2rem;
+      border-radius: 8px;
+      font-size: .9rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      text-decoration: none;
+      transition: opacity .15s;
+      font-family: inherit;
+    }
+    .btn:hover { opacity: .88; }
+    .btn-primary { background: var(--blue);    color: #fff; }
+    .btn-outline { background: transparent;    color: var(--blue); border: 1.5px solid var(--blue); }
+    .btn-success { background: var(--green);   color: #fff; }
+    .btn-sm      { padding: .4rem .9rem; font-size: .82rem; }
+
+    /* ── Verified badges row ── */
+    .verify-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      padding: 1rem 1.25rem;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      margin-bottom: 1.25rem;
+    }
+
+    /* ── Section card ── */
+    .section {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      margin-bottom: 1.25rem;
+      overflow: hidden;
+    }
+    .section-head {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .section-title { font-size: 1rem; font-weight: 700; color: var(--ink); }
+    .section-body  { padding: 1.25rem 1.5rem; }
+
+    /* ── Key-value pairs ── */
+    .kv-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .kv { display: flex; flex-direction: column; gap: .2rem; }
+    .kv-label { font-size: .75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .kv-value { font-size: .9rem; color: var(--ink); }
+    .kv-masked { color: var(--muted); font-style: italic; }
+
+    /* ── Work experience ── */
+    .exp-item { padding: 1rem 0; border-bottom: 1px solid var(--line); }
+    .exp-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .exp-title { font-weight: 700; font-size: .95rem; color: var(--ink); }
+    .exp-company { font-size: .88rem; color: var(--soft); margin-top: .2rem; }
+    .exp-period  { font-size: .8rem; color: var(--muted); margin-top: .2rem; }
+    .exp-desc { font-size: .85rem; color: var(--soft); margin-top: .5rem; line-height: 1.55; }
+
+    /* ── Skills pills ── */
+    .pills { display: flex; flex-wrap: wrap; gap: .4rem; }
+    .pill  { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: .25rem .7rem; font-size: .8rem; color: var(--soft); }
+
+    /* ── Locked overlay ── */
+    .locked-notice {
+      background: var(--blue-lt);
+      border: 1px solid #BFDBFE;
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      text-align: center;
+      margin: .75rem 0;
+    }
+    .locked-notice p { color: var(--blue); font-size: .9rem; font-weight: 600; }
+    .locked-notice small { color: var(--soft); font-size: .8rem; display: block; margin-top: .25rem; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--ink);
+      color: #fff;
+      padding: .7rem 1.5rem;
+      border-radius: 8px;
+      font-size: .9rem;
+      font-weight: 600;
+      opacity: 0;
+      transition: all .3s;
+      z-index: 999;
+      white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    #loading-state { padding: 3rem; text-align: center; color: var(--muted); }
+    #error-state   { display: none; padding: 3rem; text-align: center; color: var(--muted); }
+
+    @media (max-width: 600px) {
+      .hero-card { flex-direction: column; }
+      .kv-grid   { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="/">AGZIT</a>
+  <div class="nav-links">
+    <a href="/employer">Dashboard</a>
+    <a href="/logout">Log out</a>
+  </div>
+</nav>
+
+<div id="loading-state" class="page">Loading candidate profile...</div>
+<div id="error-state"   class="page"><p>Candidate not found or not available.</p></div>
+<div id="profile-page"  class="page" style="display:none"></div>
+
+<div id="toast"></div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const DPR_ID = params.get('dpr_id');
+
+function showToast(msg, dur = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function pill(v) { return v ? `<span class="pill">${esc(v)}</span>` : ''; }
+
+function formatDate(d) {
+  if (!d) return 'Present';
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+}
+
+(async () => {
+  if (!DPR_ID) {
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('error-state').style.display   = 'block';
+    return;
+  }
+
+  try {
+    const res  = await fetch(`/api/employer/profile-view?dpr_id=${encodeURIComponent(DPR_ID)}`, { credentials: 'include' });
+    const data = await res.json();
+
+    document.getElementById('loading-state').style.display = 'none';
+
+    if (!res.ok || !data.ok) {
+      document.getElementById('error-state').style.display = 'block';
+      return;
+    }
+
+    const c = data.candidate;
+    const isUnlocked = data.is_unlocked;
+    const page = document.getElementById('profile-page');
+    page.style.display = 'block';
+
+    // Avatar initials
+    const initials = (c.full_name || 'C').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const avatarHTML = c.profile_photo
+      ? `<img src="${esc(c.profile_photo)}" alt="Photo">`
+      : initials;
+
+    // Badges
+    const verifiedBadges = [
+      c.id_verified          && '<span class="badge badge-green">ID Verified</span>',
+      c.experience_verified  && '<span class="badge badge-green">Exp. Verified</span>',
+      c.certificate_verified && '<span class="badge badge-green">Cert. Verified</span>',
+    ].filter(Boolean).join('');
+
+    const openBadge = c.open_for_work_badge
+      ? '<span class="badge badge-green">Open to Work</span>'
+      : '';
+
+    // Contact fields
+    const emailDisplay = c.email_address
+      ? (isUnlocked || c.contact_visibility === 'co_public'
+          ? `<span class="kv-value"><a href="mailto:${esc(c.email_address)}" style="color:var(--blue)">${esc(c.email_address)}</a></span>`
+          : `<span class="kv-value kv-masked">${esc(c.email_address)}</span>`)
+      : '<span class="kv-value kv-masked">Not available</span>';
+
+    const phoneDisplay = c.phone_number
+      ? `<span class="kv-value ${isUnlocked || c.contact_visibility === 'co_public' ? '' : 'kv-masked'}">${esc(c.phone_number)}</span>`
+      : '<span class="kv-value kv-masked">Not available</span>';
+
+    const linkedinDisplay = c.linkedin_url
+      ? `<a href="${esc(c.linkedin_url)}" target="_blank" rel="noopener" style="color:var(--blue);font-size:.9rem">View LinkedIn</a>`
+      : (isUnlocked ? '<span style="color:var(--muted);font-size:.9rem">Not provided</span>' : '');
+
+    // Unlock button
+    const unlockBtn = isUnlocked
+      ? `<span class="btn btn-success btn-sm">Unlocked</span>`
+      : `<button class="btn btn-primary btn-sm" onclick="unlockProfile()">Unlock Full Profile</button>`;
+
+    // Resume
+    const resumeBtn = c.resume_upload && isUnlocked
+      ? `<a href="/api/candidate/resume?dpr_id=${encodeURIComponent(DPR_ID)}" class="btn btn-outline btn-sm" target="_blank">Download Resume</a>`
+      : (isUnlocked ? '' : `<span style="color:var(--muted);font-size:.85rem">Unlock profile to view resume</span>`);
+
+    // Locked notice
+    const lockedNotice = isUnlocked ? '' : `
+      <div class="locked-notice">
+        <p>Unlock this profile to view contact details, CTC, LinkedIn and resume.</p>
+        <small>Uses 1 of your 5 daily unlocks</small>
+      </div>`;
+
+    // Work experience
+    const workHTML = (c.work_experience || []).length === 0
+      ? '<p style="color:var(--muted);font-size:.9rem">No work experience listed.</p>'
+      : c.work_experience.map(e => `
+          <div class="exp-item">
+            <div class="exp-title">${esc(e.job_title || 'Role not specified')}</div>
+            <div class="exp-company">${esc(e.company_name || '')}${e.office_city ? ', ' + esc(e.office_city) : ''}${e.office_country ? ' — ' + esc(e.office_country) : ''}</div>
+            <div class="exp-period">${formatDate(e.start_date)} — ${e.Currently_working === '1' ? 'Present' : formatDate(e.end_date)}${e.employment_type ? ' &middot; ' + esc(e.employment_type) : ''}</div>
+            ${e.key_responsibilities ? `<div class="exp-desc">${esc(e.key_responsibilities)}</div>` : ''}
+          </div>`).join('');
+
+    // Education
+    const eduHTML = (c.education || []).length === 0
+      ? '<p style="color:var(--muted);font-size:.9rem">No education listed.</p>'
+      : c.education.map(e => `
+          <div class="exp-item">
+            <div class="exp-title">${esc(e.degree || 'Degree not specified')}</div>
+            <div class="exp-company">${esc(e.institution_name || '')}${e.edu_city ? ', ' + esc(e.edu_city) : ''}${e.edu_country ? ' — ' + esc(e.edu_country) : ''}</div>
+            <div class="exp-period">${formatDate(e.edu_start_date)} — ${formatDate(e.edu_end_date)}</div>
+          </div>`).join('');
+
+    // Skills
+    const skills = (c.soft_skills || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+    const tools  = (c.compliance_tools || []).map(t => t.tool_name).filter(Boolean);
+
+    // Certifications
+    const certHTML = (c.certifications || []).length === 0
+      ? '<p style="color:var(--muted);font-size:.9rem">No certifications listed.</p>'
+      : c.certifications.map(cert => `
+          <div class="exp-item">
+            <div class="exp-title">${esc(cert.certification_name || 'Certification')}</div>
+            ${cert.issuing_organization ? `<div class="exp-company">${esc(cert.issuing_organization)}</div>` : ''}
+            ${cert.cert_issue_date ? `<div class="exp-period">Issued ${formatDate(cert.cert_issue_date)}${cert.cert_expiry_date ? ' — Expires ' + formatDate(cert.cert_expiry_date) : ''}</div>` : ''}
+          </div>`).join('');
+
+    // CTC
+    const ctcHTML = isUnlocked && (c.current_annual_ctc_with_currency || c.expected_annual_ctc_with_currency)
+      ? `<div class="kv"><span class="kv-label">Current CTC</span><span class="kv-value">${esc(c.current_annual_ctc_with_currency || 'Not provided')}</span></div>
+         <div class="kv"><span class="kv-label">Expected CTC</span><span class="kv-value">${esc(c.expected_annual_ctc_with_currency || 'Not provided')}</span></div>`
+      : '';
+
+    page.innerHTML = `
+      <!-- Hero -->
+      <div class="hero-card">
+        <div class="avatar">${avatarHTML}</div>
+        <div class="hero-info">
+          <div class="hero-name">
+            ${esc(c.full_name || 'Candidate')}
+            ${openBadge}
+          </div>
+          <div class="hero-sub">${esc(c.desired_role || c.compliance_domains || 'Professional')}</div>
+          <div class="hero-meta">
+            ${c.residential_city    ? `<span>${esc(c.residential_city)}${c.residential_country ? ', ' + esc(c.residential_country) : ''}</span>` : ''}
+            ${c.current_career_level ? `<span>${esc(c.current_career_level)}</span>` : ''}
+            ${c.total_work_experience ? `<span>${esc(c.total_work_experience)} yrs exp.</span>` : ''}
+            ${c.profile_completeness ? `<span>Profile ${c.profile_completeness}% complete</span>` : ''}
+          </div>
+          <div class="hero-actions">
+            ${unlockBtn}
+            ${linkedinDisplay}
+            ${resumeBtn}
+          </div>
+        </div>
+      </div>
+
+      ${verifiedBadges ? `<div class="verify-row">${verifiedBadges}</div>` : ''}
+
+      ${lockedNotice}
+
+      <!-- Contact & Availability -->
+      <div class="section">
+        <div class="section-head"><span class="section-title">Contact &amp; Availability</span></div>
+        <div class="section-body">
+          <div class="kv-grid">
+            <div class="kv"><span class="kv-label">Email</span>${emailDisplay}</div>
+            <div class="kv"><span class="kv-label">Phone</span>${phoneDisplay}</div>
+            ${c.notice_period_in_days ? `<div class="kv"><span class="kv-label">Notice Period</span><span class="kv-value">${esc(c.notice_period_in_days)} days</span></div>` : ''}
+            ${c.preferred_work_type ? `<div class="kv"><span class="kv-label">Work Type</span><span class="kv-value">${esc(c.preferred_work_type)}</span></div>` : ''}
+            ${c.open_to_relocate !== undefined ? `<div class="kv"><span class="kv-label">Open to Relocate</span><span class="kv-value">${c.open_to_relocate ? 'Yes' : 'No'}</span></div>` : ''}
+            ${ctcHTML}
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary -->
+      ${c.professional_summary_bio ? `
+      <div class="section">
+        <div class="section-head"><span class="section-title">Professional Summary</span></div>
+        <div class="section-body"><p style="color:var(--soft);line-height:1.65;font-size:.9rem">${esc(c.professional_summary_bio)}</p></div>
+      </div>` : ''}
+
+      <!-- Work Experience -->
+      <div class="section">
+        <div class="section-head"><span class="section-title">Work Experience</span></div>
+        <div class="section-body">${workHTML}</div>
+      </div>
+
+      <!-- Education -->
+      ${(c.education || []).length ? `
+      <div class="section">
+        <div class="section-head"><span class="section-title">Education</span></div>
+        <div class="section-body">${eduHTML}</div>
+      </div>` : ''}
+
+      <!-- Skills -->
+      ${skills.length || tools.length ? `
+      <div class="section">
+        <div class="section-head"><span class="section-title">Skills &amp; Tools</span></div>
+        <div class="section-body" style="display:flex;flex-direction:column;gap:1rem">
+          ${skills.length ? `<div><div class="kv-label" style="margin-bottom:.5rem">Skills</div><div class="pills">${skills.map(pill).join('')}</div></div>` : ''}
+          ${tools.length  ? `<div><div class="kv-label" style="margin-bottom:.5rem">Tools &amp; Software</div><div class="pills">${tools.map(pill).join('')}</div></div>` : ''}
+        </div>
+      </div>` : ''}
+
+      <!-- Certifications -->
+      ${(c.certifications || []).length ? `
+      <div class="section">
+        <div class="section-head"><span class="section-title">Certifications</span></div>
+        <div class="section-body">${certHTML}</div>
+      </div>` : ''}
+
+      <p style="text-align:center;color:var(--muted);font-size:.8rem;margin-top:1rem;padding-bottom:2rem">
+        DPR ID: ${esc(c.dpr_id)} &mdash; <a href="/employer" style="color:var(--blue)">Back to Dashboard</a>
+      </p>
+    `;
+  } catch (err) {
+    document.getElementById('loading-state').style.display = 'none';
+    document.getElementById('error-state').style.display   = 'block';
+    console.error(err);
+  }
+})();
+
+async function unlockProfile() {
+  try {
+    const res  = await fetch('/api/employer/unlock', {
+      method:      'POST',
+      headers:     { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body:        JSON.stringify({ dpr_id: DPR_ID }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      showToast(data.error || 'Could not unlock profile.');
+      return;
+    }
+    showToast('Profile unlocked!');
+    setTimeout(() => window.location.reload(), 900);
+  } catch {
+    showToast('Network error. Please try again.');
+  }
+}
+</script>
+</body>
+</html>
