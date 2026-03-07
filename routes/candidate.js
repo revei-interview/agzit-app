@@ -6,6 +6,8 @@ const express = require('express');
 const router  = express.Router();
 const pool    = require('../config/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const crypto  = require('crypto');
+const https   = require('https');
 
 const guard = [requireAuth, requireRole('dpr_candidate')];
 
@@ -373,6 +375,272 @@ router.patch('/visibility', ...guard, async (req, res) => {
     res.json({ ok: true, updated: updates });
   } catch (err) {
     console.error('[candidate/visibility]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── Additional helpers ────────────────────────────────────────────────────────
+
+// SELECT+UPDATE or INSERT for wp_usermeta (no unique constraint — safe upsert)
+async function upsertUserMeta(wpUserId, metaKey, metaValue) {
+  const [rows] = await pool.execute(
+    'SELECT umeta_id FROM wp_usermeta WHERE user_id = ? AND meta_key = ? LIMIT 1',
+    [wpUserId, metaKey]
+  );
+  if (rows.length > 0) {
+    await pool.execute('UPDATE wp_usermeta SET meta_value = ? WHERE umeta_id = ?', [String(metaValue), rows[0].umeta_id]);
+  } else {
+    await pool.execute('INSERT INTO wp_usermeta (user_id, meta_key, meta_value) VALUES (?, ?, ?)', [wpUserId, metaKey, String(metaValue)]);
+  }
+}
+
+// Build the candidate context pack text block (matches dpr_build_context_pack_panel_v2 format)
+// meta is the full wp_postmeta map; jdText, interviewRole, careerLevel come from the form
+function buildContextPack(meta, jdText, interviewRole, careerLevel) {
+  const lines = ['=== CANDIDATE PROFILE ==='];
+
+  if (meta.full_name)             lines.push(`Candidate Name: ${meta.full_name}`);
+  if (meta.email_address)         lines.push(`Email: ${meta.email_address}`);
+  if (meta.phone_number)          lines.push(`Phone: ${meta.phone_number}`);
+  if (meta.total_work_experience) lines.push(`Total Experience: ${meta.total_work_experience} years`);
+  if (careerLevel)                lines.push(`Career Level: ${careerLevel}`);
+  if (meta.compliance_domains)    lines.push(`Industry / Domain: ${meta.compliance_domains}`);
+
+  if (meta.professional_summary_bio) {
+    lines.push('', 'Professional Summary:', String(meta.professional_summary_bio).slice(0, 80000));
+  }
+
+  // Work experience — up to 7 rows (ACF repeater pattern: work_experience_{i}_{field})
+  const workCount = parseInt(meta.work_experience) || 0;
+  const workRows  = [];
+  for (let i = 0; i < Math.min(workCount, 7); i++) {
+    const title   = meta[`work_experience_${i}_job_title`]             || '';
+    const company = meta[`work_experience_${i}_company_name`]           || '';
+    const resp    = meta[`work_experience_${i}_key_responsibilities`]   || '';
+    if (title || company) {
+      workRows.push(`- ${title}${company ? ` at ${company}` : ''}${resp ? `: ${resp}` : ''}`);
+    }
+  }
+  if (workRows.length) lines.push('', 'Work Experience:', ...workRows);
+
+  // Tools & Software — compliance_tools repeater, top 10
+  const toolCount = parseInt(meta.compliance_tools) || 0;
+  const tools     = [];
+  for (let i = 0; i < Math.min(toolCount, 10); i++) {
+    const t = meta[`compliance_tools_${i}_tool_name`] || '';
+    if (t) tools.push(t);
+  }
+  if (tools.length) lines.push('', `Tools & Software: ${tools.join(', ')}`);
+
+  if (meta.soft_skills) {
+    lines.push('', `Skills: ${String(meta.soft_skills).slice(0, 40000)}`);
+  }
+
+  lines.push('', '=== JOB DESCRIPTION ===');
+  if (interviewRole) lines.push(`Role Applied For: ${interviewRole}`);
+  if (careerLevel)   lines.push(`Target Career Level: ${careerLevel}`);
+  if (jdText)        lines.push('', String(jdText).slice(0, 80000));
+
+  return lines.join('\n');
+}
+
+// POST JSON to a URL using Node.js built-in https (no external deps)
+function postJson(url, body, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify(body);
+    const u       = new URL(url);
+    const isHttps = u.protocol === 'https:';
+    const mod     = isHttps ? https : require('http');
+
+    const req = mod.request({
+      hostname: u.hostname,
+      port:     u.port || (isHttps ? 443 : 80),
+      path:     u.pathname + u.search,
+      method:   'POST',
+      headers:  Object.assign({
+        'Content-Type':   'application/json',
+        'Content-Length': Buffer.byteLength(payload),
+      }, headers),
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
+        catch { resolve({ status: res.statusCode, body: data }); }
+      });
+    });
+
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
+// ── POST /api/candidate/interviews/start ─────────────────────────────────────
+// Create a new mock interview session; returns SID + redirect URL
+// Body: { interview_role, target_career_level, chosen_minutes (20|30), jd_raw_text? }
+
+router.post('/interviews/start', ...guard, async (req, res) => {
+  try {
+    const [[user]] = await pool.execute(
+      'SELECT id, wp_user_id, dpr_profile_id FROM agzit_users WHERE id = ?',
+      [req.user.user_id]
+    );
+    if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
+
+    const wpUserId      = user.wp_user_id;
+    const profilePostId = user.dpr_profile_id;
+
+    if (!wpUserId)      return res.status(400).json({ ok: false, error: 'WP account not linked. Please contact support.' });
+    if (!profilePostId) return res.status(400).json({ ok: false, error: 'DPR profile not found. Please complete registration first.' });
+
+    // ── Validate body ─────────────────────────────────────────────────────────
+    const interviewRole  = typeof req.body.interview_role === 'string'       ? req.body.interview_role.trim()       : '';
+    const careerLevelIn  = typeof req.body.target_career_level === 'string'  ? req.body.target_career_level.trim()  : '';
+    const chosenMinutes  = parseInt(req.body.chosen_minutes) || 0;
+    const jdText         = typeof req.body.jd_raw_text === 'string'          ? req.body.jd_raw_text.trim()          : '';
+
+    if (!interviewRole)                  return res.status(400).json({ ok: false, error: 'interview_role is required' });
+    if (![20, 30].includes(chosenMinutes)) return res.status(400).json({ ok: false, error: 'chosen_minutes must be 20 or 30' });
+
+    const creditKey = chosenMinutes === 20 ? 'mock_sessions_remaining_20' : 'mock_sessions_remaining_30';
+
+    // ── Load entitlements + lock state ────────────────────────────────────────
+    const userMeta = await fetchUserMeta(wpUserId, [
+      'mock_sessions_remaining_20',
+      'mock_sessions_remaining_30',
+      'mock_sessions_remaining',
+      'mock_valid_until',
+      'mock_session_lock_until',
+      'mock_session_lock_id',
+    ]);
+
+    const nowTs      = Math.floor(Date.now() / 1000);
+    const validUntil = parseInt(userMeta.mock_valid_until) || 0;
+
+    // Expiry check — zero out buckets if plan has expired
+    if (validUntil > 0 && nowTs > validUntil) {
+      await upsertUserMeta(wpUserId, 'mock_sessions_remaining_20', '0');
+      await upsertUserMeta(wpUserId, 'mock_sessions_remaining_30', '0');
+      await upsertUserMeta(wpUserId, 'mock_sessions_remaining',    '0');
+      return res.status(402).json({ ok: false, error: 'Your interview credits have expired. Please purchase a new plan.' });
+    }
+
+    // Credits check
+    const credits = parseInt(userMeta[creditKey]) || 0;
+    if (credits < 1) {
+      return res.status(402).json({
+        ok: false,
+        error: `No ${chosenMinutes}-minute interview credits remaining. Please purchase more.`,
+      });
+    }
+
+    // Lock check — prevent concurrent sessions
+    const lockUntil = parseInt(userMeta.mock_session_lock_until) || 0;
+    if (nowTs < lockUntil) {
+      const waitMins = Math.ceil((lockUntil - nowTs) / 60);
+      return res.status(409).json({
+        ok: false,
+        error: `An interview session is already in progress. Please wait ${waitMins} minute${waitMins === 1 ? '' : 's'}.`,
+        lock_until: lockUntil,
+      });
+    }
+
+    // ── Generate SID: MIS- + first 8 chars of UUID4 uppercase ────────────────
+    const sid = 'MIS-' + crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase();
+
+    // ── Build context pack ────────────────────────────────────────────────────
+    const profileMeta   = await fetchPostMeta(profilePostId);
+    const careerLevel   = careerLevelIn || profileMeta.current_career_level || 'mid';
+    const contextPack   = buildContextPack(profileMeta, jdText, interviewRole, careerLevel);
+
+    // ── Share token + expiry ──────────────────────────────────────────────────
+    const shareToken     = crypto.randomBytes(18).toString('base64').replace(/[^A-Za-z0-9]/g, '').slice(0, 24);
+    const shareExpiresAt = new Date(Date.now() + 90 * 24 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+
+    // ── Deduct credit ─────────────────────────────────────────────────────────
+    const newCredits = credits - 1;
+    await upsertUserMeta(wpUserId, creditKey, String(newCredits));
+
+    const rem20 = chosenMinutes === 20 ? newCredits : (parseInt(userMeta.mock_sessions_remaining_20) || 0);
+    const rem30 = chosenMinutes === 30 ? newCredits : (parseInt(userMeta.mock_sessions_remaining_30) || 0);
+    await upsertUserMeta(wpUserId, 'mock_sessions_remaining', String(rem20 + rem30));
+
+    // ── Set session lock ──────────────────────────────────────────────────────
+    const lockTtl = chosenMinutes * 60 + 5 * 60; // plan duration + 5 min buffer
+    await upsertUserMeta(wpUserId, 'mock_session_lock_until', String(nowTs + lockTtl));
+    await upsertUserMeta(wpUserId, 'mock_session_lock_id',    sid);
+
+    // ── Call WP mock-session-start to create ACF row with proper field keys ───
+    const wpUrl   = process.env.WP_URL   || 'https://agzit.com';
+    const wpToken = process.env.WP_APP_TOKEN || '';
+
+    const wpResult = await postJson(
+      `${wpUrl}/wp-json/dpr/v1/mock-session-start`,
+      {
+        sid,
+        profile_post_id:      profilePostId,
+        session_type:         'voice_video',
+        interview_role:       interviewRole,
+        target_career_level:  careerLevel,
+        context_pack:         contextPack,
+        duration_minutes:     chosenMinutes,
+        share_token:          shareToken,
+        share_expires_at:     shareExpiresAt,
+        jd_raw_text:          jdText,
+      },
+      { 'x-wp-app-token': wpToken }
+    ).catch(err => {
+      console.error('[interviews/start] WP mock-session-start error:', err.message);
+      return { status: 0, body: null };
+    });
+
+    if (!wpResult.body?.ok) {
+      // Refund credit and clear lock on WP failure
+      await upsertUserMeta(wpUserId, creditKey,                   String(credits));
+      await upsertUserMeta(wpUserId, 'mock_sessions_remaining',   String(rem20 + rem30 + 1));
+      await upsertUserMeta(wpUserId, 'mock_session_lock_until',   '0');
+      await upsertUserMeta(wpUserId, 'mock_session_lock_id',      '');
+      console.error('[interviews/start] WP returned:', wpResult.status, wpResult.body);
+      return res.status(502).json({ ok: false, error: 'Failed to create interview session. Please try again.' });
+    }
+
+    res.json({
+      ok:               true,
+      sid,
+      interview_role:   interviewRole,
+      duration_minutes: chosenMinutes,
+      redirect_url:     `/interview-room?sid=${encodeURIComponent(sid)}`,
+    });
+  } catch (err) {
+    console.error('[candidate/interviews/start]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── GET /api/candidate/vapi-context ──────────────────────────────────────────
+// Proxy to daily backend /vapi/context — returns variableValues + session_minutes
+// Query params: sid, industry (optional, defaults to compliance)
+
+router.get('/vapi-context', ...guard, async (req, res) => {
+  try {
+    const sid      = typeof req.query.sid      === 'string' ? req.query.sid.trim().toUpperCase()     : '';
+    const industry = typeof req.query.industry === 'string' ? req.query.industry.trim().toLowerCase() : 'compliance';
+
+    if (!sid || !/^MIS-[A-Z0-9]{8}$/.test(sid)) {
+      return res.status(400).json({ ok: false, error: 'Valid SID required (format: MIS-XXXXXXXX)' });
+    }
+
+    const dailyUrl = (process.env.RENDER_DAILY_URL || 'https://agzit-daily-backend.onrender.com').replace(/\/$/, '');
+
+    const result = await postJson(`${dailyUrl}/vapi/context`, { sid, industry }).catch(err => {
+      console.error('[vapi-context] proxy error:', err.message);
+      return { status: 502, body: { ok: false, error: 'Interview service unavailable' } };
+    });
+
+    res.status(result.status === 200 ? 200 : (result.status || 502)).json(result.body);
+  } catch (err) {
+    console.error('[candidate/vapi-context]', err);
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });

@@ -48,6 +48,16 @@ app.get('/employer', requireAuth, requireRole('dpr_employer', 'verified_employer
   res.sendFile(path.join(__dirname, 'public/employer/index.html'));
 });
 
+// Interview start panel (candidate only)
+app.get('/interview-start', requireAuth, requireRole('dpr_candidate'), (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/interview-start/index.html'));
+});
+
+// Interview room — Vapi launcher (candidate only)
+app.get('/interview-room', requireAuth, requireRole('dpr_candidate'), (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/interview-room/index.html'));
+});
+
 // Logout (GET for simple link clicks)
 app.get('/logout', (req, res) => {
   res.clearCookie('agzit_token');

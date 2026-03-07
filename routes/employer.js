@@ -470,4 +470,247 @@ router.post('/verify-otp', requireAuth, async (req, res) => {
   }
 });
 
+// ── Helpers: masking for unverified contact display ───────────────────────────
+
+function maskEmail(email) {
+  if (!email) return null;
+  const at = email.indexOf('@');
+  if (at < 0) return '****';
+  return email.slice(0, Math.min(2, at)) + '****' + email.slice(at);
+}
+
+function maskPhone(phone) {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length < 4) return '****';
+  return digits.slice(0, 2) + '****' + digits.slice(-2);
+}
+
+// ── GET /api/employer/search?dpr_id=... ───────────────────────────────────────
+// Look up a candidate by their DPR ID; returns masked contact if not unlocked
+
+router.get('/search', ...guardVerified, async (req, res) => {
+  try {
+    const dprId = typeof req.query.dpr_id === 'string' ? req.query.dpr_id.trim().toUpperCase() : '';
+    if (!dprId) return res.status(400).json({ ok: false, error: 'dpr_id is required' });
+
+    // Find the profile post by dpr_id meta field
+    const [[idRow]] = await pool.execute(
+      "SELECT post_id FROM wp_postmeta WHERE meta_key = 'dpr_id' AND meta_value = ? LIMIT 1",
+      [dprId]
+    );
+    if (!idRow) return res.status(404).json({ ok: false, error: 'Candidate not found' });
+
+    const postId = idRow.post_id;
+
+    const SEARCH_KEYS = [
+      'dpr_id', 'full_name', 'email_address', 'phone_number',
+      'compliance_domains', 'current_career_level', 'current_employment_status',
+      'total_work_experience', 'desired_role', 'open_for_work_badge',
+      'residential_city', 'residential_country',
+      'profile_completeness', 'preferred_work_type', 'notice_period_in_days',
+      'current_annual_ctc_with_currency', 'expected_annual_ctc_with_currency',
+      'professional_summary_bio', 'linkedin_url', 'soft_skills',
+      'profile_visibility', 'contact_visibility', 'dpr_status',
+    ];
+
+    const m = await fetchPostMeta(postId, SEARCH_KEYS);
+
+    // Enforce visibility — only public + approved profiles are searchable
+    if (m.profile_visibility !== 'public' || m.dpr_status !== 'approved') {
+      return res.status(404).json({ ok: false, error: 'Candidate not found' });
+    }
+
+    // Check if this employer has already unlocked the profile
+    let isUnlocked = false;
+    if (req.user.wp_user_id) {
+      const empMeta = await fetchUserMeta(req.user.wp_user_id, ['unlocked_profiles']);
+      isUnlocked = isProfileUnlocked(parseUnlockedMap(empMeta.unlocked_profiles), dprId);
+    }
+
+    const contactVis  = m.contact_visibility || 'co_verified_only';
+    const revealContact = isUnlocked || contactVis === 'co_public';
+
+    res.json({
+      ok: true,
+      candidate: {
+        post_id:                          postId,
+        dpr_id:                           m.dpr_id,
+        full_name:                        m.full_name                        || null,
+        email_address:                    revealContact ? (m.email_address   || null) : maskEmail(m.email_address),
+        phone_number:                     revealContact ? (m.phone_number    || null) : maskPhone(m.phone_number),
+        compliance_domains:               m.compliance_domains               || null,
+        current_career_level:             m.current_career_level             || null,
+        current_employment_status:        m.current_employment_status        || null,
+        total_work_experience:            m.total_work_experience            || null,
+        desired_role:                     m.desired_role                     || null,
+        open_for_work_badge:              m.open_for_work_badge === '1',
+        residential_city:                 m.residential_city                 || null,
+        residential_country:              m.residential_country              || null,
+        profile_completeness:             parseInt(m.profile_completeness)   || 0,
+        preferred_work_type:              m.preferred_work_type              || null,
+        notice_period_in_days:            m.notice_period_in_days            || null,
+        current_annual_ctc_with_currency: isUnlocked ? (m.current_annual_ctc_with_currency  || null) : null,
+        expected_annual_ctc_with_currency: isUnlocked ? (m.expected_annual_ctc_with_currency || null) : null,
+        professional_summary_bio:         m.professional_summary_bio         || null,
+        linkedin_url:                     isUnlocked ? (m.linkedin_url       || null) : null,
+        soft_skills:                      m.soft_skills                      || null,
+        contact_visibility:               contactVis,
+        is_unlocked:                      isUnlocked,
+      },
+    });
+  } catch (err) {
+    console.error('[employer/search]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── POST /api/employer/unlock ─────────────────────────────────────────────────
+// Unlock a candidate profile (5/day, 50/month limits)
+// Body: { dpr_id }
+
+router.post('/unlock', ...guardVerified, async (req, res) => {
+  try {
+    const dprId = typeof req.body.dpr_id === 'string' ? req.body.dpr_id.trim().toUpperCase() : '';
+    if (!dprId) return res.status(400).json({ ok: false, error: 'dpr_id is required' });
+
+    const wpUserId = req.user.wp_user_id;
+    if (!wpUserId) return res.status(400).json({ ok: false, error: 'No WP user linked to your account' });
+
+    // Build UTC date keys for unlock counters (matching employer.js dashboard pattern)
+    const now = new Date();
+    const ym  = now.getUTCFullYear() + String(now.getUTCMonth() + 1).padStart(2, '0');
+    const ymd = ym + String(now.getUTCDate()).padStart(2, '0');
+
+    const meta = await fetchUserMeta(wpUserId, [
+      `dpr_unlock_used_${ym}`,
+      `dpr_unlock_used_${ymd}`,
+      'unlocked_profiles',
+    ]);
+
+    const usedMonth = parseInt(meta[`dpr_unlock_used_${ym}`])  || 0;
+    const usedDay   = parseInt(meta[`dpr_unlock_used_${ymd}`]) || 0;
+
+    // Check if already unlocked (free operation — doesn't count against limit)
+    const unlockedMap = parseUnlockedMap(meta.unlocked_profiles);
+    if (isProfileUnlocked(unlockedMap, dprId)) {
+      return res.json({ ok: true, already_unlocked: true, message: 'Profile already unlocked.' });
+    }
+
+    if (usedDay   >= 5)  return res.status(429).json({ ok: false, error: 'Daily unlock limit of 5 reached. Try again tomorrow.' });
+    if (usedMonth >= 50) return res.status(429).json({ ok: false, error: 'Monthly unlock limit of 50 reached.' });
+
+    // Verify the candidate exists and is visible
+    const [[idRow]] = await pool.execute(
+      "SELECT post_id FROM wp_postmeta WHERE meta_key = 'dpr_id' AND meta_value = ? LIMIT 1",
+      [dprId]
+    );
+    if (!idRow) return res.status(404).json({ ok: false, error: 'Candidate not found' });
+    const profilePostId = idRow.post_id;
+
+    // Write unlock entry with 30-day TTL
+    const nowTs     = Math.floor(Date.now() / 1000);
+    const expiresTs = nowTs + 30 * 24 * 3600;
+    unlockedMap[dprId] = { unlocked_at: nowTs, expires: expiresTs };
+
+    await upsertUserMeta(wpUserId, 'unlocked_profiles',         JSON.stringify(unlockedMap));
+    await upsertUserMeta(wpUserId, `dpr_unlock_used_${ymd}`,    String(usedDay   + 1));
+    await upsertUserMeta(wpUserId, `dpr_unlock_used_${ym}`,     String(usedMonth + 1));
+
+    // Append to unlock log on the profile post (capped at 200 entries)
+    try {
+      const [[logRow]] = await pool.execute(
+        "SELECT meta_id, meta_value FROM wp_postmeta WHERE post_id = ? AND meta_key = '_dpr_unlock_logs' LIMIT 1",
+        [profilePostId]
+      );
+      const existing = logRow?.meta_value;
+      let logs = [];
+      try { logs = JSON.parse(existing || '[]'); } catch { logs = []; }
+      if (!Array.isArray(logs)) logs = [];
+      logs.push({ employer_user_id: wpUserId, unlocked_at: nowTs });
+      if (logs.length > 200) logs = logs.slice(-200);
+      if (logRow) {
+        await pool.execute('UPDATE wp_postmeta SET meta_value = ? WHERE meta_id = ?', [JSON.stringify(logs), logRow.meta_id]);
+      } else {
+        await pool.execute('INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)', [profilePostId, '_dpr_unlock_logs', JSON.stringify(logs)]);
+      }
+    } catch (logErr) {
+      console.error('[employer/unlock] log write failed (non-fatal):', logErr.message);
+    }
+
+    res.json({
+      ok:                true,
+      dpr_id:            dprId,
+      remaining_today:   Math.max(0, 5  - (usedDay   + 1)),
+      remaining_monthly: Math.max(0, 50 - (usedMonth + 1)),
+    });
+  } catch (err) {
+    console.error('[employer/unlock]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── GET /api/employer/interviews ──────────────────────────────────────────────
+// Full list of employer's interview sessions (no page limit)
+
+router.get('/interviews', ...guardAny, async (req, res) => {
+  try {
+    const [[user]] = await pool.execute(
+      'SELECT wp_user_id FROM agzit_users WHERE id = ?',
+      [req.user.user_id]
+    );
+    const interviews = await fetchEmployerInterviews(user?.wp_user_id, 1000);
+    res.json({ ok: true, count: interviews.length, interviews });
+  } catch (err) {
+    console.error('[employer/interviews]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── POST /api/employer/interviews/:id/cancel ──────────────────────────────────
+// Cancel an employer interview (must belong to requesting employer)
+
+router.post('/interviews/:id/cancel', ...guardAny, async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id);
+    if (!postId) return res.status(400).json({ ok: false, error: 'Invalid interview ID' });
+
+    const [[user]] = await pool.execute(
+      'SELECT wp_user_id FROM agzit_users WHERE id = ?',
+      [req.user.user_id]
+    );
+    const wpId = user?.wp_user_id;
+    if (!wpId) return res.status(400).json({ ok: false, error: 'No WP user linked' });
+
+    // Verify ownership
+    const [[ownership]] = await pool.execute(
+      "SELECT meta_id FROM wp_postmeta WHERE post_id = ? AND meta_key = 'employer_user_id' AND meta_value = ? LIMIT 1",
+      [postId, String(wpId)]
+    );
+    if (!ownership) return res.status(403).json({ ok: false, error: 'Interview not found or access denied' });
+
+    // Check current status
+    const [[statusMeta]] = await pool.execute(
+      "SELECT meta_value FROM wp_postmeta WHERE post_id = ? AND meta_key = 'interview_status' LIMIT 1",
+      [postId]
+    );
+    if (statusMeta?.meta_value === 'completed') {
+      return res.status(400).json({ ok: false, error: 'Completed interviews cannot be cancelled' });
+    }
+    if (statusMeta?.meta_value === 'cancelled') {
+      return res.json({ ok: true, interview_id: postId, status: 'cancelled', already_cancelled: true });
+    }
+
+    await pool.execute(
+      "UPDATE wp_postmeta SET meta_value = 'cancelled' WHERE post_id = ? AND meta_key = 'interview_status'",
+      [postId]
+    );
+
+    res.json({ ok: true, interview_id: postId, status: 'cancelled' });
+  } catch (err) {
+    console.error('[employer/interviews/cancel]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
 module.exports = router;

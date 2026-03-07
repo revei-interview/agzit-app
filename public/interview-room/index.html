@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interview Room — AGZIT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:       #09101F;
+  --soft:      #3A4163;
+  --muted:     #7C83A0;
+  --line:      #E4E6EF;
+  --surface:   #F5F6FA;
+  --white:     #ffffff;
+  --blue:      #1A44C2;
+  --blue-lt:   #EAF0FF;
+  --green:     #0B7A47;
+  --green-lt:  #E4F5EE;
+  --amber:     #92400E;
+  --amber-lt:  #FEF3C7;
+  --red:       #991B1B;
+  --red-lt:    #FEE2E2;
+  --shadow-md: 0 2px 6px rgba(9,16,31,.05), 0 8px 24px rgba(9,16,31,.07);
+  --radius:    16px;
+  --font:      'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: #0a0d14; color: var(--white); -webkit-font-smoothing: antialiased; min-height: 100vh; display: flex; flex-direction: column; }
+button { font-family: var(--font); cursor: pointer; border: none; background: none; }
+
+/* ── Topbar ── */
+.topbar { height: 56px; background: rgba(255,255,255,.04); border-bottom: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; padding: 0 24px; gap: 12px; flex-shrink: 0; }
+.topbar-brand { font-weight: 800; font-size: 17px; letter-spacing: -.5px; color: var(--white); }
+.topbar-sep { width: 1px; height: 20px; background: rgba(255,255,255,.15); }
+.topbar-role { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.55); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.timer { font-size: 13px; font-weight: 700; color: var(--green-lt); background: rgba(11,122,71,.25); padding: 4px 12px; border-radius: 100px; }
+.timer.warn { color: #fcd34d; background: rgba(146,64,14,.35); animation: pulse-warn 1.2s ease-in-out infinite; }
+@keyframes pulse-warn { 0%,100% { opacity: 1; } 50% { opacity: .7; } }
+
+/* ── Main layout ── */
+.main { flex: 1; display: grid; grid-template-rows: 1fr; grid-template-columns: 1fr 280px; gap: 0; }
+@media (max-width: 700px) { .main { grid-template-columns: 1fr; } .self-panel { display: none; } }
+
+/* ── Stage (centre) ── */
+.stage { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; gap: 28px; }
+
+.status-ring {
+  width: 140px; height: 140px; border-radius: 50%;
+  border: 3px solid rgba(255,255,255,.12);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; transition: border-color .3s;
+}
+.status-ring.connecting { border-color: rgba(255,255,255,.2); animation: ring-pulse 2s ease-in-out infinite; }
+.status-ring.active     { border-color: rgba(26,68,194,.7); box-shadow: 0 0 0 8px rgba(26,68,194,.12); }
+.status-ring.speaking   { border-color: #4ade80; box-shadow: 0 0 0 10px rgba(74,222,128,.14); animation: ring-speak .7s ease-in-out infinite alternate; }
+@keyframes ring-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,255,255,.08); } 50% { box-shadow: 0 0 0 16px rgba(255,255,255,.0); } }
+@keyframes ring-speak { from { box-shadow: 0 0 0 6px rgba(74,222,128,.1); } to { box-shadow: 0 0 0 18px rgba(74,222,128,.16); } }
+
+.ai-avatar { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #1A44C2 0%, #3b66e4 100%); display: flex; align-items: center; justify-content: center; font-size: 32px; font-weight: 800; color: var(--white); }
+
+.status-text { font-size: 15px; font-weight: 600; color: rgba(255,255,255,.75); text-align: center; }
+.status-sub  { font-size: 13px; color: rgba(255,255,255,.4); text-align: center; margin-top: 6px; }
+
+.mic-indicator { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: rgba(255,255,255,.5); }
+.mic-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.25); transition: background .2s; }
+.mic-dot.active { background: #4ade80; box-shadow: 0 0 6px rgba(74,222,128,.5); }
+
+/* ── Controls ── */
+.controls { display: flex; gap: 12px; }
+.btn-ctrl { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: all .15s; }
+.btn-end { background: #dc2626; color: white; }
+.btn-end:hover { background: #b91c1c; }
+.btn-end:disabled { background: #374151; color: rgba(255,255,255,.3); cursor: not-allowed; }
+
+/* ── Self-view panel ── */
+.self-panel { background: rgba(255,255,255,.03); border-left: 1px solid rgba(255,255,255,.07); padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.self-label { font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: rgba(255,255,255,.3); }
+#selfVideo { width: 100%; border-radius: 10px; background: rgba(255,255,255,.05); aspect-ratio: 4/3; object-fit: cover; }
+.self-info { font-size: 12px; color: rgba(255,255,255,.4); line-height: 1.6; }
+
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: rgba(9,16,31,.95); color: var(--white); padding: 10px 20px;
+  border-radius: 100px; font-size: 13px; font-weight: 600;
+  box-shadow: var(--shadow-md); z-index: 99; pointer-events: none;
+  opacity: 0; transition: opacity .25s;
+}
+.toast.show { opacity: 1; }
+
+/* ── Pre-call overlay ── */
+#overlay {
+  position: fixed; inset: 0; background: #0a0d14;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 50; flex-direction: column; gap: 20px;
+  padding: 24px; text-align: center;
+}
+.overlay-logo  { font-size: 24px; font-weight: 800; color: var(--white); margin-bottom: 8px; }
+.overlay-title { font-size: 20px; font-weight: 700; color: var(--white); }
+.overlay-sub   { font-size: 14px; color: rgba(255,255,255,.5); max-width: 420px; line-height: 1.6; }
+.btn-primary   { background: var(--blue); color: var(--white); border-radius: 12px; padding: 13px 32px; font-size: 15px; font-weight: 700; transition: background .15s; }
+.btn-primary:hover { background: #1536a8; }
+.btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+.sk-ring-sm { width: 24px; height: 24px; border-radius: 50%; border: 3px solid rgba(255,255,255,.2); border-top-color: var(--white); animation: spin .65s linear infinite; display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.overlay-err { font-size: 13px; color: #f87171; background: rgba(248,113,113,.1); border-radius: 8px; padding: 10px 16px; max-width: 420px; display: none; }
+
+/* ── End screen ── */
+#endScreen {
+  position: fixed; inset: 0; background: #0a0d14;
+  display: none; align-items: center; justify-content: center;
+  z-index: 60; flex-direction: column; gap: 16px; text-align: center; padding: 24px;
+}
+.end-icon  { font-size: 48px; }
+.end-title { font-size: 22px; font-weight: 800; color: var(--white); }
+.end-sub   { font-size: 14px; color: rgba(255,255,255,.5); max-width: 400px; line-height: 1.6; }
+.btn-dash  { background: var(--blue); color: var(--white); border-radius: 12px; padding: 12px 28px; font-size: 14px; font-weight: 700; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<!-- Pre-call overlay -->
+<div id="overlay">
+  <div class="overlay-logo">AGZIT</div>
+  <div class="overlay-title" id="overlayTitle">Preparing your interview…</div>
+  <div class="overlay-sub" id="overlaySub">We're setting up your session. This takes a few seconds.</div>
+  <div class="sk-ring-sm" id="overlaySpinner" style="display:block"></div>
+  <div class="overlay-err" id="overlayErr"></div>
+  <button class="btn-primary" id="btnLaunch" style="display:none">Start Interview</button>
+</div>
+
+<!-- End screen -->
+<div id="endScreen">
+  <div class="end-icon">✅</div>
+  <div class="end-title">Interview Complete</div>
+  <div class="end-sub">Your session has ended. Your recording and scorecard will be ready on your dashboard shortly.</div>
+  <a href="/dashboard" class="btn-dash">Go to Dashboard</a>
+</div>
+
+<!-- Topbar -->
+<header class="topbar" style="display:none" id="topbar">
+  <span class="topbar-brand">AGZIT</span>
+  <span class="topbar-sep"></span>
+  <span class="topbar-role" id="topRole">Mock Interview</span>
+  <div class="topbar-right">
+    <div class="timer" id="timer">00:00</div>
+  </div>
+</header>
+
+<!-- Main area -->
+<div class="main" id="mainArea" style="display:none">
+  <div class="stage">
+    <div class="status-ring connecting" id="statusRing">
+      <div class="ai-avatar">AI</div>
+    </div>
+    <div>
+      <div class="status-text" id="statusText">Connecting to interviewer…</div>
+      <div class="status-sub"  id="statusSub">Please ensure your microphone is unmuted</div>
+    </div>
+    <div class="mic-indicator">
+      <div class="mic-dot" id="micDot"></div>
+      <span id="micLabel">Microphone active</span>
+    </div>
+    <div class="controls">
+      <button class="btn-ctrl btn-end" id="btnEnd" title="End interview" disabled>&#9632;</button>
+    </div>
+  </div>
+
+  <div class="self-panel">
+    <div class="self-label">Your Camera</div>
+    <video id="selfVideo" autoplay muted playsinline></video>
+    <div class="self-info" id="selfInfo">Camera preview will start when the call begins.</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(async function () {
+  // ── Constants ───────────────────────────────────────────────────────────────
+  const RENDER_BASE       = 'https://agzit-daily-backend.onrender.com';
+  const VAPI_PUBLIC_KEY   = '11eb11ed-1351-4fcd-b0b7-ba4343534566';
+  const VAPI_ASSISTANT_ID = '2cbb9d48-f140-48bf-8a79-6681dccd0540';
+  const MAP_SECRET        = 'WasimWPToken_Map_Shared_for_SID_missing_issuewithrender_Myown_28973213';
+  const DASHBOARD_URL     = '/dashboard';
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+
+  function showOverlayErr(msg) {
+    $('overlayErr').textContent = msg;
+    $('overlayErr').style.display = msg ? 'block' : 'none';
+    $('overlaySpinner').style.display = 'none';
+  }
+
+  function toast(msg, dur = 3000) {
+    const el = $('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), dur);
+  }
+
+  function postJson(url, body, headers = {}) {
+    return fetch(url, {
+      method:  'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, headers),
+      body:    JSON.stringify(body),
+    }).then(r => r.json());
+  }
+
+  // ── Read SID + industry from URL ────────────────────────────────────────────
+  const params   = new URLSearchParams(location.search);
+  const sid      = (params.get('sid') || '').toUpperCase();
+  const industry = params.get('industry') || 'compliance';
+
+  if (!sid || !/^MIS-[A-Z0-9]{8}$/.test(sid)) {
+    showOverlayErr('Invalid or missing session ID. Please start a new interview from your dashboard.');
+    return;
+  }
+
+  // ── Ensure logged in ────────────────────────────────────────────────────────
+  try {
+    const r = await fetch('/api/candidate/dashboard', { credentials: 'include' });
+    if (r.status === 401) { location.href = '/login'; return; }
+  } catch {
+    showOverlayErr('Network error. Please refresh the page.');
+    return;
+  }
+
+  // ── Load Vapi SDK ────────────────────────────────────────────────────────────
+  let Vapi;
+  const SDK_TIMEOUT = 12000;
+  const sdkStart    = Date.now();
+
+  $('overlayTitle').textContent = 'Loading interview engine…';
+  $('overlaySub').textContent   = 'Importing AI voice SDK, please wait.';
+
+  for (;;) {
+    try {
+      const mod = await import('https://esm.sh/@vapi-ai/web');
+      Vapi = mod.default || mod.Vapi;
+      if (typeof Vapi === 'function') break;
+    } catch { /* retry */ }
+    if (Date.now() - sdkStart > SDK_TIMEOUT) {
+      showOverlayErr('Failed to load interview engine. Please refresh and try again.');
+      return;
+    }
+    await new Promise(r => setTimeout(r, 800));
+  }
+
+  // ── Check camera + mic permissions ──────────────────────────────────────────
+  $('overlayTitle').textContent = 'Checking permissions…';
+  $('overlaySub').textContent   = 'Please allow microphone and camera access when prompted.';
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    stream.getTracks().forEach(t => t.stop());
+  } catch (e) {
+    showOverlayErr('Microphone/camera access is required. Please allow access and refresh the page.');
+    return;
+  }
+
+  // ── Reserve concurrency slot ─────────────────────────────────────────────────
+  $('overlayTitle').textContent = 'Reserving interview slot…';
+  $('overlaySub').textContent   = 'Checking availability on AGZIT interview servers.';
+
+  try {
+    const slotRes = await postJson(`${RENDER_BASE}/interview/start`, { sid });
+    if (!slotRes.ok && !slotRes.already_active) {
+      showOverlayErr(slotRes.message || 'All interview slots are busy. Please try again in a few minutes.');
+      return;
+    }
+  } catch {
+    showOverlayErr('Could not connect to interview servers. Please check your connection.');
+    return;
+  }
+
+  // ── Fetch variableValues from agzit-app proxy → daily backend ───────────────
+  $('overlayTitle').textContent = 'Preparing interview context…';
+  $('overlaySub').textContent   = 'Loading your profile and role-specific questions.';
+
+  let variableValues, sessionMinutes;
+
+  try {
+    const ctxRes = await fetch(`/api/candidate/vapi-context?sid=${encodeURIComponent(sid)}&industry=${encodeURIComponent(industry)}`, {
+      credentials: 'include',
+    });
+    const ctxData = await ctxRes.json();
+
+    if (!ctxData.ok || !ctxData.variableValues) {
+      showOverlayErr(ctxData.error || 'Failed to load interview context. Please try again.');
+      return;
+    }
+
+    variableValues  = ctxData.variableValues;
+    sessionMinutes  = [20, 30].includes(ctxData.session_minutes) ? ctxData.session_minutes : 20;
+  } catch {
+    showOverlayErr('Failed to load interview context. Please refresh and try again.');
+    return;
+  }
+
+  // Update topbar with role
+  $('topRole').textContent = variableValues.interview_role || 'Mock Interview';
+
+  // ── Ready — show launch button ───────────────────────────────────────────────
+  $('overlayTitle').textContent = 'Ready to begin';
+  $('overlaySub').textContent   = `Your ${sessionMinutes}-minute mock interview is ready. Click the button to connect with your AI interviewer.`;
+  $('overlaySpinner').style.display = 'none';
+  $('btnLaunch').style.display      = 'block';
+
+  // ── Call lifecycle state ─────────────────────────────────────────────────────
+  let vapi           = null;
+  let callActive     = false;
+  let heartbeatTimer = null;
+  let warningTimer   = null;
+  let hardStopTimer  = null;
+  let elapsedSec     = 0;
+  let clockTimer     = null;
+  let callStartedAt  = null;
+  let firstHeartbeat = true;
+
+  // ── Timer display ────────────────────────────────────────────────────────────
+  function startClock() {
+    callStartedAt = Date.now();
+    clockTimer = setInterval(() => {
+      elapsedSec = Math.floor((Date.now() - callStartedAt) / 1000);
+      const m = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+      const s = String(elapsedSec % 60).padStart(2, '0');
+      $('timer').textContent = `${m}:${s}`;
+    }, 1000);
+  }
+
+  function stopClock() { clearInterval(clockTimer); }
+
+  // ── Heartbeat ────────────────────────────────────────────────────────────────
+  function startHeartbeat() {
+    heartbeatTimer = setInterval(async () => {
+      try {
+        const body = firstHeartbeat ? { sid, status: 'call_started' } : { sid };
+        firstHeartbeat = false;
+        const r = await postJson(`${RENDER_BASE}/interview/heartbeat`, body);
+        if (r.remainingMs !== null && r.remainingMs <= 0) endCall('time_up');
+      } catch { /* non-fatal */ }
+    }, 25000);
+  }
+
+  function stopHeartbeat() { clearInterval(heartbeatTimer); }
+
+  // ── Timers ────────────────────────────────────────────────────────────────────
+  function scheduleTimers() {
+    const warnAt = Math.max(1, sessionMinutes - 2);
+    warningTimer  = setTimeout(() => {
+      toast(`⚠️ ${2} minutes remaining`, 8000);
+      $('timer').classList.add('warn');
+    }, warnAt * 60 * 1000);
+
+    hardStopTimer = setTimeout(() => endCall('time_up'), sessionMinutes * 60 * 1000);
+  }
+
+  function clearTimers() {
+    clearTimeout(warningTimer);
+    clearTimeout(hardStopTimer);
+  }
+
+  // ── End call ─────────────────────────────────────────────────────────────────
+  async function endCall(reason) {
+    if (!callActive) return;
+    callActive = false;
+
+    stopClock();
+    stopHeartbeat();
+    clearTimers();
+
+    $('btnEnd').disabled = true;
+    $('statusText').textContent = 'Ending session…';
+    $('statusRing').className   = 'status-ring connecting';
+
+    if (vapi) {
+      try { vapi.stop(); } catch { /* ignore */ }
+    }
+
+    // Release slot
+    try {
+      await fetch(`${RENDER_BASE}/interview/end`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sid }),
+      });
+    } catch { /* non-fatal */ }
+
+    // Stop self-view
+    const v = $('selfVideo');
+    if (v.srcObject) { v.srcObject.getTracks().forEach(t => t.stop()); v.srcObject = null; }
+
+    $('endScreen').style.display = 'flex';
+  }
+
+  // ── On call start ─────────────────────────────────────────────────────────────
+  function onCallStart() {
+    callActive = true;
+    $('overlay').style.display  = 'none';
+    $('topbar').style.display   = 'flex';
+    $('mainArea').style.display = 'grid';
+    $('btnEnd').disabled        = false;
+    $('statusRing').className   = 'status-ring active';
+    $('statusText').textContent = 'Connected — interviewer is ready';
+    $('statusSub').textContent  = 'Speak clearly into your microphone';
+
+    startClock();
+    startHeartbeat();
+    scheduleTimers();
+
+    // Map callId → SID for webhook resolution
+    if (vapi?._call?.id) {
+      postJson(`${RENDER_BASE}/vapi/map-call`,
+        { sid, callId: vapi._call.id },
+        { 'x-map-secret': MAP_SECRET }
+      ).catch(() => {});
+    }
+
+    // Start self-view camera (AFTER call started to avoid mic conflict)
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => {
+      $('selfVideo').srcObject = stream;
+      $('selfInfo').textContent = 'Your camera is active.';
+    }).catch(() => {
+      $('selfInfo').textContent = 'Camera not available.';
+    });
+  }
+
+  // ── Vapi event handlers ───────────────────────────────────────────────────────
+  function attachVapiEvents() {
+    vapi.on('call-start', () => {
+      onCallStart();
+      // Try to map callId (may not be available immediately — also mapped in heartbeat)
+      setTimeout(() => {
+        if (vapi?._call?.id) {
+          postJson(`${RENDER_BASE}/vapi/map-call`,
+            { sid, callId: vapi._call.id },
+            { 'x-map-secret': MAP_SECRET }
+          ).catch(() => {});
+        }
+      }, 1000);
+    });
+
+    vapi.on('call-end', () => endCall('call_ended'));
+
+    vapi.on('speech-start', () => {
+      $('statusRing').className   = 'status-ring speaking';
+      $('statusText').textContent = 'AI interviewer is speaking…';
+    });
+
+    vapi.on('speech-end', () => {
+      $('statusRing').className   = 'status-ring active';
+      $('statusText').textContent = 'Your turn — please respond';
+    });
+
+    vapi.on('message', msg => {
+      if (msg?.type === 'function-call') return; // ignore
+      if (msg?.role === 'user') {
+        $('micDot').classList.add('active');
+        $('micLabel').textContent = 'Listening…';
+        setTimeout(() => {
+          $('micDot').classList.remove('active');
+          $('micLabel').textContent = 'Microphone active';
+        }, 1500);
+      }
+    });
+
+    vapi.on('error', err => {
+      console.error('[vapi error]', err);
+      toast('Connection issue — check your microphone.');
+    });
+  }
+
+  // ── beforeunload beacon ───────────────────────────────────────────────────────
+  window.addEventListener('beforeunload', () => {
+    if (callActive) {
+      navigator.sendBeacon(`${RENDER_BASE}/interview/end`, JSON.stringify({ sid }));
+    }
+  });
+
+  // ── Launch button handler ─────────────────────────────────────────────────────
+  $('btnLaunch').addEventListener('click', async () => {
+    $('btnLaunch').disabled       = true;
+    $('btnLaunch').textContent    = 'Connecting…';
+    $('overlaySpinner').style.display = 'block';
+    $('overlayErr').style.display = 'none';
+
+    try {
+      vapi = new Vapi(VAPI_PUBLIC_KEY);
+      attachVapiEvents();
+
+      await vapi.start(VAPI_ASSISTANT_ID, {
+        variableValues,
+      });
+    } catch (e) {
+      console.error('[vapi start]', e);
+      showOverlayErr('Failed to connect to interviewer. Please check your microphone and try again.');
+      $('btnLaunch').disabled   = false;
+      $('btnLaunch').textContent = 'Retry';
+    }
+  });
+
+  // ── End button ────────────────────────────────────────────────────────────────
+  $('btnEnd').addEventListener('click', () => endCall('user_ended'));
+})();
+</script>
+</body>
+</html>

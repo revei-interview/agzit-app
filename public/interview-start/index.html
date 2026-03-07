@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Start Mock Interview — AGZIT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:       #09101F;
+  --soft:      #3A4163;
+  --muted:     #7C83A0;
+  --line:      #E4E6EF;
+  --surface:   #F5F6FA;
+  --white:     #ffffff;
+  --blue:      #1A44C2;
+  --blue-lt:   #EAF0FF;
+  --green:     #0B7A47;
+  --green-lt:  #E4F5EE;
+  --amber:     #92400E;
+  --amber-lt:  #FEF3C7;
+  --red:       #991B1B;
+  --red-lt:    #FEE2E2;
+  --shadow-sm: 0 1px 3px rgba(9,16,31,.06), 0 4px 12px rgba(9,16,31,.05);
+  --shadow-md: 0 2px 6px rgba(9,16,31,.05), 0 8px 24px rgba(9,16,31,.07);
+  --radius:    16px;
+  --font:      'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--surface); color: var(--ink); -webkit-font-smoothing: antialiased; min-height: 100vh; }
+a { color: inherit; text-decoration: none; }
+button { font-family: var(--font); cursor: pointer; border: none; background: none; }
+
+#loading { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; min-height: 100vh; }
+.sk-ring { width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--blue); animation: spin .65s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#app { display: none; }
+
+/* ── Topbar ── */
+.topbar { background: var(--white); border-bottom: 1px solid var(--line); padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+.topbar-brand { font-weight: 800; font-size: 18px; letter-spacing: -.5px; color: var(--blue); }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.btn-link { font-size: 13px; font-weight: 600; color: var(--muted); padding: 6px 10px; border-radius: 8px; transition: all .15s; }
+.btn-link:hover { color: var(--ink); background: var(--surface); }
+.avatar-chip { width: 34px; height: 34px; border-radius: 50%; background: var(--blue-lt); color: var(--blue); font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+
+/* ── Layout ── */
+.page-wrap { max-width: 720px; margin: 0 auto; padding: 40px 24px 80px; }
+.page-title { font-size: 26px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
+.page-sub { font-size: 14px; color: var(--muted); margin-bottom: 32px; }
+
+/* ── Credit cards ── */
+.credit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px; }
+.credit-card { background: var(--white); border-radius: var(--radius); padding: 20px 24px; box-shadow: var(--shadow-sm); border: 1px solid var(--line); }
+.credit-card.selected { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,68,194,.12); }
+.credit-plan { font-size: 18px; font-weight: 800; color: var(--ink); }
+.credit-count { font-size: 28px; font-weight: 800; color: var(--blue); margin: 4px 0; }
+.credit-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+.credit-card.zero .credit-count { color: var(--muted); }
+.credit-card.zero .credit-label { color: var(--red); }
+
+/* ── Alert ── */
+.alert { padding: 14px 18px; border-radius: 10px; font-size: 13px; font-weight: 500; margin-bottom: 24px; display: none; }
+.alert-err { background: var(--red-lt); color: var(--red); }
+.alert-warn { background: var(--amber-lt); color: var(--amber); }
+.alert-info { background: var(--blue-lt); color: var(--blue); }
+
+/* ── Form card ── */
+.form-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow-md); padding: 32px; }
+.section-label { font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); margin-bottom: 20px; }
+
+.field-group { margin-bottom: 20px; }
+.field-label { display: block; font-size: 13px; font-weight: 600; color: var(--soft); margin-bottom: 6px; }
+.field-label span { color: var(--red); }
+.field-input, .field-select, .field-textarea {
+  width: 100%; border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 14px;
+  font-family: var(--font); font-size: 14px; color: var(--ink); background: var(--surface);
+  transition: border-color .15s;
+}
+.field-input:focus, .field-select:focus, .field-textarea:focus { outline: none; border-color: var(--blue); background: var(--white); }
+.field-textarea { resize: vertical; min-height: 120px; }
+.field-hint { font-size: 12px; color: var(--muted); margin-top: 5px; }
+
+/* ── Plan selector ── */
+.plan-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.plan-opt { border: 2px solid var(--line); border-radius: 12px; padding: 16px; cursor: pointer; transition: all .15s; position: relative; }
+.plan-opt:hover { border-color: var(--blue); }
+.plan-opt.active { border-color: var(--blue); background: var(--blue-lt); }
+.plan-opt.disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
+.plan-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.plan-name { font-weight: 700; font-size: 15px; color: var(--ink); }
+.plan-desc { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.plan-credits { font-size: 11px; font-weight: 700; color: var(--blue); margin-top: 6px; }
+.plan-credits.zero { color: var(--red); }
+
+/* ── Submit button ── */
+.btn-submit {
+  width: 100%; background: var(--blue); color: var(--white); border-radius: 12px;
+  padding: 14px; font-size: 15px; font-weight: 700; margin-top: 8px;
+  transition: background .15s, opacity .15s;
+}
+.btn-submit:hover { background: #1536a8; }
+.btn-submit:disabled { opacity: .6; cursor: not-allowed; }
+
+.divider { height: 1px; background: var(--line); margin: 24px 0; }
+.back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 24px; }
+.back-link:hover { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="sk-ring"></div>
+  <p style="font-size:13px;color:var(--muted);font-weight:600;">Loading…</p>
+</div>
+
+<div id="app">
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-brand">AGZIT</div>
+    <div class="topbar-right">
+      <a href="/dashboard" class="btn-link">Dashboard</a>
+      <div class="avatar-chip" id="avatarChip">?</div>
+    </div>
+  </header>
+
+  <div class="page-wrap">
+    <a href="/dashboard" class="back-link">&#8592; Back to Dashboard</a>
+
+    <h1 class="page-title">Start Mock Interview</h1>
+    <p class="page-sub">Configure your AI-powered mock interview session below.</p>
+
+    <!-- Credit summary -->
+    <div class="credit-row">
+      <div class="credit-card" id="card20">
+        <div class="credit-plan">20 Minutes</div>
+        <div class="credit-count" id="credits20">—</div>
+        <div class="credit-label" id="label20">credits available</div>
+      </div>
+      <div class="credit-card" id="card30">
+        <div class="credit-plan">30 Minutes</div>
+        <div class="credit-count" id="credits30">—</div>
+        <div class="credit-label" id="label30">credits available</div>
+      </div>
+    </div>
+
+    <div class="alert alert-err"  id="alertErr"></div>
+    <div class="alert alert-warn" id="alertWarn"></div>
+
+    <!-- Session form -->
+    <div class="form-card">
+      <div class="section-label">Session Details</div>
+
+      <div class="field-group">
+        <label class="field-label" for="interviewRole">Target Role <span>*</span></label>
+        <input id="interviewRole" class="field-input" type="text" placeholder="e.g. KYC Analyst, Compliance Officer" maxlength="150" required>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="careerLevel">Target Career Level <span>*</span></label>
+        <select id="careerLevel" class="field-select">
+          <option value="">— Select level —</option>
+          <option value="0-2 Years">0–2 Years (Fresher / Junior)</option>
+          <option value="3-5 Years">3–5 Years (Analyst / Associate)</option>
+          <option value="6-8 Years">6–8 Years (Senior Analyst / Lead)</option>
+          <option value="9-12 Years">9–12 Years (Manager / Senior Manager)</option>
+          <option value="12+ Years">12+ Years (Director / VP / C-Suite)</option>
+        </select>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-label">Session Duration</div>
+
+      <div class="plan-row">
+        <label class="plan-opt" id="opt20" for="plan20">
+          <input type="radio" id="plan20" name="plan" value="20">
+          <div class="plan-name">20 Minutes</div>
+          <div class="plan-desc">Focused session — key phases covered</div>
+          <div class="plan-credits" id="pc20">— credits</div>
+        </label>
+        <label class="plan-opt" id="opt30" for="plan30">
+          <input type="radio" id="plan30" name="plan" value="30">
+          <div class="plan-name">30 Minutes</div>
+          <div class="plan-desc">Full interview — all phases + scenarios</div>
+          <div class="plan-credits" id="pc30">— credits</div>
+        </label>
+      </div>
+
+      <div class="divider"></div>
+      <div class="section-label">Job Description <span style="font-size:10px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--muted)">(Optional — improves question relevance)</span></div>
+
+      <div class="field-group">
+        <label class="field-label" for="jdText">Paste Job Description</label>
+        <textarea id="jdText" class="field-textarea" placeholder="Paste the full job description here for more targeted interview questions…"></textarea>
+        <p class="field-hint">Leave blank to use a general interview for your selected role.</p>
+      </div>
+
+      <button class="btn-submit" id="btnStart" disabled>Start Interview</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(async function () {
+  const $ = id => document.getElementById(id);
+
+  function showErr(msg)  { const el = $('alertErr');  el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
+  function showWarn(msg) { const el = $('alertWarn'); el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
+
+  // ── Load dashboard data ───────────────────────────────────────────────────
+  let entitlements = { sessions_20: 0, sessions_30: 0 };
+  try {
+    const r = await fetch('/api/candidate/dashboard', { credentials: 'include' });
+    if (r.status === 401) { location.href = '/login'; return; }
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+
+    if (d.user?.first_name) {
+      $('avatarChip').textContent = d.user.first_name.slice(0, 1).toUpperCase();
+    }
+
+    entitlements = d.entitlements || { sessions_20: 0, sessions_30: 0 };
+
+    // Populate career level if profile has one
+    if (d.profile?.current_career_level) {
+      const opt = Array.from($('careerLevel').options).find(o => o.value === d.profile.current_career_level);
+      if (opt) $('careerLevel').value = d.profile.current_career_level;
+    }
+  } catch (e) {
+    showErr('Failed to load account data. Please refresh.');
+  }
+
+  // ── Render credit cards ────────────────────────────────────────────────────
+  function renderCredits() {
+    const c20 = entitlements.sessions_20 || 0;
+    const c30 = entitlements.sessions_30 || 0;
+
+    $('credits20').textContent = c20;
+    $('credits30').textContent = c30;
+    $('label20').textContent   = c20 === 1 ? 'credit available' : 'credits available';
+    $('label30').textContent   = c30 === 1 ? 'credit available' : 'credits available';
+    $('pc20').textContent      = `${c20} credit${c20 === 1 ? '' : 's'} available`;
+    $('pc30').textContent      = `${c30} credit${c30 === 1 ? '' : 's'} available`;
+
+    $('card20').classList.toggle('zero', c20 === 0);
+    $('card30').classList.toggle('zero', c30 === 0);
+    $('label20').style.color = c20 === 0 ? 'var(--red)' : '';
+    $('label30').style.color = c30 === 0 ? 'var(--red)' : '';
+
+    $('pc20').classList.toggle('zero', c20 === 0);
+    $('pc30').classList.toggle('zero', c30 === 0);
+
+    if (c20 === 0) $('opt20').classList.add('disabled');
+    if (c30 === 0) $('opt30').classList.add('disabled');
+
+    if (c20 === 0 && c30 === 0) {
+      showWarn('You have no interview credits. Purchase a plan from your dashboard to start a session.');
+    }
+  }
+  renderCredits();
+
+  $('app').style.display    = 'block';
+  $('loading').style.display = 'none';
+
+  // ── Plan selection ────────────────────────────────────────────────────────
+  let selectedPlan = null;
+
+  function selectPlan(val) {
+    selectedPlan = val;
+    ['20','30'].forEach(v => {
+      $(`opt${v}`).classList.toggle('active', v === val);
+    });
+    validateForm();
+  }
+
+  $('plan20').addEventListener('change', () => selectPlan('20'));
+  $('plan30').addEventListener('change', () => selectPlan('30'));
+
+  // Auto-select first available plan
+  if (entitlements.sessions_20 > 0) selectPlan('20');
+  else if (entitlements.sessions_30 > 0) selectPlan('30');
+
+  // ── Validation ────────────────────────────────────────────────────────────
+  function validateForm() {
+    const role  = $('interviewRole').value.trim();
+    const level = $('careerLevel').value;
+    const ok    = role.length > 0 && level && selectedPlan;
+    const credits = selectedPlan === '20' ? entitlements.sessions_20 : (selectedPlan === '30' ? entitlements.sessions_30 : 0);
+    $('btnStart').disabled = !ok || credits === 0;
+  }
+
+  $('interviewRole').addEventListener('input', validateForm);
+  $('careerLevel').addEventListener('change', validateForm);
+
+  // ── Submit ────────────────────────────────────────────────────────────────
+  $('btnStart').addEventListener('click', async () => {
+    showErr('');
+    const role  = $('interviewRole').value.trim();
+    const level = $('careerLevel').value;
+    const jd    = $('jdText').value.trim();
+
+    if (!role)        { showErr('Please enter the target role.'); return; }
+    if (!level)       { showErr('Please select a career level.'); return; }
+    if (!selectedPlan){ showErr('Please select an interview plan.'); return; }
+
+    $('btnStart').disabled = true;
+    $('btnStart').textContent = 'Starting…';
+
+    try {
+      const r = await fetch('/api/candidate/interviews/start', {
+        method:      'POST',
+        credentials: 'include',
+        headers:     { 'Content-Type': 'application/json' },
+        body:        JSON.stringify({
+          interview_role:       role,
+          target_career_level:  level,
+          chosen_minutes:       parseInt(selectedPlan),
+          jd_raw_text:          jd,
+        }),
+      });
+      const d = await r.json();
+
+      if (!d.ok) {
+        showErr(d.error || 'Failed to create session. Please try again.');
+        $('btnStart').disabled  = false;
+        $('btnStart').textContent = 'Start Interview';
+        return;
+      }
+
+      // Redirect to interview room
+      location.href = d.redirect_url || `/interview-room?sid=${encodeURIComponent(d.sid)}`;
+    } catch (e) {
+      showErr('Network error. Please check your connection and try again.');
+      $('btnStart').disabled  = false;
+      $('btnStart').textContent = 'Start Interview';
+    }
+  });
+})();
+</script>
+</body>
+</html>
