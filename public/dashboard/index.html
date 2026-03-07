@@ -539,9 +539,9 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
         <div class="stat-sub" id="st-sessions-sub" style="margin-top:8px;">mock interviews</div>
       </div>
       <div class="stat">
-        <div class="stat-label">Resume</div>
-        <div class="stat-value" id="st-resume">—</div>
-        <div class="stat-sub" id="st-resume-sub" style="margin-top:8px;"></div>
+        <div class="stat-label">Profile Views</div>
+        <div class="stat-value" id="st-views">—</div>
+        <div class="stat-sub" id="st-views-sub" style="margin-top:8px;">employer views</div>
       </div>
     </div>
 
@@ -915,9 +915,12 @@ function render(d, pd, id) {
   el('st-score-bar').style.width = bestScore + '%';
   el('st-score-sub').textContent = sc ? (sc.mock_performance_level || '') : 'No interview yet';
 
-  el('st-sessions').textContent = recent.length || (d.recent_interviews || []).length;
+  el('st-sessions').textContent = (id && id.count != null) ? id.count : (recent.length || 0);
 
-  /* resume stat — we'll update when profile loads */
+  /* Profile views stat — comes from dashboard API (dpr_id_view_count in profile object) */
+  const viewCount = parseInt(prof.dpr_id_view_count) || 0;
+  el('st-views').textContent    = viewCount;
+  el('st-views-sub').textContent = viewCount === 1 ? '1 employer view' : viewCount + ' employer views';
 
   /* ── Entitlement strip ───────────────────────────────────────────────────── */
   const strip = el('ent-strip');
@@ -1202,10 +1205,8 @@ function renderInterviews(sessions, id) {
 function renderProfile(p) {
   if (!p) return;
 
-  /* resume stat update */
+  /* resume status (used in overview card and resume tab) */
   const hasRes = !!(p.resume_upload);
-  el('st-resume').textContent    = hasRes ? 'Uploaded' : 'Missing';
-  el('st-resume-sub').textContent = hasRes ? 'On file' : 'No resume uploaded';
 
   /* overview pills */
   const weC = (p.work_experience||[]).length, eduC = (p.education||[]).length, cerC = (p.certifications||[]).length;

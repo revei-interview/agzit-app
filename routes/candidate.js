@@ -139,6 +139,7 @@ router.get('/dashboard', ...guard, async (req, res) => {
         full_name:            meta.full_name,
         dpr_status:           meta.dpr_status,
         profile_completeness: meta.profile_completeness,
+        dpr_id_view_count:    meta.dpr_id_view_count,
         open_for_work_badge:  meta.open_for_work_badge,
         compliance_domains:   meta.compliance_domains,
         current_career_level: meta.current_career_level,

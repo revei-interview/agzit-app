@@ -763,6 +763,23 @@ button { font-family: inherit; cursor: pointer; }
       <!-- Candidates content (verified employers only) -->
       <div id="candidates-content" style="display:none">
 
+        <!-- DPR ID search -->
+        <div class="card reveal" style="margin-bottom:20px;">
+          <div class="card-title">Search by DPR ID</div>
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+            <div style="flex:1;min-width:200px;">
+              <span class="filter-label" style="display:block;margin-bottom:6px;">DPR ID</span>
+              <input class="filter-input" id="dpr-id-input" type="text"
+                placeholder="e.g. DPR-20240101-GB-12345-ABC123" style="width:100%;"
+                onkeydown="if(event.key==='Enter')searchByDprId()">
+            </div>
+            <button class="filter-btn" onclick="searchByDprId()">View Profile</button>
+          </div>
+          <div id="dpr-id-error" style="font-size:12.5px;color:#B91C1C;margin-top:8px;display:none;">
+            Please enter a DPR ID (starts with DPR-).
+          </div>
+        </div>
+
         <!-- Filter bar -->
         <div class="filter-bar reveal">
           <div class="filter-group">
@@ -1027,6 +1044,18 @@ async function loadProfile() {
     document.getElementById('profile-content').innerHTML = `<div class="notice notice-amber">${esc(e.message || 'Failed to load profile.')}</div>`;
     document.getElementById('profile-content').style.display = 'block';
   }
+}
+
+// ── DPR ID search ────────────────────────────────────────────────────────────
+function searchByDprId() {
+  const dprId = (document.getElementById('dpr-id-input').value || '').trim();
+  const errEl = document.getElementById('dpr-id-error');
+  if (!dprId || !dprId.toUpperCase().startsWith('DPR-')) {
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  window.location.href = '/profile?dpr_id=' + encodeURIComponent(dprId);
 }
 
 // ── Candidates tab ───────────────────────────────────────────────────────────
