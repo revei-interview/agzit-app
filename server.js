@@ -10,6 +10,7 @@ const rateLimit    = require('express-rate-limit');
 const { requireAuth, requireRole } = require('./middleware/auth');
 
 const app = express();
+app.set('trust proxy', 1); // Render sits behind a load balancer — trust first proxy hop for correct IP in rate limiting
 
 // ── Security headers ────────────────────────────────────────────────────────
 app.use(helmet({
