@@ -9,7 +9,7 @@ const express  = require('express');
 const router   = express.Router();
 const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const Brevo = require('@getbrevo/brevo');
 const crypto   = require('crypto');
 const db       = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
@@ -91,18 +91,17 @@ function parseWpRole(capabilities) {
   return 'dpr_candidate';
 }
 
-// ── Email transporter ──────────────────────────────────────────────────────
-const transporter = nodemailer.createTransport({
-  host:              process.env.MAIL_HOST,
-  port:              587,
-  secure:            false,       // false = STARTTLS on 587 (not direct SSL)
-  requireTLS:        true,        // force TLS upgrade
-  auth:              { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
-  tls:               { rejectUnauthorized: false }, // accept Hostinger's cert chain
-  connectionTimeout: 10000,
-  greetingTimeout:   10000,
-  socketTimeout:     10000,
-});
+// ── Brevo email helper ─────────────────────────────────────────────────────
+async function sendBrevoEmail({ to, toName, subject, html }) {
+  const client = new Brevo.TransactionalEmailsApi();
+  client.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
+  const msg = new Brevo.SendSmtpEmail();
+  msg.sender      = { name: 'AGZIT AI', email: 'no-reply@mail.agzit.com' };
+  msg.to          = [{ email: to, ...(toName && { name: toName }) }];
+  msg.subject     = subject;
+  msg.htmlContent = html;
+  return client.sendTransacEmail(msg);
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function generateOTP() {
@@ -166,9 +165,8 @@ router.post('/send-otp', async (req, res) => {
       [email.toLowerCase(), otp, account_type, expires]
     );
 
-    // Send email
-    await transporter.sendMail({
-      from:    process.env.MAIL_FROM,
+    // Send OTP email via Brevo API
+    await sendBrevoEmail({
       to:      email,
       subject: 'Your AGZIT verification code',
       html: `

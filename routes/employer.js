@@ -9,7 +9,7 @@ const express    = require('express');
 const router     = express.Router();
 const pool       = require('../config/db');
 const crypto     = require('crypto');
-const nodemailer = require('nodemailer');
+const Brevo = require('@getbrevo/brevo');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 // Guards
@@ -1009,19 +1009,7 @@ router.get('/profile-view', ...guardVerified, async (req, res) => {
   }
 });
 
-// ── Email transporter (schedule-interview) ────────────────────────────────────
-const scheduleMailer = nodemailer.createTransport({
-  host:              process.env.MAIL_HOST,
-  port:              587,
-  secure:            false,       // false = STARTTLS on 587 (not direct SSL)
-  requireTLS:        true,        // force TLS upgrade
-  auth:              { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
-  tls:               { rejectUnauthorized: false }, // accept Hostinger's cert chain
-  connectionTimeout: 10000,
-  greetingTimeout:   10000,
-  socketTimeout:     10000,
-});
-
+// ── Interview email (Brevo API) ────────────────────────────────────────────────
 async function sendInterviewEmail({ candidateName, candidateEmail, interviewRole, sessionType, scheduledAt, joinUrl, joinToken }) {
   console.log('[sendInterviewEmail] attempting to send to:', candidateEmail, '| role:', interviewRole);
   const durationMin = sessionType === '30-min' ? 30 : 20;
@@ -1124,50 +1112,35 @@ async function sendInterviewEmail({ candidateName, candidateEmail, interviewRole
 </table>
 </body></html>`;
 
-  await scheduleMailer.sendMail({
-    from:        process.env.MAIL_FROM || process.env.MAIL_USER,
-    to:          candidateEmail,
-    subject:     `Your AI Interview is Scheduled – ${interviewRole} | AGZIT`,
-    html,
-    attachments: [{
-      filename:    'interview-invite.ics',
-      content:     Buffer.from(ics, 'utf8'),
-      contentType: 'text/calendar; method=REQUEST',
-    }],
-  });
+  const client = new Brevo.TransactionalEmailsApi();
+  client.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
+  const email = new Brevo.SendSmtpEmail();
+  email.sender      = { name: 'AGZIT AI', email: 'no-reply@mail.agzit.com' };
+  email.to          = [{ email: candidateEmail, name: candidateName }];
+  email.subject     = `Your AI Interview is Scheduled – ${interviewRole} | AGZIT`;
+  email.htmlContent = html;
+  email.attachment  = [{
+    name:    'interview-invite.ics',
+    content: Buffer.from(ics, 'utf8').toString('base64'),
+  }];
+  await client.sendTransacEmail(email);
   console.log('[sendInterviewEmail] sent successfully to:', candidateEmail);
 }
 
 // ── GET /api/employer/test-email ─────────────────────────────────────────────
-// Verify SMTP connection without sending a real email.
-// Returns { connected, host, port, user, error? }
+// Verify Brevo API key is valid by fetching account info.
+// Returns { connected, email, plan, error? }
 
 router.get('/test-email', ...guardAny, async (req, res) => {
-  const cfg = {
-    host:   process.env.MAIL_HOST,
-    port:   parseInt(process.env.MAIL_PORT) || 465,
-    secure: process.env.MAIL_SECURE === 'true',
-    auth:   { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS ? '***set***' : '***missing***' },
-  };
-  console.log('[test-email] testing SMTP connection:', { host: cfg.host, port: cfg.port, secure: cfg.secure, user: cfg.auth.user });
   try {
-    const t = nodemailer.createTransport({
-      host:              process.env.MAIL_HOST,
-      port:              587,
-      secure:            false,
-      requireTLS:        true,
-      auth:              { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
-      tls:               { rejectUnauthorized: false },
-      connectionTimeout: 10000,
-      greetingTimeout:   10000,
-      socketTimeout:     10000,
-    });
-    await t.verify();
-    console.log('[test-email] SMTP connection verified OK');
-    res.json({ connected: true, host: process.env.MAIL_HOST, port: 587, user: cfg.auth.user });
+    const client = new Brevo.AccountApi();
+    client.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
+    const account = await client.getAccount();
+    console.log('[test-email] Brevo account verified:', account.email);
+    res.json({ connected: true, email: account.email, plan: account.plan?.[0]?.type });
   } catch (err) {
-    console.error('[test-email] SMTP connection FAILED:', err.message);
-    res.json({ connected: false, host: process.env.MAIL_HOST, port: 587, user: cfg.auth.user, error: err.message });
+    console.error('[test-email] Brevo account check FAILED:', err.message);
+    res.json({ connected: false, error: err.message });
   }
 });
 
