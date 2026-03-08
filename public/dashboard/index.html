@@ -1010,15 +1010,16 @@ function renderScorecard(sc) {
   const circ  = 2 * Math.PI * 44;
   const dash  = ((score / 100) * circ).toFixed(1);
   const comps = [
-    ['Communication',      sc.score_communication],
-    ['Answer Structure',   sc.score_structure],
-    ['Role Knowledge',     sc.score_role_knowledge],
-    ['Domain Application', sc.score_domain_application],
-    ['Problem Solving',    sc.score_problem_solving],
-    ['Confidence',         sc.score_confidence],
-    ['Question Handling',  sc.score_question_handling],
-    ['Experience Relevance', sc.score_experience_relevance],
-    ['Resume Alignment',   sc.score_resume_alignment],
+    ['Communication Clarity',  sc.score_communication],
+    ['Answer Structure',       sc.score_structure],
+    ['Role Knowledge',         sc.score_role_knowledge],
+    ['Domain Application',     sc.score_domain_application],
+    ['Problem Solving',        sc.score_problem_solving],
+    ['Confidence & Presence',  sc.score_confidence],
+    ['Question Handling',      sc.score_question_handling],
+    ['Experience Relevance',   sc.score_experience_relevance],
+    ['Resume Alignment',       sc.score_resume_alignment],
+    ['Depth & Specificity',    sc.depth_specificity],
   ];
 
   const bars = comps.map(([label, val]) => {

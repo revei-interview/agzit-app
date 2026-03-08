@@ -291,26 +291,26 @@ function scoreColor(v) {
 
 // ── Core score definitions ────────────────────────────────────────────────────
 const CORE_SCORES = [
-  { field: 'score_communication',       label: 'Communication', short: 'Clarity and Articulation',
-    def: 'Clear speaking, professional language, minimal filler words, and coherent sentence construction throughout the interview.' },
-  { field: 'score_structure',           label: 'Structure',     short: 'Logical Organisation',
-    def: 'Answers follow a clear framework with a natural beginning, middle, and conclusion. No rambling or jumping between unrelated points.' },
-  { field: 'score_role_knowledge',      label: 'Role Knowledge', short: 'Core Domain Understanding',
-    def: 'Accurate grasp of fundamental concepts, terminology, and responsibilities for the target role — not just memorised definitions, but correct applied explanation.' },
-  { field: 'score_domain_application',  label: 'Domain Application', short: 'Practical Know-How',
-    def: 'Connects theory to real work situations. Explains how to apply concepts in practice, with personal ownership over outcomes rather than generic descriptions.' },
-  { field: 'score_problem_solving',     label: 'Problem Solving', short: 'Analytical Thinking and Judgment',
-    def: 'Handles novel or pressure scenarios by proposing independent solutions before escalating. Demonstrates structured thinking rather than defaulting to "the team decides."' },
-  { field: 'score_confidence',          label: 'Confidence',    short: 'Professional Presence',
-    def: 'Vocal stability, decisiveness, and tone. Presents ideas with conviction — scored independently of whether the content is correct.' },
-  { field: 'score_question_handling',   label: 'Q. Handling',   short: 'Grace Under Uncertainty',
-    def: 'Handles unknown or unexpected questions professionally. Pivots to related knowledge or asks a clarifying question rather than going silent.' },
-  { field: 'score_experience_relevance',label: 'Experience',    short: 'Impact and Applicability',
-    def: 'Relevance of past experience to the target role, with specific personal contributions and articulated outcomes rather than generic team-level descriptions.' },
-  { field: 'score_resume_alignment',    label: 'Resume Fit',    short: 'Authenticity and Consistency',
-    def: 'Spoken answers align with the claims made on the CV. Flags inconsistencies in stated responsibilities, timelines, or achievements that appear during the interview.' },
-  { field: 'depth_specificity',         label: 'Depth & Specificity', short: 'Precision and Evidence',
-    def: 'Names specific tools, sources, platforms, or case-specific steps rather than giving generic high-level descriptions. Evaluated on how precise, evidenced, and tool-specific the answers are.' },
+  { field: 'score_communication',       label: 'Communication Clarity',  short: 'Clarity and Articulation',
+    def: 'Ability to express ideas clearly, concisely and professionally.' },
+  { field: 'score_structure',           label: 'Answer Structure',        short: 'Logical Organisation',
+    def: 'Ability to organise responses logically with a clear beginning, middle and conclusion.' },
+  { field: 'score_role_knowledge',      label: 'Role Knowledge',          short: 'Core Domain Understanding',
+    def: 'Depth of understanding of domain, tools and processes required for the role.' },
+  { field: 'score_domain_application',  label: 'Domain Application',      short: 'Practical Know-How',
+    def: 'Ability to apply role knowledge to real-world scenarios and practical situations.' },
+  { field: 'score_problem_solving',     label: 'Problem Solving',         short: 'Analytical Thinking',
+    def: 'Ability to analyse issues, identify root causes and propose effective solutions.' },
+  { field: 'score_confidence',          label: 'Confidence & Presence',   short: 'Professional Presence',
+    def: 'Vocal confidence, pacing and professional demeanour during the interview.' },
+  { field: 'score_question_handling',   label: 'Question Handling',       short: 'Grace Under Uncertainty',
+    def: 'Ability to address the actual question asked without deflecting or going off-topic.' },
+  { field: 'score_experience_relevance',label: 'Experience Relevance',    short: 'Impact and Applicability',
+    def: 'Degree to which past experience maps to the requirements of the role.' },
+  { field: 'score_resume_alignment',    label: 'Resume Alignment',        short: 'Authenticity and Consistency',
+    def: 'Consistency between interview claims and what is stated on the resume.' },
+  { field: 'depth_specificity',         label: 'Depth & Specificity',     short: 'Precision and Evidence',
+    def: 'Degree to which the candidate supports answers with real examples, specific tools, quantifiable outcomes and concrete cases rather than vague generic responses.' },
 ];
 
 // ── Render scorecard ──────────────────────────────────────────────────────────
@@ -472,7 +472,7 @@ function downloadScorecard() {
 
 function buildPdfHtml(info, sc, fb) {
   function barCol(v) { if(v>=8) return '#0B7A47'; if(v>=6) return '#22C55E'; if(v>=4) return '#D97706'; return '#E53E3E'; }
-  const labels = { score_communication:'Communication', score_structure:'Structure', score_role_knowledge:'Role Knowledge', score_domain_application:'Domain Application', score_problem_solving:'Problem Solving', score_confidence:'Confidence', score_question_handling:'Q. Handling', score_experience_relevance:'Experience', score_resume_alignment:'Resume Fit', depth_specificity:'Depth & Specificity' };
+  const labels = { score_communication:'Communication Clarity', score_structure:'Answer Structure', score_role_knowledge:'Role Knowledge', score_domain_application:'Domain Application', score_problem_solving:'Problem Solving', score_confidence:'Confidence & Presence', score_question_handling:'Question Handling', score_experience_relevance:'Experience Relevance', score_resume_alignment:'Resume Alignment', depth_specificity:'Depth & Specificity' };
   let rows = '';
   for (const [k,lbl] of Object.entries(labels)) {
     const v = sc[k]||0; const col = barCol(v);
