@@ -321,7 +321,8 @@ button { font-family: inherit; cursor: pointer; }
 .iv-band {
   font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 6px;
 }
-.iv-band-strong_match  { background: #DCFCE7; color: #15803D; }
+.iv-band-exceptional   { background: #DCFCE7; color: #15803D; }
+.iv-band-strong        { background: #D1FAE5; color: #065F46; }
 .iv-band-promising     { background: #DBEAFE; color: #1D4ED8; }
 .iv-band-developing    { background: #FEF3C7; color: #B45309; }
 .iv-band-not_ready     { background: #FEE2E2; color: #B91C1C; }
@@ -1176,11 +1177,11 @@ function renderInterviewList(container, list, max) {
 
   container.innerHTML = items.map(iv => {
     const status = iv.interview_status || 'scheduled';
-    const scorePart = iv.mock_overall_score
-      ? `<div class="iv-score">${iv.mock_overall_score}<sub>/100</sub></div>` : '';
-    const bandClass = iv.emp_readiness_band ? `iv-band iv-band-${iv.emp_readiness_band}` : '';
-    const bandPart  = iv.emp_readiness_band
-      ? `<span class="${bandClass}">${bandLabel(iv.emp_readiness_band)}</span>` : '';
+    const scorePart = iv.overall_score != null
+      ? `<div class="iv-score">${iv.overall_score}<sub>/100</sub></div>` : '';
+    const band      = iv.overall_score != null ? computeBand(iv.overall_score) : null;
+    const bandPart  = band
+      ? `<span class="iv-band iv-band-${band}">${bandLabel(band)}</span>` : '';
     const joinPart  = iv.join_url && status !== 'cancelled'
       ? `<a class="iv-join" href="${esc(iv.join_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Join Room</a>` : '';
     const scheduledPart = iv.scheduled_at ? `Scheduled: ${iv.scheduled_at}` : (iv.post_date ? fmtDate(iv.post_date) : '');
@@ -1421,8 +1422,17 @@ function statusLabel(s) {
   return { scheduled:'Scheduled', started:'Started', completed:'Completed', cancelled:'Cancelled' }[s] || s;
 }
 
+function computeBand(score) {
+  if (score == null) return null;
+  if (score >= 81) return 'exceptional';
+  if (score >= 71) return 'strong';
+  if (score >= 61) return 'promising';
+  if (score >= 51) return 'developing';
+  return 'not_ready';
+}
+
 function bandLabel(b) {
-  return { strong_match:'Strong Match', promising:'Promising', developing:'Developing', not_ready:'Not Ready' }[b] || b;
+  return { exceptional:'Exceptional', strong:'Strong', promising:'Promising', developing:'Developing', not_ready:'Not Ready' }[b] || b;
 }
 
 function openScorecard(id) {

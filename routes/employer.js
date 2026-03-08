@@ -111,7 +111,7 @@ const INTERVIEW_KEYS = [
   'candidate_name', 'candidate_email', 'total_work_experience',
   'interview_role', 'session_type', 'scheduled_at',
   'interview_status', 'join_url', 'join_token', 'session_id',
-  'mock_overall_score', 'mock_performance_level', 'emp_readiness_band',
+  'overall_score', 'emp_readiness_band',
   'audio_url', 'video_url', 'jd_raw_text',
 ];
 
@@ -151,8 +151,7 @@ async function fetchEmployerInterviews(wpUserId, limit) {
       join_url:               m.join_url                || null,
       join_token:             m.join_token              || null,
       session_id:             m.session_id              || null,
-      mock_overall_score:     m.mock_overall_score      || null,
-      mock_performance_level: m.mock_performance_level  || null,
+      overall_score:          m.overall_score            ? Number(m.overall_score) : null,
       emp_readiness_band:     m.emp_readiness_band      || null,
       audio_url:              m.audio_url               || null,
       video_url:              m.video_url               || null,
