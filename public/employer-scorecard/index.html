@@ -407,7 +407,8 @@ function renderScoreOverview(iv) {
     </div>
   </div>`;
 
-  // Right: employer readiness band (computed from overall_score)
+  // Right: employer readiness band — always computed from overall_score via computeBand().
+  // iv.emp_readiness_band (DB value) is intentionally ignored for display.
   html += `<div class="readiness-card">
     <div class="readiness-label">Employer Readiness ${ttHtml(BAND_TIP, 'tt-below')}</div>
     ${band ? bandBadge(band) : '<div style="color:var(--muted);font-size:13px;">Not assessed yet</div>'}
@@ -434,15 +435,20 @@ function renderCompetencies(iv) {
   if (!hasAny) return;
 
   el('comp-grid').innerHTML = comps.map(c => {
-    const v   = iv[c.key];
-    const pct = v !== null ? (v / 10 * 100) : 0;
-    const color = scoreColor(v);
-    const tip = COMP_TIPS[c.key] || '';
+    const v      = iv[c.key];
+    const isNull = v === null || v === undefined;
+    const pct    = isNull ? 0 : (v / 10 * 100);
+    const color  = isNull ? 'transparent' : scoreColor(v);
+    const tip    = COMP_TIPS[c.key] || '';
+    // Null score (e.g. depth_specificity on old sessions): empty grey bar + "N/A" label
+    const scoreHtml = isNull
+      ? `<span class="comp-num" style="color:var(--muted);font-size:12px;font-weight:600;">N/A</span>`
+      : `<span class="comp-num" style="color:${color};">${v}</span><span class="comp-denom">/10</span>`;
     return `<div class="comp-item">
       <div class="comp-name">${esc(c.label)}${tip ? ttHtml(tip) : ''}</div>
       <div class="comp-score-row">
         <div class="comp-bar-wrap"><div class="comp-bar-fill" style="width:${pct}%;background:${color};"></div></div>
-        <span class="comp-num" style="color:${v !== null ? color : 'var(--muted)'};">${v ?? '–'}</span><span class="comp-denom">/10</span>
+        ${scoreHtml}
       </div>
     </div>`;
   }).join('');
