@@ -118,6 +118,11 @@ app.get('/profile', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/profile/index.html'));
 });
 
+// Branded error page — serves with 200 so ?code= param works correctly
+app.get('/error', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/error/index.html'));
+});
+
 // Logout (GET for simple link clicks)
 app.get('/logout', (req, res) => {
   res.clearCookie('agzit_token');
