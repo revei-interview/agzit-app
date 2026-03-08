@@ -9,7 +9,7 @@ const express    = require('express');
 const router     = express.Router();
 const pool       = require('../config/db');
 const crypto     = require('crypto');
-const Brevo = require('@getbrevo/brevo');
+const SibApiV3Sdk = require('@getbrevo/brevo');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 // Guards
@@ -1112,34 +1112,39 @@ async function sendInterviewEmail({ candidateName, candidateEmail, interviewRole
 </table>
 </body></html>`;
 
-  const client = new Brevo.TransactionalEmailsApi();
-  client.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
-  const email = new Brevo.SendSmtpEmail();
-  email.sender      = { name: 'AGZIT AI', email: 'no-reply@mail.agzit.com' };
-  email.to          = [{ email: candidateEmail, name: candidateName }];
-  email.subject     = `Your AI Interview is Scheduled – ${interviewRole} | AGZIT`;
-  email.htmlContent = html;
-  email.attachment  = [{
+  const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+  apiInstance.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
+  const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+  sendSmtpEmail.sender      = { name: 'AGZIT AI', email: 'no-reply@mail.agzit.com' };
+  sendSmtpEmail.to          = [{ email: candidateEmail, name: candidateName }];
+  sendSmtpEmail.subject     = `Your AI Interview is Scheduled – ${interviewRole} | AGZIT`;
+  sendSmtpEmail.htmlContent = html;
+  sendSmtpEmail.attachment  = [{
     name:    'interview-invite.ics',
     content: Buffer.from(ics, 'utf8').toString('base64'),
   }];
-  await client.sendTransacEmail(email);
+  await apiInstance.sendTransacEmail(sendSmtpEmail);
   console.log('[sendInterviewEmail] sent successfully to:', candidateEmail);
 }
 
 // ── GET /api/employer/test-email ─────────────────────────────────────────────
-// Verify Brevo API key is valid by fetching account info.
-// Returns { connected, email, plan, error? }
+// Verify Brevo API key by sending a test email to the sender address itself.
+// Returns { connected, error? }
 
 router.get('/test-email', ...guardAny, async (req, res) => {
   try {
-    const client = new Brevo.AccountApi();
-    client.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
-    const account = await client.getAccount();
-    console.log('[test-email] Brevo account verified:', account.email);
-    res.json({ connected: true, email: account.email, plan: account.plan?.[0]?.type });
+    const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+    apiInstance.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    sendSmtpEmail.sender      = { name: 'AGZIT AI', email: 'no-reply@mail.agzit.com' };
+    sendSmtpEmail.to          = [{ email: 'no-reply@mail.agzit.com' }];
+    sendSmtpEmail.subject     = 'AGZIT SMTP Test';
+    sendSmtpEmail.htmlContent = '<p>SMTP test successful.</p>';
+    await apiInstance.sendTransacEmail(sendSmtpEmail);
+    console.log('[test-email] Brevo test email sent OK');
+    res.json({ connected: true });
   } catch (err) {
-    console.error('[test-email] Brevo account check FAILED:', err.message);
+    console.error('[test-email] Brevo test FAILED:', err.message);
     res.json({ connected: false, error: err.message });
   }
 });
