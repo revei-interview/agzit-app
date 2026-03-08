@@ -5,9 +5,11 @@
 //   employer-interview-form-handler.code-snippets.php
 //   dpr-helpers-mask-unmask-check.code-snippets.php
 
-const express = require('express');
-const router  = express.Router();
-const pool    = require('../config/db');
+const express    = require('express');
+const router     = express.Router();
+const pool       = require('../config/db');
+const crypto     = require('crypto');
+const nodemailer = require('nodemailer');
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 // Guards
@@ -1003,6 +1005,217 @@ router.get('/profile-view', ...guardVerified, async (req, res) => {
     });
   } catch (err) {
     console.error('[employer/profile-view]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── Email transporter (schedule-interview) ────────────────────────────────────
+const scheduleMailer = nodemailer.createTransport({
+  host:   process.env.MAIL_HOST,
+  port:   parseInt(process.env.MAIL_PORT) || 465,
+  secure: process.env.MAIL_SECURE === 'true',
+  auth:   { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+});
+
+async function sendInterviewEmail({ candidateName, candidateEmail, interviewRole, sessionType, scheduledAt, joinUrl, joinToken }) {
+  const durationMin = sessionType === '30-min' ? 30 : 20;
+  const firstName   = candidateName.split(' ')[0];
+
+  // Parse scheduledAt (datetime-local: "YYYY-MM-DDTHH:MM") as UTC
+  const dtStart = new Date(scheduledAt.includes('T') ? scheduledAt + ':00Z' : scheduledAt.replace(' ', 'T') + 'Z');
+  const dtEnd   = new Date(dtStart.getTime() + durationMin * 60 * 1000);
+  const isValidDt = !isNaN(dtStart.getTime());
+
+  const scheduledDisplay = isValidDt
+    ? dtStart.toUTCString().replace('GMT', 'UTC')
+    : scheduledAt;
+
+  // .ics DTSTART/DTEND in UTC format (YYYYMMDDTHHmmssZ)
+  const fmtIcs = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const utcNow   = fmtIcs(new Date());
+  const utcStart = isValidDt ? fmtIcs(dtStart) : utcNow;
+  const utcEnd   = isValidDt ? fmtIcs(dtEnd)   : utcNow;
+
+  const ics = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//AGZIT//AI Interview//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:REQUEST',
+    'BEGIN:VEVENT',
+    `UID:${joinToken}@agzit.com`,
+    `DTSTAMP:${utcNow}`,
+    `DTSTART:${utcStart}`,
+    `DTEND:${utcEnd}`,
+    `SUMMARY:AI Interview: ${interviewRole}`,
+    `DESCRIPTION:Join here: ${joinUrl}`,
+    'ORGANIZER;CN=AGZIT:mailto:noreply@agzit.com',
+    `ATTENDEE;RSVP=TRUE;CN=${candidateName}:mailto:${candidateEmail}`,
+    'STATUS:CONFIRMED',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Your AI Interview is Scheduled</title></head>
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:Inter,Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:40px 16px;">
+<tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+  <tr>
+    <td style="background:linear-gradient(135deg,#0A1A3A 0%,#162848 100%);border-radius:16px 16px 0 0;padding:32px;text-align:center;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#C9A24D;margin-bottom:12px;">AGZIT &middot; AI Career Intelligence System</div>
+      <div style="font-size:24px;font-weight:800;color:#ffffff;line-height:1.3;margin-bottom:6px;">AI Interview Confirmed</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.55);line-height:1.5;">Your interview details and calendar invite are attached below.</div>
+    </td>
+  </tr>
+  <tr>
+    <td style="background:#ffffff;padding:36px 32px;">
+      <p style="margin:0 0 22px;font-size:15.5px;color:#1E293B;line-height:1.75;">Hello <strong>${firstName}</strong>,</p>
+      <p style="margin:0 0 28px;font-size:15px;color:#374151;line-height:1.75;">You have been scheduled for an <strong>AI Interview</strong> by an employer on the AGZIT platform. Your interview details are listed below.</p>
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;margin-bottom:28px;">
+        <tr><td style="padding:0 22px;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td style="padding:16px 0;border-bottom:1px solid #F1F5F9;">
+              <div style="font-size:10.5px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Interview Role</div>
+              <div style="font-size:16px;font-weight:700;color:#0A1A3A;">${interviewRole}</div>
+            </td></tr>
+            <tr><td style="padding:16px 0;border-bottom:1px solid #F1F5F9;">
+              <div style="font-size:10.5px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Scheduled Date &amp; Time</div>
+              <div style="font-size:16px;font-weight:700;color:#0A1A3A;">${scheduledDisplay}</div>
+            </td></tr>
+            <tr><td style="padding:16px 0;">
+              <div style="font-size:10.5px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Duration</div>
+              <div style="font-size:16px;font-weight:700;color:#0A1A3A;">${durationMin} Minutes</div>
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+        <tr><td align="center">
+          <a href="${joinUrl}" style="display:inline-block;background:#0A1A3A;color:#ffffff;text-decoration:none;padding:15px 40px;border-radius:10px;font-size:15px;font-weight:700;letter-spacing:0.2px;">Join Your Interview</a>
+        </td></tr>
+      </table>
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;margin-bottom:28px;">
+        <tr><td style="padding:20px 22px;">
+          <div style="font-size:11px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Before You Start</div>
+          <p style="margin:0;font-size:14px;color:#374151;line-height:1.8;">Please join at your scheduled time using the button above. Make sure you are in a quiet place with a stable internet connection. The AI interviewer will guide you through the entire session.</p>
+        </td></tr>
+      </table>
+      <p style="margin:0;font-size:12.5px;color:#94A3B8;line-height:1.7;">If the button does not work, copy and paste this link:<br>
+        <span style="color:#0A1A3A;word-break:break-all;">${joinUrl}</span></p>
+    </td>
+  </tr>
+  <tr>
+    <td style="background:#F8FAFC;border-top:1px solid #E2E8F0;border-radius:0 0 16px 16px;padding:20px 32px;text-align:center;">
+      <div style="font-size:11px;font-weight:700;color:#0A1A3A;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">AGZIT</div>
+      <div style="font-size:12px;color:#94A3B8;line-height:1.6;">AI Career Intelligence System &nbsp;&bull;&nbsp; <a href="https://agzit.com" style="color:#C9A24D;text-decoration:none;">agzit.com</a></div>
+      <div style="margin-top:10px;font-size:11.5px;color:#CBD5E1;">This email was sent by AGZIT. Do not reply to this email.</div>
+    </td>
+  </tr>
+</table></td></tr>
+</table>
+</body></html>`;
+
+  await scheduleMailer.sendMail({
+    from:        process.env.MAIL_FROM || process.env.MAIL_USER,
+    to:          candidateEmail,
+    subject:     `Your AI Interview is Scheduled – ${interviewRole} | AGZIT`,
+    html,
+    attachments: [{
+      filename:    'interview-invite.ics',
+      content:     Buffer.from(ics, 'utf8'),
+      contentType: 'text/calendar; method=REQUEST',
+    }],
+  });
+}
+
+// ── POST /api/employer/schedule-interview ─────────────────────────────────────
+// Create a new employer-scheduled AI interview and email the candidate.
+// Body: { candidate_name, candidate_email, interview_role, session_type,
+//         scheduled_at, jd_raw_text, total_work_experience?, resume_file? }
+// scheduled_at: datetime-local format "YYYY-MM-DDTHH:MM"
+
+router.post('/schedule-interview', ...guardVerified, async (req, res) => {
+  try {
+    const [[user]] = await pool.execute(
+      'SELECT id, wp_user_id FROM agzit_users WHERE id = ?',
+      [req.user.user_id]
+    );
+    if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
+
+    const wpUserId = user.wp_user_id;
+    if (!wpUserId) return res.status(400).json({ ok: false, error: 'No WP user linked to this account' });
+
+    const candidateName  = String(req.body.candidate_name         || '').trim();
+    const candidateEmail = String(req.body.candidate_email        || '').trim().toLowerCase();
+    const interviewRole  = String(req.body.interview_role         || '').trim();
+    const sessionType    = String(req.body.session_type           || '20-min').trim();
+    const scheduledAt    = String(req.body.scheduled_at           || '').trim();
+    const jdRawText      = String(req.body.jd_raw_text            || '').trim();
+    const resumeFile     = String(req.body.resume_file            || '').trim();
+    const totalExp       = String(req.body.total_work_experience  || '').trim();
+
+    if (!candidateName)  return res.status(400).json({ ok: false, error: 'Candidate name is required' });
+    if (!candidateEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidateEmail)) {
+      return res.status(400).json({ ok: false, error: 'Valid candidate email is required' });
+    }
+    if (!interviewRole)  return res.status(400).json({ ok: false, error: 'Interview role is required' });
+    if (!scheduledAt)    return res.status(400).json({ ok: false, error: 'Scheduled date and time is required' });
+    if (!jdRawText)      return res.status(400).json({ ok: false, error: 'Job description is required' });
+    if (!['20-min', '30-min'].includes(sessionType)) {
+      return res.status(400).json({ ok: false, error: 'session_type must be 20-min or 30-min' });
+    }
+
+    const joinToken = crypto.randomUUID();
+    const joinUrl   = 'https://app.agzit.com/employer-interviews?token=' + joinToken;
+    const postTitle = candidateName + ' \u2013 ' + interviewRole; // em dash
+
+    // Create wp_posts row
+    const [ins] = await pool.execute(
+      `INSERT INTO wp_posts
+         (post_author, post_date, post_date_gmt, post_content, post_title,
+          post_status, post_type, post_modified, post_modified_gmt,
+          comment_status, ping_status, to_ping, pinged, post_content_filtered,
+          post_excerpt, comment_count, menu_order)
+       VALUES (?, NOW(), UTC_TIMESTAMP(), '', ?, 'publish', 'employer_interview',
+               NOW(), UTC_TIMESTAMP(), 'closed', 'closed', '', '', '', '', 0, 0)`,
+      [String(wpUserId), postTitle]
+    );
+    const postId = ins.insertId;
+    if (!postId) throw new Error('Failed to create interview post');
+
+    // Insert all postmeta rows
+    const metaRows = [
+      ['employer_user_id',      String(wpUserId)],
+      ['candidate_name',        candidateName],
+      ['candidate_email',       candidateEmail],
+      ['total_work_experience', totalExp],
+      ['interview_role',        interviewRole],
+      ['session_type',          sessionType],
+      ['scheduled_at',          scheduledAt],
+      ['jd_raw_text',           jdRawText],
+      ['resume_file',           resumeFile],
+      ['interview_status',      'scheduled'],
+      ['join_token',            joinToken],
+      ['join_url',              joinUrl],
+    ];
+    for (const [key, val] of metaRows) {
+      await pool.execute(
+        'INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
+        [postId, key, val]
+      );
+    }
+
+    // Send candidate email (fire-and-forget)
+    sendInterviewEmail({ candidateName, candidateEmail, interviewRole, sessionType, scheduledAt, joinUrl, joinToken })
+      .catch(err => console.error('[schedule-interview] email error (non-fatal):', err.message));
+
+    console.log('[schedule-interview] created post_id=%d token=%s', postId, joinToken);
+    res.json({ ok: true, post_id: postId, join_url: joinUrl });
+  } catch (err) {
+    console.error('[employer/schedule-interview]', err);
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });

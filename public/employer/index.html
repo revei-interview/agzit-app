@@ -522,6 +522,45 @@ button { font-family: inherit; cursor: pointer; }
 .reveal { opacity: 0; transform: translateY(16px); transition: opacity .45s ease, transform .45s ease; }
 .reveal.in { opacity: 1; transform: none; }
 
+/* ── Modal ──────────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(9,16,31,0.55);
+  z-index: 1000; display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.modal-box {
+  background: #fff; border-radius: 16px;
+  width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto;
+  padding: 32px;
+  box-shadow: 0 20px 60px rgba(9,16,31,0.25);
+}
+.modal-title { font-size: 18px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
+.modal-sub   { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+.form-group  { margin-bottom: 16px; }
+.form-label  { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px; }
+.form-input, .form-select, .form-textarea {
+  width: 100%; font-family: inherit; font-size: 14px; font-weight: 500;
+  color: var(--ink); background: var(--surface);
+  border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; outline: none; transition: border-color .15s;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--blue); }
+.form-textarea { resize: vertical; min-height: 100px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+.btn-cancel {
+  font-size: 14px; font-weight: 700; color: var(--muted);
+  background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 10px 20px; transition: border-color .15s;
+}
+.btn-cancel:hover { border-color: #CBD0E0; color: var(--ink); }
+.btn-submit {
+  font-size: 14px; font-weight: 700; color: #fff;
+  background: var(--ink); border: none; border-radius: 8px;
+  padding: 10px 22px; transition: background .15s;
+}
+.btn-submit:hover { background: #1b2340; }
+.btn-submit:disabled { opacity: 0.55; cursor: not-allowed; }
+
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
   .stats-row { grid-template-columns: repeat(2, 1fr); }
@@ -830,6 +869,10 @@ button { font-family: inherit; cursor: pointer; }
     <div class="tab-panel" id="panel-interviews">
       <div class="section-hdr">
         <div class="section-title">Your Scheduled Interviews</div>
+        <button id="btn-schedule" class="ql-btn ql-btn-primary" onclick="openScheduleModal()" style="display:none">+ Schedule AI Interview</button>
+      </div>
+      <div id="interviews-list-full" class="loading-row" style="display:none">
+        <div class="spinner"></div> Loading interviews...
       </div>
       <div id="interviews-list"></div>
     </div>
@@ -837,14 +880,63 @@ button { font-family: inherit; cursor: pointer; }
   </div><!-- /.main-wrap -->
 </div><!-- /#app -->
 
+<!-- ── Schedule Interview Modal ──────────────────────────────────────────── -->
+<div id="schedule-modal" style="display:none" class="modal-overlay" onclick="if(event.target===this)closeScheduleModal()">
+  <div class="modal-box">
+    <div class="modal-title">Schedule AI Interview</div>
+    <div class="modal-sub">The candidate will receive an email invitation with a join link and .ics calendar invite.</div>
+    <div id="schedule-modal-error" style="display:none;font-size:13px;color:#B91C1C;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:12px;"></div>
+    <div class="form-group">
+      <label class="form-label" for="sm-candidate-name">Candidate Full Name</label>
+      <input class="form-input" id="sm-candidate-name" type="text" placeholder="e.g. James Wilson" maxlength="100">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="sm-candidate-email">Candidate Email Address</label>
+      <input class="form-input" id="sm-candidate-email" type="email" placeholder="candidate@example.com">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label" for="sm-role">Interview Role</label>
+        <input class="form-input" id="sm-role" type="text" placeholder="e.g. Compliance Analyst" maxlength="120">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="sm-exp">Experience (Years)</label>
+        <input class="form-input" id="sm-exp" type="number" min="0" max="50" placeholder="e.g. 4">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label" for="sm-session-type">Session Duration</label>
+        <select class="form-select" id="sm-session-type">
+          <option value="20-min">20 Minutes</option>
+          <option value="30-min">30 Minutes</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="sm-scheduled-at">Scheduled Date &amp; Time (UTC)</label>
+        <input class="form-input" id="sm-scheduled-at" type="datetime-local">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="sm-jd">Job Description <span style="color:var(--muted);font-size:10px;text-transform:none;letter-spacing:0;font-weight:500">(required — used by AI interviewer)</span></label>
+      <textarea class="form-textarea" id="sm-jd" placeholder="Paste the full job description here..." rows="5"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeScheduleModal()">Cancel</button>
+      <button class="btn-submit" id="btn-schedule-submit" onclick="submitScheduleInterview()">Send Invitation</button>
+    </div>
+  </div>
+</div>
+
 <script>
 'use strict';
 
 // ── State ───────────────────────────────────────────────────────────────────
-let DATA = null;          // dashboard API response
-let USER_ROLE = null;     // from data.user.role
+let DATA = null;               // dashboard API response
+let USER_ROLE = null;          // from data.user.role
 let profileLoaded = false;
 let candidatesLoaded = false;
+let interviewsFullLoaded = false;
 let candidatePage = 1;
 const WP_URL = 'https://agzit.com';
 
@@ -955,6 +1047,7 @@ function render() {
   // Candidates tab visibility
   if (isVerified) {
     document.getElementById('candidates-content').style.display = 'block';
+    document.getElementById('btn-schedule').style.display = '';
   } else {
     document.getElementById('candidates-gated').style.display = 'block';
   }
@@ -1007,8 +1100,9 @@ function switchTab(name) {
   document.getElementById('tab-' + name).classList.add('active');
   document.getElementById('panel-' + name).classList.add('active');
 
-  if (name === 'profile' && !profileLoaded) loadProfile();
+  if (name === 'profile'    && !profileLoaded)    loadProfile();
   if (name === 'candidates' && USER_ROLE === 'verified_employer' && !candidatesLoaded) loadCandidates(1);
+  if (name === 'interviews' && !interviewsFullLoaded) loadInterviewsFull();
 }
 
 // ── Profile tab ──────────────────────────────────────────────────────────────
@@ -1230,6 +1324,99 @@ function pendingSteps(status) {
     return ['Your email has been verified. Waiting for admin approval.'];
   }
   return ['Contact support if you need assistance.'];
+}
+
+// ── Full interview list (Interviews tab) ─────────────────────────────────────
+async function loadInterviewsFull() {
+  const listEl    = document.getElementById('interviews-list');
+  const loadingEl = document.getElementById('interviews-list-full');
+  loadingEl.style.display = 'flex';
+  listEl.innerHTML = '';
+  try {
+    const res  = await fetch('/api/employer/interviews', { credentials: 'include' });
+    const data = await res.json();
+    loadingEl.style.display = 'none';
+    if (!data.ok) throw new Error(data.error);
+    renderInterviewList(listEl, data.interviews, 1000);
+    interviewsFullLoaded = true;
+    initReveal();
+  } catch (e) {
+    loadingEl.style.display = 'none';
+    listEl.innerHTML = `<div class="notice notice-amber">${esc(e.message || 'Failed to load interviews.')}</div>`;
+  }
+}
+
+// ── Schedule Interview Modal ──────────────────────────────────────────────────
+function openScheduleModal() {
+  document.getElementById('schedule-modal').style.display = 'flex';
+  document.getElementById('schedule-modal-error').style.display = 'none';
+}
+
+function closeScheduleModal() {
+  document.getElementById('schedule-modal').style.display = 'none';
+}
+
+async function submitScheduleInterview() {
+  const errEl = document.getElementById('schedule-modal-error');
+  errEl.style.display = 'none';
+
+  const candidateName  = (document.getElementById('sm-candidate-name').value  || '').trim();
+  const candidateEmail = (document.getElementById('sm-candidate-email').value || '').trim();
+  const role           = (document.getElementById('sm-role').value            || '').trim();
+  const exp            = (document.getElementById('sm-exp').value             || '').trim();
+  const sessionType    = document.getElementById('sm-session-type').value;
+  const scheduledAt    = (document.getElementById('sm-scheduled-at').value    || '').trim();
+  const jd             = (document.getElementById('sm-jd').value              || '').trim();
+
+  if (!candidateName)  { showScheduleError('Candidate name is required.'); return; }
+  if (!candidateEmail || !candidateEmail.includes('@')) { showScheduleError('Valid candidate email is required.'); return; }
+  if (!role)           { showScheduleError('Interview role is required.'); return; }
+  if (!scheduledAt)    { showScheduleError('Scheduled date and time is required.'); return; }
+  if (!jd)             { showScheduleError('Job description is required.'); return; }
+
+  const btn = document.getElementById('btn-schedule-submit');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  try {
+    const res  = await fetch('/api/employer/schedule-interview', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        candidate_name:        candidateName,
+        candidate_email:       candidateEmail,
+        interview_role:        role,
+        total_work_experience: exp,
+        session_type:          sessionType,
+        scheduled_at:          scheduledAt,
+        jd_raw_text:           jd,
+      }),
+    });
+    const data = await res.json();
+    if (!data.ok) { showScheduleError(data.error || 'Failed to schedule interview.'); return; }
+
+    closeScheduleModal();
+    clearScheduleForm();
+    interviewsFullLoaded = false;   // force reload when tab is re-visited
+    loadInterviewsFull();           // refresh interviews tab immediately
+  } catch (e) {
+    showScheduleError('Network error. Please try again.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send Invitation';
+  }
+}
+
+function showScheduleError(msg) {
+  const el = document.getElementById('schedule-modal-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function clearScheduleForm() {
+  ['sm-candidate-name', 'sm-candidate-email', 'sm-role', 'sm-exp', 'sm-scheduled-at', 'sm-jd']
+    .forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('sm-session-type').value = '20-min';
 }
 
 function showError(msg) {
