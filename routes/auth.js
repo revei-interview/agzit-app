@@ -10,8 +10,86 @@ const router   = express.Router();
 const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
+const crypto   = require('crypto');
 const db       = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
+
+// ── WordPress password verification ────────────────────────────────────────
+// WordPress uses phpass ($P$/$H$) for older installs, bcrypt ($2y$) for WP 6.8+.
+// This verifier handles all three formats.
+
+function phpassCheck(password, hash) {
+  const itoa64 = './0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+  function md5bin(s) { return crypto.createHash('md5').update(s, 'binary').digest('binary'); }
+
+  const countLog2 = itoa64.indexOf(hash[3]);
+  if (countLog2 < 0 || countLog2 > 30) return false;
+  let count = 1 << countLog2;
+  const salt = hash.substring(4, 12);
+  if (salt.length !== 8) return false;
+
+  let h = md5bin(salt + password);
+  do { h = md5bin(h + password); } while (--count);
+
+  function encode64(input, count) {
+    let out = ''; let i = 0;
+    do {
+      let v = input.charCodeAt(i++);
+      out += itoa64[v & 0x3f];
+      if (i < count) v |= input.charCodeAt(i) << 8;
+      out += itoa64[(v >> 6) & 0x3f];
+      if (i++ >= count) break;
+      if (i < count) v |= input.charCodeAt(i) << 8;
+      out += itoa64[(v >> 12) & 0x3f];
+      if (i++ >= count) break;
+      out += itoa64[(v >> 18) & 0x3f];
+    } while (i < count);
+    return out;
+  }
+
+  return (hash.substring(0, 12) + encode64(h, 16)) === hash;
+}
+
+async function verifyWpPassword(password, wpHash) {
+  if (!wpHash || !password) return false;
+
+  // WP 6.8+: prefixed bcrypt — format is "$wp$2y$..."
+  // "$wp" is 3 chars; slice(3) keeps the "$" separator → "$2y$10$..."
+  if (wpHash.startsWith('$wp$')) {
+    const inner = wpHash.slice(3); // "$wp$2y$..." → "$2y$..."
+    const normalised = inner.replace(/^\$2y\$/, '$2b$');
+    return bcrypt.compare(password, normalised);
+  }
+  // Bare bcrypt (no prefix): $2y$, $2b$, $2a$
+  if (wpHash.startsWith('$2y$') || wpHash.startsWith('$2b$') || wpHash.startsWith('$2a$')) {
+    const normalised = wpHash.replace(/^\$2y\$/, '$2b$');
+    return bcrypt.compare(password, normalised);
+  }
+  // WP classic: phpass ($P$ or $H$)
+  if (wpHash.startsWith('$P$') || wpHash.startsWith('$H$')) {
+    return phpassCheck(password, wpHash);
+  }
+  // Very old WP: plain MD5 (32-char hex)
+  return crypto.createHash('md5').update(password).digest('hex') === wpHash;
+}
+
+// Parse WP serialized capabilities → Render role string
+// e.g. a:1:{s:17:"verified_employer";b:1;} → 'verified_employer'
+function parseWpRole(capabilities) {
+  if (!capabilities) return 'dpr_candidate';
+  const roleMap = {
+    verified_employer: 'verified_employer',
+    dpr_employer:      'dpr_employer',
+    dpr_candidate:     'dpr_candidate',
+    administrator:     'administrator',
+  };
+  for (const [wpRole, renderRole] of Object.entries(roleMap)) {
+    if (capabilities.includes('"' + wpRole + '"') || capabilities.includes("'" + wpRole + "'")) {
+      return renderRole;
+    }
+  }
+  return 'dpr_candidate';
+}
 
 // ── Email transporter ──────────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
@@ -196,6 +274,10 @@ router.post('/verify-otp', async (req, res) => {
 
 // ── POST /api/auth/login ───────────────────────────────────────────────────
 // Body: { email, password }
+// Supports two user sources:
+//   1. agzit_users — accounts registered via Render (bcrypt hash)
+//   2. wp_users    — accounts created in WordPress (phpass or bcrypt hash)
+//      On first successful WP login, auto-migrates account into agzit_users.
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -204,32 +286,108 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Email and password are required.' });
     }
 
+    const emailLower = email.toLowerCase();
+
+    // ── 1. Check Render-native agzit_users table ───────────────────────────
     const [rows] = await db.query(
       'SELECT * FROM agzit_users WHERE email = ? LIMIT 1',
-      [email.toLowerCase()]
+      [emailLower]
     );
 
-    if (rows.length === 0) {
+    if (rows.length > 0) {
+      const user = rows[0];
+      const valid = await bcrypt.compare(password, user.password_hash);
+      if (!valid) {
+        return res.status(401).json({ ok: false, error: 'Incorrect password. Please try again.' });
+      }
+      const token = issueToken(user);
+      setCookie(res, token);
+      let redirectTo = '/dashboard';
+      if (user.role === 'verified_employer') redirectTo = '/employer';
+      else if (user.role === 'dpr_employer') redirectTo = '/employer-review';
+      return res.json({ ok: true, role: user.role, redirectTo });
+    }
+
+    // ── 2. Fallback: check WordPress wp_users (WP-origin accounts) ─────────
+    const [wpRows] = await db.query(
+      'SELECT ID, user_login, user_email, user_pass, display_name FROM wp_users WHERE user_email = ? LIMIT 1',
+      [emailLower]
+    );
+
+    if (wpRows.length === 0) {
       return res.status(401).json({ ok: false, error: 'No account found with this email.' });
     }
 
-    const user = rows[0];
-
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) {
+    const wpUser = wpRows[0];
+    const wpValid = await verifyWpPassword(password, wpUser.user_pass);
+    if (!wpValid) {
       return res.status(401).json({ ok: false, error: 'Incorrect password. Please try again.' });
     }
 
-    const token = issueToken(user);
+    // Get WP role from usermeta
+    const [[capRow]] = await db.query(
+      "SELECT meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'wp_capabilities' LIMIT 1",
+      [wpUser.ID]
+    );
+    const role = parseWpRole(capRow?.meta_value || '');
+
+    // Get first/last name from usermeta
+    const [nameMeta] = await db.query(
+      "SELECT meta_key, meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key IN ('first_name','last_name')",
+      [wpUser.ID]
+    );
+    const nameLookup = {};
+    nameMeta.forEach(m => { nameLookup[m.meta_key] = m.meta_value; });
+    const firstName = nameLookup.first_name || wpUser.display_name.split(' ')[0] || '';
+    const lastName  = nameLookup.last_name  || '';
+
+    // Get linked dpr_profile post ID if available
+    const [[profileMeta]] = await db.query(
+      "SELECT meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'dpr_profile_post_id' LIMIT 1",
+      [wpUser.ID]
+    ).catch(() => [[null]]);
+    const dprProfileId = profileMeta?.meta_value ? parseInt(profileMeta.meta_value) : null;
+
+    // Auto-migrate WP account into agzit_users with a bcrypt hash for future logins
+    const newHash = await bcrypt.hash(password, 12);
+    let newUserId;
+    try {
+      const [ins] = await db.query(
+        `INSERT INTO agzit_users (email, password_hash, role, first_name, last_name, wp_user_id, dpr_profile_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           password_hash  = VALUES(password_hash),
+           role           = VALUES(role),
+           wp_user_id     = VALUES(wp_user_id),
+           dpr_profile_id = VALUES(dpr_profile_id)`,
+        [emailLower, newHash, role, firstName, lastName, wpUser.ID, dprProfileId]
+      );
+      newUserId = ins.insertId || null;
+    } catch (insertErr) {
+      console.error('[login] agzit_users upsert failed:', insertErr.message);
+      // Continue anyway — we can still issue a token without persisting
+    }
+
+    // Fetch the newly inserted/updated row so issueToken has the right shape
+    const [[freshUser]] = await db.query(
+      'SELECT * FROM agzit_users WHERE email = ? LIMIT 1',
+      [emailLower]
+    ).catch(() => [[null]]);
+
+    const tokenUser = freshUser || {
+      id: newUserId, email: emailLower, role,
+      first_name: firstName, wp_user_id: wpUser.ID,
+    };
+
+    const token = issueToken(tokenUser);
     setCookie(res, token);
 
-    // Role-based redirect
     let redirectTo = '/dashboard';
-    if (user.role === 'verified_employer') redirectTo = '/employer';
-    else if (user.role === 'dpr_employer') redirectTo = '/employer-review';
-    else if (user.role === 'dpr_candidate') redirectTo = '/dashboard';
+    if (role === 'verified_employer') redirectTo = '/employer';
+    else if (role === 'dpr_employer') redirectTo = '/employer-review';
 
-    res.json({ ok: true, role: user.role, redirectTo });
+    console.log(`[login] WP user migrated: ${emailLower} role=${role}`);
+    res.json({ ok: true, role, redirectTo });
 
   } catch (err) {
     console.error('login error:', err);
