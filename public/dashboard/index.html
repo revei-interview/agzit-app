@@ -476,6 +476,13 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   .field-grid { grid-template-columns: 1fr; }
   .comp-label { width: 130px; }
 }
+
+.ov-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.ov-actions { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 640px) {
+  .ov-two-col { grid-template-columns: 1fr; }
+  .ov-actions { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
@@ -562,7 +569,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
           <!-- ── Overview ──────────────────────────────────────────────── -->
           <div class="tab-pane active" id="tab-overview">
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+            <div class="ov-two-col">
 
               <!-- Left col -->
               <div>
@@ -625,7 +632,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
             </div>
 
             <!-- Quick actions -->
-            <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="ov-actions">
               <a href="https://agzit.com/dpr-registration/" class="btn-primary">Update DPR Profile</a>
               <a id="ov-preview-link" href="#" class="btn-secondary" target="_blank" style="width:auto;display:none;">Preview Public Profile</a>
             </div>
