@@ -3,12 +3,13 @@ const jwt = require('jsonwebtoken');
 
 function requireAuth(req, res, next) {
   const token = req.cookies?.agzit_token;
+  // Use originalUrl so this works correctly in sub-routers (req.path is relative to mount point)
+  const isApi = req.originalUrl.startsWith('/api/');
+
   if (!token) {
-    // API request → 401 JSON
-    if (req.path.startsWith('/api/')) {
+    if (isApi) {
       return res.status(401).json({ ok: false, error: 'Not authenticated' });
     }
-    // Page request → redirect to login
     return res.redirect('/login?next=' + encodeURIComponent(req.originalUrl));
   }
 
@@ -18,7 +19,7 @@ function requireAuth(req, res, next) {
     next();
   } catch (err) {
     res.clearCookie('agzit_token');
-    if (req.path.startsWith('/api/')) {
+    if (isApi) {
       return res.status(401).json({ ok: false, error: 'Session expired' });
     }
     return res.redirect('/login?next=' + encodeURIComponent(req.originalUrl));

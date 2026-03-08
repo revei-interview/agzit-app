@@ -180,8 +180,8 @@ router.post('/verify-otp', async (req, res) => {
     const token = issueToken(user);
     setCookie(res, token);
 
-    // Decide redirect
-    const redirectTo = role === 'dpr_employer' ? '/employer' : '/register';
+    // Decide redirect — employers go to review page, candidates go to DPR profile form
+    const redirectTo = role === 'dpr_employer' ? '/employer-review' : '/register';
 
     res.json({ ok: true, role, redirectTo });
 
@@ -223,11 +223,10 @@ router.post('/login', async (req, res) => {
     const token = issueToken(user);
     setCookie(res, token);
 
-    // Role-based redirect — mirrors WordPress agzit_redirect_by_role()
-    let redirectTo = '/login';
-    if (user.role === 'administrator')     redirectTo = '/wp-admin';
-    else if (user.role === 'verified_employer') redirectTo = '/employer';
-    else if (user.role === 'dpr_employer') redirectTo = '/employer-under-review';
+    // Role-based redirect
+    let redirectTo = '/dashboard';
+    if (user.role === 'verified_employer') redirectTo = '/employer';
+    else if (user.role === 'dpr_employer') redirectTo = '/employer-review';
     else if (user.role === 'dpr_candidate') redirectTo = '/dashboard';
 
     res.json({ ok: true, role: user.role, redirectTo });
