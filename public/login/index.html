@@ -712,4 +712,21 @@ function togglePw(id, btn) {
 
 // Enter key support
 document.addEventListener('keydown', e => {
-  i
+  if (e.key !== 'Enter') return;
+  const target = e.target;
+  // Don't intercept Enter on textareas or buttons
+  if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON') return;
+
+  const loginVisible = document.getElementById('panel-login').style.display !== 'none';
+  const step1Visible = document.getElementById('reg-step1').style.display !== 'none';
+  const step2Visible = document.getElementById('reg-step2').style.display !== 'none';
+  const step3Visible = document.getElementById('reg-step3').style.display !== 'none';
+
+  if (loginVisible)  { e.preventDefault(); doLogin(); }
+  else if (step1Visible) { e.preventDefault(); sendOTP(); }
+  else if (step2Visible) { e.preventDefault(); verifyOTPStep(); }
+  else if (step3Visible) { e.preventDefault(); completeRegistration(); }
+});
+</script>
+</body>
+</html>

@@ -515,8 +515,12 @@ async function submitDPR() {
   }
 }
 
-// Check auth on load
+// Check auth on load — DPR registration requires a logged-in account
 fetch('/api/auth/me', { credentials: 'include' })
   .then(r => r.json())
   .then(d => {
-    if (!d.ok) window.location.href = '/logi
+    if (!d.ok) window.location.href = '/login?redirect_to=/register';
+  });
+</script>
+</body>
+</html>
