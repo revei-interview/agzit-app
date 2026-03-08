@@ -24,6 +24,14 @@
     if (btn)  { btn.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
   }
 
+  // ── Mobile Products accordion toggle ────────────────────────────────────────
+  window.agzitMobAcc = function (btn) {
+    var content = btn.nextElementSibling;
+    if (!content) return;
+    var isOpen = content.classList.toggle('open');
+    btn.classList.toggle('open', isOpen);
+  };
+
   // ── Sign-out handler ────────────────────────────────────────────────────────
   window.agzitSignOut = function () {
     fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
@@ -157,6 +165,12 @@
     navFetch.then(function (html) {
       injectNav(html);
       setupHandlers();
+
+      // Hide "Log in" button when already on the login page
+      if (window.location.pathname === '/login' || window.location.pathname === '/login/') {
+        var loginBtn = document.getElementById('agzit-login-btn');
+        if (loginBtn) loginBtn.style.display = 'none';
+      }
 
       // Auth detection — after nav is in DOM so we can update elements
       fetch('/api/auth/me', { credentials: 'include' })

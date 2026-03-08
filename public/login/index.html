@@ -506,7 +506,10 @@ async function doLogin() {
     });
     const data = await res.json();
     if (!data.ok) { showError(errEl, data.error); }
-    else          { window.location.href = data.redirectTo || '/dashboard'; }
+    else {
+      const next = new URLSearchParams(window.location.search).get('next');
+      window.location.href = next || data.redirectTo || '/dashboard';
+    }
   } catch(e) {
     showError(errEl, 'Network error. Please try again.');
   } finally {
@@ -606,7 +609,7 @@ async function completeRegistration() {
     });
     const data = await res.json();
     if (!data.ok) { showError(errEl, data.error); }
-    else          { window.location.href = data.redirectTo || '/register'; }
+    else          { window.location.href = data.redirectTo || '/dashboard'; }
   } catch(e) {
     showError(errEl, 'Registration failed. Please try again.');
   } finally {

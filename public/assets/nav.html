@@ -33,7 +33,7 @@
 }
 
 /* Desktop nav */
-#agzit-nav { display: flex; align-items: center; gap: 4px; flex: 1; }
+#agzit-nav { display: flex; align-items: center; gap: 2rem; flex: 1; }
 .agzit-nav-link {
   padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600;
   color: #4B5280; text-decoration: none; white-space: nowrap;
@@ -42,6 +42,33 @@
   display: inline-flex; align-items: center; line-height: 1; letter-spacing: -0.1px;
 }
 .agzit-nav-link:hover, .agzit-nav-link.active { color: #09101F; background: #F5F6FA; text-decoration: none; }
+
+/* Products dropdown (desktop) */
+.agzit-nav-dropdown-wrap { position: relative; display: inline-flex; }
+.agzit-nav-chevron {
+  display: inline-block; width: 14px; height: 14px; margin-left: 3px; vertical-align: middle;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234B5280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-size: contain; background-position: center;
+  transition: transform 0.2s;
+}
+.agzit-nav-dropdown-wrap:hover .agzit-nav-chevron { transform: rotate(180deg); }
+.agzit-nav-sub {
+  display: none; position: absolute; top: calc(100% + 8px); left: 0;
+  min-width: 200px; background: #ffffff;
+  border: 1px solid #EAECF5; border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(9,16,31,0.12), 0 2px 8px rgba(9,16,31,0.05);
+  z-index: 99998; overflow: hidden; padding: 6px;
+  animation: agzSubIn 0.15s ease;
+}
+@keyframes agzSubIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+.agzit-nav-dropdown-wrap:hover .agzit-nav-sub { display: block; }
+.agzit-nav-sub-item {
+  display: flex; align-items: center; padding: 9px 12px; border-radius: 8px;
+  text-decoration: none; font-size: 13.5px; font-weight: 600; color: #09101F;
+  transition: background 0.13s; white-space: nowrap;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.agzit-nav-sub-item:hover { background: #F5F6FA; text-decoration: none; }
 
 /* Right CTA */
 #agzit-cta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-left: auto; }
@@ -161,6 +188,32 @@
 .agzit-mob-cta.logout { background: #FFF4F4; color: #C0392B; }
 .agzit-mob-cta.logout:hover { background: #FFE9E9; }
 
+/* Mobile Products accordion */
+.agzit-mob-accordion-btn {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 13px 16px; border-radius: 12px;
+  font-size: 15px; font-weight: 600; color: #09101F; background: transparent;
+  border: none; cursor: pointer; text-align: left;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  letter-spacing: -0.1px; transition: background 0.13s;
+}
+.agzit-mob-accordion-btn:hover { background: #F5F6FA; }
+.agzit-mob-acc-chevron {
+  display: inline-block; width: 16px; height: 16px; flex-shrink: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234B5280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-size: contain;
+  transition: transform 0.2s;
+}
+.agzit-mob-accordion-btn.open .agzit-mob-acc-chevron { transform: rotate(180deg); }
+.agzit-mob-accordion-content { display: none; padding: 2px 0 2px 16px; }
+.agzit-mob-accordion-content.open { display: block; }
+.agzit-mob-sub-link {
+  display: block; padding: 10px 16px; border-radius: 10px;
+  font-size: 14px; font-weight: 600; color: #4B5280; text-decoration: none;
+  transition: background 0.13s; letter-spacing: -0.1px;
+}
+.agzit-mob-sub-link:hover { background: #F5F6FA; color: #09101F; text-decoration: none; }
+
 @media (max-width: 980px) {
   #agzit-nav, #agzit-cta { display: none !important; }
   #agzit-hamburger { display: flex; }
@@ -182,6 +235,13 @@
 
     <nav id="agzit-nav" aria-label="Primary navigation">
       <a href="https://agzit.com/" class="agzit-nav-link">Home</a>
+      <div class="agzit-nav-dropdown-wrap">
+        <a href="#" class="agzit-nav-link" aria-haspopup="true">Products <span class="agzit-nav-chevron" aria-hidden="true"></span></a>
+        <div class="agzit-nav-sub" role="menu">
+          <a href="https://agzit.com/dpr-id/" class="agzit-nav-sub-item" role="menuitem">DPR ID</a>
+          <a href="https://agzit.com/mock-interview/" class="agzit-nav-sub-item" role="menuitem">Mock Interview</a>
+        </div>
+      </div>
       <a href="https://agzit.com/career-intelligence/" class="agzit-nav-link">Career Intelligence</a>
       <a href="https://agzit.com/for-employers/" class="agzit-nav-link">For Employers</a>
       <a href="https://agzit.com/pricing/" class="agzit-nav-link">Pricing</a>
@@ -231,6 +291,13 @@
     <span class="agzit-mob-user-badge" id="agzit-mob-badge"></span>
   </div>
   <a href="https://agzit.com/" class="agzit-mob-link">Home</a>
+  <button type="button" class="agzit-mob-accordion-btn" onclick="agzitMobAcc(this)">
+    Products <span class="agzit-mob-acc-chevron" aria-hidden="true"></span>
+  </button>
+  <div class="agzit-mob-accordion-content">
+    <a href="https://agzit.com/dpr-id/" class="agzit-mob-sub-link">DPR ID</a>
+    <a href="https://agzit.com/mock-interview/" class="agzit-mob-sub-link">Mock Interview</a>
+  </div>
   <a href="https://agzit.com/career-intelligence/" class="agzit-mob-link">Career Intelligence</a>
   <a href="https://agzit.com/for-employers/" class="agzit-mob-link">For Employers</a>
   <a href="https://agzit.com/pricing/" class="agzit-mob-link">Pricing</a>
