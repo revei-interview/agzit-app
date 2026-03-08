@@ -34,20 +34,6 @@
       flex-direction: column;
     }
 
-    /* ── Nav ── */
-    nav {
-      background: #fff;
-      border-bottom: 1px solid var(--line);
-      padding: 0 1.5rem;
-      height: 60px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    nav .logo { font-weight: 800; font-size: 1.2rem; color: var(--ink); text-decoration: none; }
-    nav .nav-actions { display: flex; gap: 1rem; align-items: center; }
-    nav a { color: var(--soft); text-decoration: none; font-size: .9rem; }
-    nav a:hover { color: var(--blue); }
 
     /* ── Page ── */
     main {
@@ -156,16 +142,9 @@
 
     #loading { color: var(--muted); padding: 2rem; font-size: .95rem; }
   </style>
+<script src="/assets/layout.js" defer></script>
 </head>
 <body>
-
-<nav>
-  <a class="logo" href="/">AGZIT</a>
-  <div class="nav-actions">
-    <a href="/employer">Dashboard</a>
-    <a href="/logout">Log out</a>
-  </div>
-</nav>
 
 <main>
   <div id="loading">Loading your application status...</div>

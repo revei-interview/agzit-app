@@ -1,0 +1,247 @@
+<style id="agzit-nav-css">
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+#agzit-header, #agzit-header * { box-sizing: border-box; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+#agzit-mobile-menu, #agzit-mobile-menu * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+
+#agzit-header {
+  position: sticky; top: 0; left: 0; right: 0; width: 100%; z-index: 9999;
+  background: #ffffff; border-bottom: 1px solid #EAECF5;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  box-shadow: 0 1px 0 0 #EAECF5, 0 4px 24px rgba(9,16,31,0.05);
+}
+#agzit-header-inner {
+  max-width: 1280px; margin: 0 auto; padding: 0 48px;
+  height: 72px; display: flex; align-items: center;
+}
+
+/* Logo */
+#agzit-logo {
+  display: flex; align-items: center; text-decoration: none;
+  flex-shrink: 0; margin-right: 48px;
+}
+#agzit-logo-wordmark { display: flex; align-items: baseline; line-height: 1; }
+#agzit-logo-agzit {
+  font-size: 20px; font-weight: 800; color: #09101F; letter-spacing: -0.6px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+#agzit-logo-ai {
+  font-size: 11px; font-weight: 700; color: #1A44C2; letter-spacing: 0.4px;
+  background: #EAF0FF; padding: 2px 6px; border-radius: 5px; margin-left: 5px;
+  align-self: center; line-height: 1.4; text-transform: uppercase;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+/* Desktop nav */
+#agzit-nav { display: flex; align-items: center; gap: 4px; flex: 1; }
+.agzit-nav-link {
+  padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  color: #4B5280; text-decoration: none; white-space: nowrap;
+  transition: color 0.15s, background 0.15s;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  display: inline-flex; align-items: center; line-height: 1; letter-spacing: -0.1px;
+}
+.agzit-nav-link:hover, .agzit-nav-link.active { color: #09101F; background: #F5F6FA; text-decoration: none; }
+
+/* Right CTA */
+#agzit-cta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-left: auto; }
+#agzit-cta-out { display: flex; align-items: center; gap: 10px; }
+
+#agzit-login-btn {
+  padding: 9px 20px; border-radius: 10px; font-size: 14px; font-weight: 600;
+  color: #4B5280; text-decoration: none; border: 1.5px solid #DDDFF0; white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.1px;
+}
+#agzit-login-btn:hover { border-color: #09101F; color: #09101F; background: #F8F9FC; text-decoration: none; }
+#agzit-create-btn {
+  padding: 9px 20px; border-radius: 10px; font-size: 14px; font-weight: 700;
+  color: #ffffff; background: #09101F; text-decoration: none; border: none; white-space: nowrap;
+  transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.1px;
+  box-shadow: 0 2px 8px rgba(9,16,31,0.18); cursor: pointer; display: inline-block;
+}
+#agzit-create-btn:hover { background: #1c2540; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(9,16,31,0.22); text-decoration: none; }
+
+/* Avatar (logged-in) */
+#agzit-dash-wrap { position: relative; display: none; }
+#agzit-avatar-btn {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: #1A44C2; color: #ffffff;
+  font-size: 15px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border: none; cursor: pointer; flex-shrink: 0;
+  transition: background 0.15s, box-shadow 0.15s;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  box-shadow: 0 2px 8px rgba(26,68,194,0.28);
+}
+#agzit-avatar-btn:hover { background: #1538A8; box-shadow: 0 4px 14px rgba(26,68,194,0.36); }
+
+/* Dropdown */
+#agzit-dropdown {
+  display: none; position: absolute; top: calc(100% + 12px); right: 0;
+  min-width: 240px; background: #ffffff;
+  border: 1px solid #EAECF5; border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(9,16,31,0.14), 0 2px 8px rgba(9,16,31,0.05);
+  z-index: 99999; overflow: hidden; animation: agzDropIn 0.15s ease;
+}
+@keyframes agzDropIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+#agzit-dash-wrap.open #agzit-dropdown { display: block; }
+
+.agzit-dd-greeting { padding: 16px 18px 12px; border-bottom: 1px solid #F1F3FA; background: #FAFBFF; }
+.agzit-dd-hello {
+  font-size: 11px; font-weight: 600; color: #7C83A0; text-transform: uppercase;
+  letter-spacing: 0.6px; margin-bottom: 3px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.agzit-dd-name {
+  font-size: 16px; font-weight: 800; color: #09101F; letter-spacing: -0.3px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.agzit-dd-badge {
+  display: inline-flex; align-items: center; margin-top: 6px;
+  padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.2px;
+}
+.agzit-dd-links { padding: 8px; }
+.agzit-dd-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px;
+  text-decoration: none; font-size: 13.5px; font-weight: 600; color: #09101F;
+  transition: background 0.13s; width: 100%; border: none; background: transparent;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: -0.1px; cursor: pointer;
+}
+.agzit-dd-item:hover { background: #F5F6FA; text-decoration: none; color: #09101F; }
+.agzit-dd-item.is-logout { color: #C0392B; border-top: 1px solid #F1F3FA; border-radius: 0 0 8px 8px; padding-top: 11px; }
+.agzit-dd-item.is-logout:hover { background: #FFF4F4; }
+.agzit-dd-icon { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+
+/* Hamburger */
+#agzit-hamburger {
+  display: none; flex-direction: column; justify-content: center; gap: 5px;
+  width: 40px; height: 40px; cursor: pointer; padding: 8px;
+  border: none; border-radius: 8px; background: transparent;
+  margin-left: auto; flex-shrink: 0; transition: background 0.15s;
+}
+#agzit-hamburger:hover { background: #F5F6FA; }
+#agzit-hamburger span { display: block; width: 20px; height: 2px; background: #09101F; border-radius: 2px; transition: transform 0.25s, opacity 0.25s; transform-origin: center; }
+#agzit-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+#agzit-hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+#agzit-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* Mobile drawer */
+#agzit-mobile-menu {
+  display: none; position: fixed; top: 72px; left: 0; right: 0; bottom: 0;
+  background: #ffffff; z-index: 9998; overflow-y: auto;
+  padding: 20px 20px 60px; flex-direction: column; gap: 2px;
+  border-top: 1px solid #EAECF5;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  -webkit-overflow-scrolling: touch;
+}
+#agzit-mobile-menu.open { display: flex; }
+
+.agzit-mob-user { background: #F8F9FC; border: 1px solid #EAECF5; border-radius: 14px; padding: 16px 18px; margin-bottom: 12px; }
+.agzit-mob-hello { font-size: 11px; font-weight: 600; color: #7C83A0; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 2px; }
+.agzit-mob-user-name { font-size: 16px; font-weight: 800; color: #09101F; letter-spacing: -0.3px; }
+.agzit-mob-user-badge { display: inline-flex; margin-top: 6px; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+
+.agzit-mob-link { display: block; padding: 13px 16px; border-radius: 12px; font-size: 15px; font-weight: 600; color: #09101F; text-decoration: none; transition: background 0.13s; letter-spacing: -0.1px; }
+.agzit-mob-link:hover { background: #F5F6FA; text-decoration: none; }
+.agzit-mob-divider { height: 1px; background: #EAECF5; margin: 12px 0; }
+
+.agzit-mob-cta {
+  display: block; padding: 14px 20px; border-radius: 12px; font-size: 15px; font-weight: 700;
+  text-align: center; text-decoration: none; margin-top: 8px; cursor: pointer;
+  transition: background 0.15s; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  letter-spacing: -0.1px; border: none; width: 100%;
+}
+.agzit-mob-cta.primary { background: #09101F; color: #ffffff; box-shadow: 0 2px 10px rgba(9,16,31,0.2); }
+.agzit-mob-cta.primary:hover { background: #1c2540; text-decoration: none; }
+.agzit-mob-cta.outline { border: 1.5px solid #DDDFF0; color: #4B5280; background: transparent; }
+.agzit-mob-cta.outline:hover { border-color: #09101F; color: #09101F; text-decoration: none; }
+.agzit-mob-cta.logout { background: #FFF4F4; color: #C0392B; }
+.agzit-mob-cta.logout:hover { background: #FFE9E9; }
+
+@media (max-width: 980px) {
+  #agzit-nav, #agzit-cta { display: none !important; }
+  #agzit-hamburger { display: flex; }
+  #agzit-logo { margin-right: 0; }
+}
+@media (min-width: 981px) { #agzit-mobile-menu { display: none !important; } }
+@media (max-width: 480px) { #agzit-header-inner { padding: 0 20px; } }
+</style>
+
+<header id="agzit-header" role="banner">
+  <div id="agzit-header-inner">
+
+    <a href="https://agzit.com" id="agzit-logo" aria-label="AGZIT Home">
+      <span id="agzit-logo-wordmark">
+        <span id="agzit-logo-agzit">AGZIT</span>
+        <span id="agzit-logo-ai">AI</span>
+      </span>
+    </a>
+
+    <nav id="agzit-nav" aria-label="Primary navigation">
+      <a href="https://agzit.com/" class="agzit-nav-link">Home</a>
+      <a href="https://agzit.com/career-intelligence/" class="agzit-nav-link">Career Intelligence</a>
+      <a href="https://agzit.com/for-employers/" class="agzit-nav-link">For Employers</a>
+      <a href="https://agzit.com/pricing/" class="agzit-nav-link">Pricing</a>
+      <a href="https://agzit.com/about/" class="agzit-nav-link">About</a>
+    </nav>
+
+    <div id="agzit-cta">
+      <div id="agzit-cta-out">
+        <a href="/login" id="agzit-login-btn">Log in</a>
+        <a href="https://agzit.com/dpr-registration/" id="agzit-create-btn">Create DPR</a>
+      </div>
+      <div id="agzit-dash-wrap">
+        <button id="agzit-avatar-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Account menu">
+          <span id="agzit-avatar-initial">?</span>
+        </button>
+        <div id="agzit-dropdown" role="menu">
+          <div class="agzit-dd-greeting">
+            <div class="agzit-dd-hello">Welcome back</div>
+            <div class="agzit-dd-name" id="agzit-dd-name"></div>
+            <span class="agzit-dd-badge" id="agzit-dd-badge"></span>
+          </div>
+          <div class="agzit-dd-links">
+            <a href="/dashboard" id="agzit-dd-dash" class="agzit-dd-item" role="menuitem">
+              <span class="agzit-dd-icon" id="agzit-dd-icon" style="background:#EAF0FF;">&#9783;</span>
+              My Dashboard
+            </a>
+            <button type="button" class="agzit-dd-item is-logout agzit-signout-btn" role="menuitem">
+              <span class="agzit-dd-icon" style="background:#FFF4F4;">&#10148;</span>
+              Sign out
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button id="agzit-hamburger" type="button" aria-label="Open menu" aria-expanded="false" onclick="agzitMobToggle(event)">
+      <span></span><span></span><span></span>
+    </button>
+
+  </div>
+</header>
+
+<div id="agzit-mobile-menu" role="dialog" aria-modal="true" aria-label="Navigation menu">
+  <div id="agzit-mob-user-card" class="agzit-mob-user" style="display:none;">
+    <div class="agzit-mob-hello">Welcome back</div>
+    <div class="agzit-mob-user-name" id="agzit-mob-name"></div>
+    <span class="agzit-mob-user-badge" id="agzit-mob-badge"></span>
+  </div>
+  <a href="https://agzit.com/" class="agzit-mob-link">Home</a>
+  <a href="https://agzit.com/career-intelligence/" class="agzit-mob-link">Career Intelligence</a>
+  <a href="https://agzit.com/for-employers/" class="agzit-mob-link">For Employers</a>
+  <a href="https://agzit.com/pricing/" class="agzit-mob-link">Pricing</a>
+  <a href="https://agzit.com/about/" class="agzit-mob-link">About</a>
+  <div class="agzit-mob-divider"></div>
+  <div id="agzit-mob-cta-out">
+    <a href="/login" class="agzit-mob-cta outline">Log in</a>
+    <a href="https://agzit.com/dpr-registration/" class="agzit-mob-cta primary">Create DPR</a>
+  </div>
+  <div id="agzit-mob-cta-in" style="display:none;">
+    <a href="/dashboard" id="agzit-mob-dash" class="agzit-mob-cta primary">My Dashboard</a>
+    <button type="button" class="agzit-mob-cta logout agzit-signout-btn">Sign out</button>
+  </div>
+</div>

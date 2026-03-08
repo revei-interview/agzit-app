@@ -38,13 +38,6 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 @keyframes spin { to { transform: rotate(360deg); } }
 #app { display: none; }
 
-/* ── Topbar ── */
-.topbar { background: var(--white); border-bottom: 1px solid var(--line); padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
-.topbar-brand { font-weight: 800; font-size: 18px; letter-spacing: -.5px; color: var(--blue); }
-.topbar-right { display: flex; align-items: center; gap: 12px; }
-.btn-link { font-size: 13px; font-weight: 600; color: var(--muted); padding: 6px 10px; border-radius: 8px; transition: all .15s; }
-.btn-link:hover { color: var(--ink); background: var(--surface); }
-.avatar-chip { width: 34px; height: 34px; border-radius: 50%; background: var(--blue-lt); color: var(--blue); font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; }
 
 /* ── Layout ── */
 .page-wrap { max-width: 720px; margin: 0 auto; padding: 40px 24px 80px; }
@@ -114,10 +107,11 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   .page-wrap   { padding: 24px 16px 60px; }
   .page-title  { font-size: 22px; }
   .form-card   { padding: 22px 18px; }
-  .topbar      { padding: 0 16px; }
+
   .field-input, .field-select, .field-textarea { font-size: 16px; }
 }
 </style>
+<script src="/assets/layout.js" defer></script>
 </head>
 <body>
 
@@ -127,15 +121,6 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 </div>
 
 <div id="app">
-  <!-- Topbar -->
-  <header class="topbar">
-    <div class="topbar-brand">AGZIT</div>
-    <div class="topbar-right">
-      <a href="/dashboard" class="btn-link">Dashboard</a>
-      <div class="avatar-chip" id="avatarChip">?</div>
-    </div>
-  </header>
-
   <div class="page-wrap">
     <a href="/dashboard" class="back-link">&#8592; Back to Dashboard</a>
 
@@ -228,7 +213,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     if (!d.ok) throw new Error(d.error);
 
     if (d.user?.first_name) {
-      $('avatarChip').textContent = d.user.first_name.slice(0, 1).toUpperCase();
+      if ($('avatarChip')) $('avatarChip').textContent = d.user.first_name.slice(0, 1).toUpperCase();
     }
 
     entitlements = d.entitlements || { sessions_20: 0, sessions_30: 0 };

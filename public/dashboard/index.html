@@ -57,31 +57,6 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 /* ── App shell ───────────────────────────────────────────────────────────── */
 #app { display: none; }
 
-/* ── Topbar ──────────────────────────────────────────────────────────────── */
-.topbar {
-  background: var(--white); border-bottom: 1px solid var(--line);
-  position: sticky; top: 0; z-index: 200;
-  box-shadow: 0 1px 0 var(--line), 0 2px 12px rgba(9,16,31,.04);
-}
-.topbar-inner {
-  max-width: 1200px; margin: 0 auto; padding: 0 32px;
-  height: 62px; display: flex; align-items: center; justify-content: space-between;
-}
-.logo { display: flex; align-items: baseline; }
-.logo-word { font-size: 18px; font-weight: 800; color: var(--ink); letter-spacing: -.5px; }
-.logo-badge {
-  margin-left: 5px; font-size: 10px; font-weight: 700; color: var(--blue);
-  background: var(--blue-lt); padding: 2px 6px; border-radius: 5px;
-  letter-spacing: .4px; text-transform: uppercase;
-}
-.topbar-right { display: flex; align-items: center; gap: 16px; }
-.topbar-name  { font-size: 13px; font-weight: 600; color: var(--soft); }
-.btn-ghost {
-  padding: 8px 16px; border-radius: 9px; font-size: 13px; font-weight: 600;
-  color: var(--soft); border: 1.5px solid var(--line);
-  transition: border-color .15s, color .15s;
-}
-.btn-ghost:hover { border-color: var(--ink); color: var(--ink); }
 
 /* ── Page wrapper ────────────────────────────────────────────────────────── */
 .page { max-width: 1200px; margin: 0 auto; padding: 28px 32px 80px; }
@@ -465,7 +440,6 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   .page { padding: 20px 20px 60px; }
   .hero { padding: 26px 24px; }
   .hero-heading { font-size: 22px; }
-  .topbar-inner { padding: 0 20px; }
 }
 @media (max-width: 720px) {
   .stats-row { grid-template-columns: 1fr 1fr; }
@@ -484,6 +458,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   .ov-actions { grid-template-columns: 1fr; }
 }
 </style>
+<script src="/assets/layout.js" defer></script>
 </head>
 <body>
 
@@ -495,20 +470,6 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 
 <!-- App -->
 <div id="app">
-
-  <!-- Topbar -->
-  <nav class="topbar">
-    <div class="topbar-inner">
-      <a href="https://agzit.com" class="logo">
-        <span class="logo-word">AGZIT</span>
-        <span class="logo-badge">AI</span>
-      </a>
-      <div class="topbar-right">
-        <span class="topbar-name" id="nav-name"></span>
-        <a href="/logout" class="btn-ghost">Sign out</a>
-      </div>
-    </div>
-  </nav>
 
   <div class="page">
 
@@ -870,8 +831,6 @@ function render(d, pd, id) {
 
   const firstName = user.first_name || (user.email || '').split('@')[0] || 'there';
 
-  /* topbar */
-  el('nav-name').textContent = firstName;
 
   /* hero */
   el('hero-name').textContent = firstName;

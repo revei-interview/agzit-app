@@ -54,48 +54,6 @@ button { font-family: inherit; cursor: pointer; }
 /* ── Layout ──────────────────────────────────────────────────────────────── */
 #app { display: none; }
 
-/* ── Header ─────────────────────────────────────────────────────────────── */
-.topbar {
-  background: var(--ink);
-  padding: 0 32px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-.topbar-brand {
-  font-size: 17px;
-  font-weight: 800;
-  color: #fff;
-  letter-spacing: -0.4px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.topbar-brand-sub {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: #7B9FFF;
-  margin-left: 2px;
-}
-.topbar-right { display: flex; align-items: center; gap: 12px; }
-.topbar-logout {
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(255,255,255,0.55);
-  background: none;
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 8px;
-  padding: 7px 14px;
-  transition: color .15s, border-color .15s;
-}
-.topbar-logout:hover { color: #fff; border-color: rgba(255,255,255,0.4); }
 
 /* ── Hero ───────────────────────────────────────────────────────────────── */
 .hero {
@@ -570,7 +528,7 @@ button { font-family: inherit; cursor: pointer; }
   .hero-inner { flex-direction: column; }
 }
 @media (max-width: 640px) {
-  .topbar, .hero, .stats-row, .main-wrap { padding-left: 16px; padding-right: 16px; }
+  .hero, .stats-row, .main-wrap { padding-left: 16px; padding-right: 16px; }
   .stats-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .tab-btn { padding: 10px 14px; font-size: 13px; }
   .cand-grid { grid-template-columns: 1fr; }
@@ -579,6 +537,7 @@ button { font-family: inherit; cursor: pointer; }
   .overview-grid { grid-template-columns: 1fr !important; }
 }
 </style>
+<script src="/assets/layout.js" defer></script>
 </head>
 <body>
 
@@ -600,16 +559,6 @@ button { font-family: inherit; cursor: pointer; }
 
 <!-- Main app (hidden until data loads) -->
 <div id="app">
-
-  <!-- Topbar -->
-  <nav class="topbar">
-    <div class="topbar-brand">
-      AGZIT <span class="topbar-brand-sub">AI</span>
-    </div>
-    <div class="topbar-right">
-      <button class="topbar-logout" onclick="logout()">Logout</button>
-    </div>
-  </nav>
 
   <!-- Hero -->
   <div class="hero">

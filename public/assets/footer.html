@@ -1,0 +1,50 @@
+<style id="agzit-footer-css">
+#agzit-footer, #agzit-footer * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+#agzit-footer {
+  background: #09101F;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+.agzit-ft-inner {
+  max-width: 1280px; margin: 0 auto; padding: 40px 48px;
+  display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center;
+}
+.agzit-ft-logo { display: inline-flex; align-items: baseline; text-decoration: none; line-height: 1; }
+.agzit-ft-logo-word {
+  font-size: 18px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.agzit-ft-logo-ai {
+  font-size: 10px; font-weight: 700; color: #7B9FFF; letter-spacing: 0.4px;
+  background: rgba(123,159,255,0.15); padding: 2px 6px; border-radius: 5px;
+  margin-left: 5px; align-self: center; text-transform: uppercase;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.agzit-ft-links { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.agzit-ft-links a {
+  font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.5); text-decoration: none;
+  transition: color 0.15s; padding: 4px 8px; border-radius: 6px;
+}
+.agzit-ft-links a:hover { color: #ffffff; }
+.agzit-ft-sep { color: rgba(255,255,255,0.2); font-size: 12px; }
+.agzit-ft-copy { font-size: 12px; color: rgba(255,255,255,0.3); letter-spacing: 0.1px; }
+@media (max-width: 480px) { .agzit-ft-inner { padding: 32px 20px; gap: 16px; } }
+</style>
+
+<footer id="agzit-footer">
+  <div class="agzit-ft-inner">
+    <a href="https://agzit.com" class="agzit-ft-logo" aria-label="AGZIT Home">
+      <span class="agzit-ft-logo-word">AGZIT</span>
+      <span class="agzit-ft-logo-ai">AI</span>
+    </a>
+    <div class="agzit-ft-links">
+      <a href="https://agzit.com/privacy-policy/">Privacy Policy</a>
+      <span class="agzit-ft-sep">&middot;</span>
+      <a href="https://agzit.com/terms/">Terms</a>
+      <span class="agzit-ft-sep">&middot;</span>
+      <a href="https://agzit.com/faq/">FAQ</a>
+      <span class="agzit-ft-sep">&middot;</span>
+      <a href="https://agzit.com/contact/">Contact</a>
+    </div>
+    <p class="agzit-ft-copy">&copy; 2025 AGZIT. All rights reserved.</p>
+  </div>
+</footer>
