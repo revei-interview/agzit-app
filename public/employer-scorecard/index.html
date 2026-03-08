@@ -182,6 +182,8 @@ a:hover { text-decoration: underline; }
   letter-spacing: 0;
 }
 .tt:hover .tt-body { display: block; }
+/* Tooltip that opens downward — used near top of page to avoid header clipping */
+.tt.tt-below .tt-body { bottom: auto; top: calc(100% + 8px); left: auto; right: 0; transform: none; }
 
 /* ── Responsive ── */
 @media (max-width: 700px) {
@@ -288,12 +290,13 @@ function renderProse(text) {
   return '<p style="font-size:13px;line-height:1.8;color:var(--soft);">' + esc(String(text)).replace(/\n/g, '<br>') + '</p>';
 }
 
-// Score colour: 0–4 red, 5–6 amber, 7–10 green
+// Score colour: 8–10 dark green, 6–7 green, 4–5 amber, 0–3 red
 function scoreColor(v) {
   if (v === null) return '#CBD5E1';
-  if (v >= 7) return '#22C55E';
-  if (v >= 5) return '#F59E0B';
-  return '#EF4444';
+  if (v >= 8) return '#0B7A47';
+  if (v >= 6) return '#22C55E';
+  if (v >= 4) return '#D97706';
+  return '#E53E3E';
 }
 
 // Overall score ring colour 0–100
@@ -325,9 +328,10 @@ const BAND_LABELS = {
 
 const BAND_TIP = '80–100 Exceptional: Demonstrates mastery across all dimensions. High likelihood of outperforming in this role. Strongly recommended.\n\n65–79 Strong: Solid competency with minor gaps. Expected to perform well. Recommended for hire.\n\n45–64 Promising: Meets core role requirements. Communication and structure gaps are common at this experience level and improve with onboarding. Suitable for hire.\n\n25–44 Developing: Has foundational knowledge but lacks depth for this role level. Consider for junior positions only.\n\n0–24 Not Ready: Does not meet the minimum competency threshold for this role.';
 
-function ttHtml(tipText) {
+function ttHtml(tipText, extraClass = '') {
   const html = esc(tipText).replace(/\n/g, '<br>');
-  return `<span class="tt"><span class="tt-icon">i</span><span class="tt-body">${html}</span></span>`;
+  const cls  = extraClass ? ' ' + extraClass : '';
+  return `<span class="tt${cls}"><span class="tt-icon">i</span><span class="tt-body">${html}</span></span>`;
 }
 
 function bandBadge(band) {
@@ -405,7 +409,7 @@ function renderScoreOverview(iv) {
 
   // Right: employer readiness band (computed from overall_score)
   html += `<div class="readiness-card">
-    <div class="readiness-label">Employer Readiness ${ttHtml(BAND_TIP)}</div>
+    <div class="readiness-label">Employer Readiness ${ttHtml(BAND_TIP, 'tt-below')}</div>
     ${band ? bandBadge(band) : '<div style="color:var(--muted);font-size:13px;">Not assessed yet</div>'}
   </div>`;
 
@@ -438,7 +442,7 @@ function renderCompetencies(iv) {
       <div class="comp-name">${esc(c.label)}${tip ? ttHtml(tip) : ''}</div>
       <div class="comp-score-row">
         <div class="comp-bar-wrap"><div class="comp-bar-fill" style="width:${pct}%;background:${color};"></div></div>
-        <span class="comp-num">${v ?? '–'}</span><span class="comp-denom">/10</span>
+        <span class="comp-num" style="color:${v !== null ? color : 'var(--muted)'};">${v ?? '–'}</span><span class="comp-denom">/10</span>
       </div>
     </div>`;
   }).join('');
