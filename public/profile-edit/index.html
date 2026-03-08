@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Profile — AGZIT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --ink:      #09101F;
+      --soft:     #3A4163;
+      --muted:    #7C83A0;
+      --line:     #E4E6EF;
+      --surface:  #F5F6FA;
+      --blue:     #1A44C2;
+      --blue-lt:  #EAF0FF;
+      --green:    #0B7A47;
+      --green-lt: #E4F5EE;
+      --red:      #DC2626;
+      --red-lt:   #FEF2F2;
+    }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--surface); color: var(--ink); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+    /* ── Loading ── */
+    #loading {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; flex-direction: column; gap: 14px;
+    }
+    .spin { width: 36px; height: 36px; border: 3px solid var(--line); border-top-color: var(--blue); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .load-label { font-size: 13px; color: var(--muted); font-weight: 600; }
+
+    /* ── Main ── */
+    #main { max-width: 860px; margin: 0 auto; padding: 28px 20px 80px; display: none; }
+
+    /* ── Top bar ── */
+    .top-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 28px; flex-wrap: wrap; gap: 12px;
+    }
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 10px;
+      border: 1px solid var(--line); background: #fff; color: var(--ink);
+      font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none;
+      transition: border-color .15s;
+    }
+    .back-btn:hover { border-color: var(--blue); color: var(--blue); }
+    .page-title { font-size: 22px; font-weight: 800; }
+    .page-sub   { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-60px);
+      background: var(--ink); color: #fff; padding: 12px 24px; border-radius: 12px;
+      font-size: 14px; font-weight: 600; z-index: 9999; transition: transform .25s;
+      white-space: nowrap; pointer-events: none;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.error { background: var(--red); }
+    #toast.success { background: var(--green); }
+
+    /* ── Section card ── */
+    .sec {
+      background: #fff; border: 1px solid var(--line); border-radius: 16px;
+      padding: 28px 32px; margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(9,16,31,.04);
+    }
+    .sec-hd {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--line);
+    }
+    .sec-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: linear-gradient(135deg, #1A44C2, #3D64E8);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 800; color: #fff; flex-shrink: 0;
+    }
+    .sec-title { font-size: 15px; font-weight: 800; }
+    .sec-sub   { font-size: 12.5px; color: var(--muted); margin-left: 2px; }
+
+    /* ── Grid ── */
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .full  { grid-column: 1 / -1; }
+
+    /* ── Field ── */
+    .field { display: flex; flex-direction: column; }
+    .label { font-size: 12.5px; font-weight: 700; color: var(--ink); margin-bottom: 7px; }
+    .hint  { font-size: 11.5px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+
+    input[type=text], input[type=email], input[type=date], input[type=url],
+    input[type=number], select, textarea {
+      width: 100%; padding: 10px 13px; border: 1.5px solid var(--line); border-radius: 10px;
+      background: #fff; font-size: 14px; color: var(--ink); font-family: inherit; line-height: 1.4;
+      transition: border-color .15s, box-shadow .15s; appearance: none; -webkit-appearance: none;
+    }
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C%2Fsvg%3E");
+      background-repeat: no-repeat; background-position: right 13px center; padding-right: 36px;
+    }
+    textarea { min-height: 100px; resize: vertical; line-height: 1.6; }
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,68,194,.1);
+    }
+
+    /* ── Toggle ── */
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 10px;
+      background: #fff; cursor: pointer; transition: border-color .15s;
+    }
+    .toggle-row:hover { border-color: var(--blue); }
+    .toggle-row input[type=checkbox] { display: none; }
+    .toggle-lbl { font-size: 14px; font-weight: 600; color: var(--ink); }
+    .toggle-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .toggle-pill {
+      width: 40px; height: 22px; border-radius: 11px; background: var(--line);
+      position: relative; transition: background .2s; flex-shrink: 0;
+    }
+    .toggle-pill::after {
+      content: ''; position: absolute; top: 3px; left: 3px;
+      width: 16px; height: 16px; border-radius: 50%; background: #fff;
+      transition: left .2s;
+    }
+    .toggle-row.active .toggle-pill { background: var(--blue); }
+    .toggle-row.active .toggle-pill::after { left: 21px; }
+
+    /* ── Repeater ── */
+    .rep-item {
+      border: 1.5px solid var(--line); border-radius: 12px;
+      padding: 20px 22px; background: var(--surface); margin-top: 14px;
+    }
+    .rep-hd {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+    }
+    .rep-badge {
+      font-size: 11.5px; font-weight: 700; color: var(--blue);
+      background: var(--blue-lt); border: 1px solid #C7D7F8;
+      border-radius: 999px; padding: 3px 10px;
+    }
+    .del-btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 12px; font-weight: 600; color: var(--red);
+      background: var(--red-lt); border: 1px solid #FECACA;
+      border-radius: 8px; padding: 5px 10px; cursor: pointer;
+      font-family: inherit; transition: background .15s;
+    }
+    .del-btn:hover { background: #FEE2E2; }
+    .add-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      font-size: 13.5px; font-weight: 700; color: var(--ink);
+      background: var(--surface); border: 1.5px dashed #94A3B8; border-radius: 12px;
+      padding: 12px 20px; cursor: pointer; margin-top: 14px; width: 100%;
+      transition: background .15s, border-color .15s; font-family: inherit;
+    }
+    .add-btn:hover { background: var(--blue-lt); border-color: var(--blue); color: var(--blue); }
+
+    /* ── Save bar ── */
+    .save-bar {
+      position: sticky; bottom: 0; background: rgba(255,255,255,.92);
+      backdrop-filter: blur(12px); border-top: 1px solid var(--line);
+      padding: 14px 20px; display: flex; align-items: center; justify-content: flex-end;
+      gap: 12px; margin: 0 -20px -80px; z-index: 100;
+    }
+    .btn-save {
+      padding: 11px 28px; border-radius: 10px; background: var(--blue); color: #fff;
+      font-size: 14px; font-weight: 700; border: none; cursor: pointer; font-family: inherit;
+      transition: background .15s;
+    }
+    .btn-save:hover { background: #1537A8; }
+    .btn-save:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-cancel {
+      padding: 11px 22px; border-radius: 10px; background: #fff; color: var(--ink);
+      font-size: 14px; font-weight: 700; border: 1.5px solid var(--line); cursor: pointer;
+      font-family: inherit; text-decoration: none; display: inline-flex; align-items: center;
+    }
+    .btn-cancel:hover { border-color: var(--ink); }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .sec { padding: 20px 18px; }
+      .grid2, .grid3 { grid-template-columns: 1fr; }
+      .full { grid-column: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spin"></div>
+  <div class="load-label">Loading profile...</div>
+</div>
+
+<div id="toast"></div>
+
+<div id="main">
+  <div class="top-bar">
+    <div>
+      <div class="page-title">Edit Profile</div>
+      <div class="page-sub">All changes are saved to your DPR profile immediately.</div>
+    </div>
+    <a href="/dashboard" class="back-btn">&#8592; Back to Dashboard</a>
+  </div>
+
+  <!-- 1. Personal Information -->
+  <div class="sec">
+    <div class="sec-hd">
+      <div class="sec-num">1</div>
+      <div>
+        <div class="sec-title">Personal Information</div>
+        <span class="sec-sub">Name, contact, and address details</span>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label class="label">Full Name</label>
+        <input type="text" id="f_full_name" placeholder="e.g. James Anderson">
+      </div>
+      <div class="field">
+        <label class="label">LinkedIn URL</label>
+        <input type="url" id="f_linkedin_url" placeholder="https://linkedin.com/in/...">
+      </div>
+      <div class="field">
+        <label class="label">Email Address</label>
+        <input type="email" id="f_email_address" placeholder="james@example.com">
+      </div>
+      <div class="field">
+        <label class="label">Phone Number</label>
+        <input type="text" id="f_phone_number" placeholder="+44 7700 900000">
+      </div>
+      <div class="field">
+        <label class="label">Country of Nationality</label>
+        <select id="f_country_of_nationality"></select>
+      </div>
+      <div class="field">
+        <label class="label">Residential Country</label>
+        <select id="f_residential_country"></select>
+      </div>
+      <div class="field">
+        <label class="label">Address Line 1</label>
+        <input type="text" id="f_residential_address_line_1" placeholder="Street address">
+      </div>
+      <div class="field">
+        <label class="label">Address Line 2</label>
+        <input type="text" id="f_residential_address_line_2" placeholder="Flat / Suite (optional)">
+      </div>
+      <div class="field">
+        <label class="label">City</label>
+        <input type="text" id="f_residential_city" placeholder="London">
+      </div>
+      <div class="field">
+        <label class="label">State / County</label>
+        <input type="text" id="f_residential_state" placeholder="Greater London">
+      </div>
+      <div class="field">
+        <label class="label">Postcode / ZIP</label>
+        <input type="text" id="f_residential_zip_code" placeholder="EC1A 1BB">
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Professional Summary -->
+  <div class="sec">
+    <div class="sec-hd">
+      <div class="sec-num">2</div>
+      <div>
+        <div class="sec-title">Professional Summary</div>
+        <span class="sec-sub">Role, experience, and availability</span>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field full">
+        <label class="label">Professional Summary</label>
+        <textarea id="f_professional_summary_bio" placeholder="Brief overview of your professional background and specialisation..."></textarea>
+      </div>
+      <div class="field">
+        <label class="label">Industry / Functional Area</label>
+        <select id="f_compliance_domains">
+          <option value="">Select area</option>
+          <option value="aml_kyc">AML / KYC</option>
+          <option value="compliance">Compliance &amp; Regulatory</option>
+          <option value="accounting">Accounting / Finance</option>
+          <option value="hr">Human Resources</option>
+          <option value="investment_banking">Investment Banking</option>
+          <option value="marketing">Marketing</option>
+          <option value="sales">Sales / Business Development</option>
+          <option value="legal">Legal &amp; Risk</option>
+          <option value="audit">Internal Audit</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="label">Total Work Experience (years)</label>
+        <input type="number" id="f_total_work_experience" min="0" max="50" placeholder="e.g. 5">
+      </div>
+      <div class="field">
+        <label class="label">Current Employment Status</label>
+        <select id="f_current_employment_status">
+          <option value="">Select status</option>
+          <option value="employed_full_time">Employed — Full Time</option>
+          <option value="employed_part_time">Employed — Part Time</option>
+          <option value="self_employed">Self Employed</option>
+          <option value="contract">Contract</option>
+          <option value="freelance">Freelance</option>
+          <option value="notice_period">On Notice Period</option>
+          <option value="unemployed">Unemployed</option>
+          <option value="student">Student</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="label">Notice Period (days)</label>
+        <input type="text" id="f_notice_period_in_days" placeholder="e.g. 30">
+      </div>
+      <div class="field">
+        <label class="label">Current Annual CTC</label>
+        <input type="text" id="f_current_annual_ctc_with_currency" placeholder="e.g. GBP 65,000">
+      </div>
+      <div class="field">
+        <label class="label">Current Career Level</label>
+        <select id="f_current_career_level">
+          <option value="">Select level</option>
+          <option value="0-2 Years">0–2 Years (Entry Level)</option>
+          <option value="3-5 Years">3–5 Years (Analyst)</option>
+          <option value="6-8 Years">6–8 Years (Senior Analyst)</option>
+          <option value="9-12 Years">9–12 Years (Manager)</option>
+          <option value="12+ Years">12+ Years (Senior Manager / Director)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="label">Target Role</label>
+        <input type="text" id="f_desired_role" placeholder="e.g. KYC Analyst">
+      </div>
+    </div>
+    <div style="margin-top:16px; display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+      <label class="toggle-row" id="tog_open_relo" onclick="toggleField('open_to_relocate', 'tog_open_relo')">
+        <div>
+          <div class="toggle-lbl">Open to Relocate</div>
+          <div class="toggle-desc">Willing to move for the right opportunity</div>
+        </div>
+        <div class="toggle-pill"></div>
+      </label>
+      <label class="toggle-row" id="tog_open_work" onclick="toggleField('open_for_work_badge', 'tog_open_work')">
+        <div>
+          <div class="toggle-lbl">Open for Work Badge</div>
+          <div class="toggle-desc">Show the "Open for Work" badge on your profile</div>
+        </div>
+        <div class="toggle-pill"></div>
+      </label>
+    </div>
+  </div>
+
+  <!-- 3. Work Experience -->
+  <div class="sec">
+    <div class="sec-hd">
+      <div class="sec-num">3</div>
+      <div>
+        <div class="sec-title">Work Experience</div>
+        <span class="sec-sub">Most recent first</span>
+      </div>
+    </div>
+    <div id="wx-list"></div>
+    <button type="button" class="add-btn" onclick="addWx()">+ Add Work Experience</button>
+  </div>
+
+  <!-- 4. Education -->
+  <div class="sec">
+    <div class="sec-hd">
+      <div class="sec-num">4</div>
+      <div>
+        <div class="sec-title">Education</div>
+        <span class="sec-sub">Degrees, diplomas, and qualifications</span>
+      </div>
+    </div>
+    <div id="edu-list"></div>
+    <button type="button" class="add-btn" onclick="addEdu()">+ Add Education</button>
+  </div>
+
+  <!-- 5. Certifications -->
+  <div class="sec">
+    <div class="sec-hd">
+      <div class="sec-num">5</div>
+      <div>
+        <div class="sec-title">Certifications &amp; Licences</div>
+        <span class="sec-sub">Professional certificates, AML/KYC qualifications</span>
+      </div>
+    </div>
+    <div id="cert-list"></div>
+    <button type="button" class="add-btn" onclick="addCert()">+ Add Certification</button>
+  </div>
+
+  <!-- 6. Skills & Tools -->
+  <div class="sec">
+    <div class="sec-hd">
+      <div class="sec-num">6</div>
+      <div>
+        <div class="sec-title">Skills &amp; Tools</div>
+        <span class="sec-sub">Technical skills and software tools</span>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field full">
+        <label class="label">Skills</label>
+        <textarea id="f_soft_skills" placeholder="List your key skills, one per line or comma separated..."></textarea>
+      </div>
+    </div>
+    <div style="margin-top:18px;">
+      <div class="label" style="margin-bottom:10px;">Tools &amp; Software</div>
+      <div id="tools-list"></div>
+      <button type="button" class="add-btn" onclick="addTool()">+ Add Tool</button>
+    </div>
+  </div>
+
+  <!-- 7. Visibility & Settings -->
+  <div class="sec">
+    <div class="sec-hd">
+      <div class="sec-num">7</div>
+      <div>
+        <div class="sec-title">Visibility &amp; Settings</div>
+        <span class="sec-sub">Control who can see your profile and contact details</span>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label class="label">Profile Visibility</label>
+        <select id="f_profile_visibility">
+          <option value="public">Public — visible to all employers</option>
+          <option value="private">Private — hidden from search</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="label">Contact Visibility</label>
+        <select id="f_contact_visibility">
+          <option value="co_public">Public — visible to all</option>
+          <option value="co_verified_only">Verified employers only</option>
+          <option value="co_private">Private — hidden</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="label">Resume Visibility</label>
+        <select id="f_resume_visibility">
+          <option value="re_public">Public — visible to all</option>
+          <option value="re_verified_only">Verified employers only</option>
+          <option value="re_private">Private — hidden</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="label">Name Display Mode</label>
+        <select id="f_public_name_mode">
+          <option value="full">Full Name</option>
+          <option value="first_only">First Name Only</option>
+          <option value="initials">Initials Only</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Save bar -->
+  <div class="save-bar">
+    <a href="/dashboard" class="btn-cancel">Cancel</a>
+    <button class="btn-save" id="btn-save" onclick="saveProfile()">Save Changes</button>
+  </div>
+</div>
+
+<script src="/assets/layout.js"></script>
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+const toggleState = { open_to_relocate: false, open_for_work_badge: false };
+let wxRows   = [];
+let eduRows  = [];
+let certRows = [];
+let toolRows = [];
+
+// ── Countries list ────────────────────────────────────────────────────────────
+const COUNTRIES = [
+  'United Kingdom','United States','United Arab Emirates','Singapore','Australia',
+  'India','Canada','Hong Kong','Germany','France','Netherlands','Ireland','South Africa',
+  'New Zealand','Malaysia','Kenya','Nigeria','Pakistan','Sri Lanka','Philippines','Other'
+];
+
+function populateCountrySelects() {
+  ['f_country_of_nationality','f_residential_country'].forEach(id => {
+    const sel = document.getElementById(id);
+    sel.innerHTML = '<option value="">Select country</option>';
+    COUNTRIES.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = c;
+      sel.appendChild(o);
+    });
+  });
+}
+
+// ── Toggle ────────────────────────────────────────────────────────────────────
+function toggleField(field, rowId) {
+  toggleState[field] = !toggleState[field];
+  document.getElementById(rowId).classList.toggle('active', toggleState[field]);
+}
+
+function setToggle(field, rowId, val) {
+  toggleState[field] = !!(val === '1' || val === 1 || val === true || val === 'true');
+  document.getElementById(rowId).classList.toggle('active', toggleState[field]);
+}
+
+// ── Repeater builders ─────────────────────────────────────────────────────────
+function addWx(data = {}) {
+  const i = wxRows.length;
+  wxRows.push(data);
+  const div = document.createElement('div');
+  div.className = 'rep-item';
+  div.id = `wx-${i}`;
+  div.innerHTML = `
+    <div class="rep-hd">
+      <span class="rep-badge">Position ${i + 1}</span>
+      <button type="button" class="del-btn" onclick="removeRow('wx',${i})">&#10005; Remove</button>
+    </div>
+    <div class="grid2">
+      <div class="field"><label class="label">Job Title</label>
+        <input type="text" id="wx_${i}_job_title" value="${esc(data.job_title)}" placeholder="e.g. KYC Analyst"></div>
+      <div class="field"><label class="label">Company Name</label>
+        <input type="text" id="wx_${i}_company_name" value="${esc(data.company_name)}" placeholder="e.g. Barclays Bank"></div>
+      <div class="field"><label class="label">Employment Type</label>
+        <select id="wx_${i}_employment_type">
+          <option value="">Select type</option>
+          ${['Full Time','Part Time','Contract','Freelance','Internship'].map(t => `<option value="${t}"${data.employment_type===t?' selected':''}>${t}</option>`).join('')}
+        </select></div>
+      <div class="field"><label class="label">Country</label>
+        <input type="text" id="wx_${i}_office_country" value="${esc(data.office_country)}" placeholder="e.g. United Kingdom"></div>
+      <div class="field"><label class="label">City</label>
+        <input type="text" id="wx_${i}_office_city" value="${esc(data.office_city)}" placeholder="e.g. London"></div>
+      <div class="field" style="align-self:end">
+        <label class="toggle-row" id="wx_tog_${i}" onclick="toggleCw(${i})">
+          <div><div class="toggle-lbl">Currently Working Here</div></div>
+          <div class="toggle-pill"></div>
+        </label>
+      </div>
+      <div class="field"><label class="label">Start Date</label>
+        <input type="date" id="wx_${i}_start_date" value="${esc(toDateInput(data.start_date))}"></div>
+      <div class="field"><label class="label">End Date</label>
+        <input type="date" id="wx_${i}_end_date" value="${esc(toDateInput(data.end_date))}" id="wx_${i}_end_date_wrap">
+      </div>
+      <div class="field full"><label class="label">Key Responsibilities</label>
+        <textarea id="wx_${i}_key_responsibilities" placeholder="Describe your main duties and responsibilities...">${esc(data.key_responsibilities)}</textarea></div>
+    </div>`;
+  document.getElementById('wx-list').appendChild(div);
+  // Set toggle state for currently working
+  const cw = data.Currently_working === '1' || data.Currently_working === 1;
+  if (cw) document.getElementById(`wx_tog_${i}`).classList.add('active');
+  renumberItems('wx', 'Position');
+}
+
+function toggleCw(i) {
+  const el = document.getElementById(`wx_tog_${i}`);
+  el.classList.toggle('active');
+}
+
+function addEdu(data = {}) {
+  const i = eduRows.length;
+  eduRows.push(data);
+  const div = document.createElement('div');
+  div.className = 'rep-item';
+  div.id = `edu-${i}`;
+  div.innerHTML = `
+    <div class="rep-hd">
+      <span class="rep-badge">Education ${i + 1}</span>
+      <button type="button" class="del-btn" onclick="removeRow('edu',${i})">&#10005; Remove</button>
+    </div>
+    <div class="grid2">
+      <div class="field"><label class="label">Degree / Qualification</label>
+        <input type="text" id="edu_${i}_degree" value="${esc(data.degree)}" placeholder="e.g. Bachelor of Laws"></div>
+      <div class="field"><label class="label">Institution Name</label>
+        <input type="text" id="edu_${i}_institution_name" value="${esc(data.institution_name)}" placeholder="e.g. University of London"></div>
+      <div class="field"><label class="label">Country</label>
+        <input type="text" id="edu_${i}_edu_country" value="${esc(data.edu_country)}" placeholder="e.g. United Kingdom"></div>
+      <div class="field"><label class="label">City</label>
+        <input type="text" id="edu_${i}_edu_city" value="${esc(data.edu_city)}" placeholder="e.g. London"></div>
+      <div class="field"><label class="label">Start Date</label>
+        <input type="date" id="edu_${i}_edu_start_date" value="${esc(toDateInput(data.edu_start_date))}"></div>
+      <div class="field"><label class="label">End Date</label>
+        <input type="date" id="edu_${i}_edu_end_date" value="${esc(toDateInput(data.edu_end_date))}"></div>
+    </div>`;
+  document.getElementById('edu-list').appendChild(div);
+  renumberItems('edu', 'Education');
+}
+
+function addCert(data = {}) {
+  const i = certRows.length;
+  certRows.push(data);
+  const div = document.createElement('div');
+  div.className = 'rep-item';
+  div.id = `cert-${i}`;
+  div.innerHTML = `
+    <div class="rep-hd">
+      <span class="rep-badge">Certificate ${i + 1}</span>
+      <button type="button" class="del-btn" onclick="removeRow('cert',${i})">&#10005; Remove</button>
+    </div>
+    <div class="grid2">
+      <div class="field"><label class="label">Certification Name</label>
+        <input type="text" id="cert_${i}_certification_name" value="${esc(data.certification_name)}" placeholder="e.g. CAMS — Certified AML Specialist"></div>
+      <div class="field"><label class="label">Issuing Organisation</label>
+        <input type="text" id="cert_${i}_issuing_organization" value="${esc(data.issuing_organization)}" placeholder="e.g. ACAMS"></div>
+      <div class="field"><label class="label">Credential ID</label>
+        <input type="text" id="cert_${i}_credential_id" value="${esc(data.credential_id)}" placeholder="Optional"></div>
+      <div class="field"><label class="label">Issue Date</label>
+        <input type="date" id="cert_${i}_cert_issue_date" value="${esc(toDateInput(data.cert_issue_date))}"></div>
+      <div class="field"><label class="label">Expiry Date</label>
+        <input type="date" id="cert_${i}_cert_expiry_date" value="${esc(toDateInput(data.cert_expiry_date))}"></div>
+      <div class="field"><label class="label">Certificate URL (optional)</label>
+        <input type="url" id="cert_${i}_certificate_pdf" value="${esc(extractCertUrl(data.certificate_pdf))}" placeholder="https://..."></div>
+    </div>`;
+  document.getElementById('cert-list').appendChild(div);
+  renumberItems('cert', 'Certificate');
+}
+
+function addTool(data = {}) {
+  const i = toolRows.length;
+  toolRows.push(data);
+  const div = document.createElement('div');
+  div.id = `tool-${i}`;
+  div.style.cssText = 'display:flex;gap:10px;align-items:center;margin-top:10px;';
+  div.innerHTML = `
+    <input type="text" id="tool_${i}_tool_name" value="${esc(data.tool_name)}" placeholder="e.g. World-Check, Refinitiv, Salesforce" style="flex:1">
+    <button type="button" class="del-btn" onclick="removeRow('tool',${i})" style="white-space:nowrap">&#10005;</button>`;
+  document.getElementById('tools-list').appendChild(div);
+}
+
+// ── Remove row ─────────────────────────────────────────────────────────────────
+function removeRow(prefix, i) {
+  const el = document.getElementById(`${prefix}-${i}`);
+  if (el) el.remove();
+  if (prefix === 'wx')   wxRows[i]   = null;
+  if (prefix === 'edu')  eduRows[i]  = null;
+  if (prefix === 'cert') certRows[i] = null;
+  if (prefix === 'tool') toolRows[i] = null;
+  renumberItems(prefix, prefix === 'wx' ? 'Position' : prefix === 'edu' ? 'Education' : prefix === 'cert' ? 'Certificate' : 'Tool');
+}
+
+function renumberItems(prefix, label) {
+  let n = 1;
+  document.querySelectorAll(`#${prefix}-list .rep-badge, #tools-list .rep-badge`).forEach(b => {
+    b.textContent = `${label} ${n++}`;
+  });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(v) {
+  return String(v || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toDateInput(val) {
+  if (!val) return '';
+  const s = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  if (/^\d{8}$/.test(s)) return `${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`;
+  // ACF date picker sometimes stores Ymd (8 digits) or d/m/Y
+  const parts = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (parts) return `${parts[3]}-${parts[2]}-${parts[1]}`;
+  return '';
+}
+
+function extractCertUrl(raw) {
+  if (!raw) return '';
+  const s = String(raw).trim();
+  // PHP serialized array: a:3:{s:3:"url";s:...;"https://...";...}
+  const m = s.match(/s:\d+:"(https?:\/\/[^"]+)"/);
+  if (m) return m[1];
+  if (s.startsWith('http')) return s;
+  return '';
+}
+
+function getVal(id) { return (document.getElementById(id)?.value || '').trim(); }
+function setVal(id, v) { const el = document.getElementById(id); if (el) el.value = v || ''; }
+
+// ── Load profile ──────────────────────────────────────────────────────────────
+async function loadProfile() {
+  try {
+    const r = await fetch('/api/candidate/profile');
+    if (r.status === 401) { location.href = '/login?next=/profile-edit'; return; }
+    const d = await r.json();
+    if (!d.ok) { showToast('Failed to load profile', 'error'); return; }
+    populateForm(d.profile);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+  } catch (e) {
+    showToast('Network error loading profile', 'error');
+  }
+}
+
+function populateForm(p) {
+  const scalar = [
+    'full_name','email_address','phone_number','linkedin_url',
+    'professional_summary_bio','total_work_experience',
+    'current_employment_status','notice_period_in_days',
+    'desired_role','soft_skills',
+    'residential_address_line_1','residential_address_line_2',
+    'residential_city','residential_state','residential_zip_code',
+    'compliance_domains','current_annual_ctc_with_currency',
+    'profile_visibility','contact_visibility','resume_visibility','public_name_mode',
+    'current_career_level',
+  ];
+  scalar.forEach(f => setVal(`f_${f}`, p[f]));
+
+  // Country selects (set after options are populated)
+  setVal('f_country_of_nationality', p.country_of_nationality);
+  setVal('f_residential_country', p.residential_country);
+
+  // Toggles
+  setToggle('open_to_relocate', 'tog_open_relo', p.open_to_relocate);
+  setToggle('open_for_work_badge', 'tog_open_work', p.open_for_work_badge);
+
+  // Work experience
+  (p.work_experience || []).forEach(row => addWx(row));
+
+  // Education
+  (p.education || []).forEach(row => addEdu(row));
+
+  // Certifications
+  (p.certifications || []).forEach(row => addCert(row));
+
+  // Tools
+  (p.compliance_tools || []).forEach(row => addTool(row));
+}
+
+// ── Collect & save ────────────────────────────────────────────────────────────
+function collectWx() {
+  return Array.from(document.querySelectorAll('#wx-list .rep-item')).map((el, idx) => {
+    const i = el.id.replace('wx-', '');
+    return {
+      job_title:            getVal(`wx_${i}_job_title`),
+      company_name:         getVal(`wx_${i}_company_name`),
+      employment_type:      getVal(`wx_${i}_employment_type`),
+      office_country:       getVal(`wx_${i}_office_country`),
+      office_city:          getVal(`wx_${i}_office_city`),
+      start_date:           getVal(`wx_${i}_start_date`),
+      end_date:             getVal(`wx_${i}_end_date`),
+      Currently_working:    document.getElementById(`wx_tog_${i}`)?.classList.contains('active') ? 1 : 0,
+      key_responsibilities: getVal(`wx_${i}_key_responsibilities`),
+    };
+  }).filter(r => r.job_title || r.company_name);
+}
+
+function collectEdu() {
+  return Array.from(document.querySelectorAll('#edu-list .rep-item')).map(el => {
+    const i = el.id.replace('edu-', '');
+    return {
+      degree:           getVal(`edu_${i}_degree`),
+      institution_name: getVal(`edu_${i}_institution_name`),
+      edu_country:      getVal(`edu_${i}_edu_country`),
+      edu_city:         getVal(`edu_${i}_edu_city`),
+      edu_start_date:   getVal(`edu_${i}_edu_start_date`),
+      edu_end_date:     getVal(`edu_${i}_edu_end_date`),
+    };
+  }).filter(r => r.degree || r.institution_name);
+}
+
+function collectCert() {
+  return Array.from(document.querySelectorAll('#cert-list .rep-item')).map(el => {
+    const i = el.id.replace('cert-', '');
+    return {
+      certification_name:   getVal(`cert_${i}_certification_name`),
+      credential_id:        getVal(`cert_${i}_credential_id`),
+      issuing_organization: getVal(`cert_${i}_issuing_organization`),
+      cert_issue_date:      getVal(`cert_${i}_cert_issue_date`),
+      cert_expiry_date:     getVal(`cert_${i}_cert_expiry_date`),
+      certificate_pdf:      getVal(`cert_${i}_certificate_pdf`),
+    };
+  }).filter(r => r.certification_name);
+}
+
+function collectTools() {
+  return Array.from(document.querySelectorAll('#tools-list > div')).map(el => {
+    const i = el.id.replace('tool-', '');
+    return { tool_name: getVal(`tool_${i}_tool_name`) };
+  }).filter(r => r.tool_name);
+}
+
+async function saveProfile() {
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  const body = {
+    full_name:                    getVal('f_full_name'),
+    email_address:                getVal('f_email_address'),
+    phone_number:                 getVal('f_phone_number'),
+    linkedin_url:                 getVal('f_linkedin_url'),
+    professional_summary_bio:     getVal('f_professional_summary_bio'),
+    total_work_experience:        getVal('f_total_work_experience'),
+    current_employment_status:    getVal('f_current_employment_status'),
+    notice_period_in_days:        getVal('f_notice_period_in_days'),
+    open_to_relocate:             toggleState.open_to_relocate ? '1' : '0',
+    open_for_work_badge:          toggleState.open_for_work_badge ? '1' : '0',
+    desired_role:                 getVal('f_desired_role'),
+    soft_skills:                  getVal('f_soft_skills'),
+    residential_address_line_1:   getVal('f_residential_address_line_1'),
+    residential_address_line_2:   getVal('f_residential_address_line_2'),
+    residential_city:             getVal('f_residential_city'),
+    residential_state:            getVal('f_residential_state'),
+    residential_zip_code:         getVal('f_residential_zip_code'),
+    country_of_nationality:       getVal('f_country_of_nationality'),
+    residential_country:          getVal('f_residential_country'),
+    compliance_domains:           getVal('f_compliance_domains'),
+    current_annual_ctc_with_currency: getVal('f_current_annual_ctc_with_currency'),
+    current_career_level:         getVal('f_current_career_level'),
+    profile_visibility:           getVal('f_profile_visibility'),
+    contact_visibility:           getVal('f_contact_visibility'),
+    resume_visibility:            getVal('f_resume_visibility'),
+    public_name_mode:             getVal('f_public_name_mode'),
+    work_experience:              collectWx(),
+    education:                    collectEdu(),
+    certifications:               collectCert(),
+    compliance_tools:             collectTools(),
+  };
+
+  try {
+    const r = await fetch('/api/candidate/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (d.ok) {
+      showToast('Profile saved successfully', 'success');
+      setTimeout(() => location.href = '/dashboard', 1200);
+    } else {
+      showToast(d.error || 'Failed to save', 'error');
+    }
+  } catch (e) {
+    showToast('Network error — please try again', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Changes';
+  }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = type ? `show ${type}` : 'show';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.className = '', 3500);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+populateCountrySelects();
+loadProfile();
+</script>
+</body>
+</html>

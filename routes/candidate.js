@@ -628,6 +628,178 @@ router.post('/interviews/start', ...guard, async (req, res) => {
   }
 });
 
+// ── PUT /api/candidate/profile ────────────────────────────────────────────────
+// Update all editable DPR profile fields + repeaters.
+// Body: scalar fields + work_experience[], education[], certifications[] arrays.
+
+// Upsert a single wp_postmeta row (prevents duplicates)
+async function upsertPostMeta(postId, key, value) {
+  const [rows] = await pool.execute(
+    'SELECT meta_id FROM wp_postmeta WHERE post_id = ? AND meta_key = ? LIMIT 1',
+    [postId, key]
+  );
+  if (rows.length > 0) {
+    await pool.execute('UPDATE wp_postmeta SET meta_value = ? WHERE meta_id = ?',
+      [String(value ?? ''), rows[0].meta_id]);
+  } else {
+    await pool.execute(
+      'INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
+      [postId, key, String(value ?? '')]
+    );
+  }
+}
+
+// Delete all postmeta rows for a repeater (count + row fields + ACF key refs)
+async function clearRepeaterMeta(postId, prefix) {
+  await pool.execute(
+    'DELETE FROM wp_postmeta WHERE post_id = ? AND (meta_key = ? OR meta_key LIKE ?)',
+    [postId, prefix, `${prefix}_%`]
+  );
+  await pool.execute(
+    'DELETE FROM wp_postmeta WHERE post_id = ? AND (meta_key = ? OR meta_key LIKE ?)',
+    [postId, `_${prefix}`, `_${prefix}_%`]
+  );
+}
+
+// Write an entire repeater (count row + all subfield rows)
+async function writeRepeater(postId, prefix, rows) {
+  await pool.execute(
+    'INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
+    [postId, prefix, String(rows.length)]
+  );
+  for (let i = 0; i < rows.length; i++) {
+    for (const [k, v] of Object.entries(rows[i])) {
+      await pool.execute(
+        'INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
+        [postId, `${prefix}_${i}_${k}`, String(v ?? '')]
+      );
+    }
+  }
+}
+
+const PROFILE_VISIBILITY_VALUES = {
+  profile_visibility: ['public', 'private'],
+  contact_visibility: ['co_public', 'co_verified_only', 'co_private'],
+  resume_visibility:  ['re_public', 're_verified_only', 're_private'],
+  public_name_mode:   ['full', 'first_only', 'initials'],
+};
+
+router.put('/profile', ...guard, async (req, res) => {
+  try {
+    const profileId = await getProfileId(req.user.user_id);
+    if (!profileId) return res.status(404).json({ ok: false, error: 'Profile not found' });
+
+    const b = req.body;
+    const s = v => (typeof v === 'string' ? v.trim() : '');
+
+    // ── Simple scalar fields ───────────────────────────────────────────────────
+    const SCALAR_FIELDS = [
+      'full_name', 'email_address', 'phone_number', 'linkedin_url',
+      'professional_summary_bio', 'total_work_experience',
+      'current_employment_status', 'notice_period_in_days',
+      'open_to_relocate', 'open_for_work_badge',
+      'desired_role', 'soft_skills',
+      'residential_address_line_1', 'residential_address_line_2',
+      'residential_city', 'residential_state', 'residential_zip_code',
+      'country_of_nationality', 'residential_country', 'compliance_domains',
+      'current_annual_ctc_with_currency', 'expected_annual_ctc_with_currency',
+      'preferred_work_type', 'work_level',
+    ];
+    for (const f of SCALAR_FIELDS) {
+      if (b[f] !== undefined) await upsertPostMeta(profileId, f, b[f]);
+    }
+
+    // ── Visibility fields (validated) ─────────────────────────────────────────
+    for (const [field, allowed] of Object.entries(PROFILE_VISIBILITY_VALUES)) {
+      if (b[field] !== undefined) {
+        if (!allowed.includes(b[field])) {
+          return res.status(400).json({ ok: false, error: `Invalid value for ${field}` });
+        }
+        await upsertPostMeta(profileId, field, b[field]);
+      }
+    }
+
+    // ── Work Experience repeater ───────────────────────────────────────────────
+    if (Array.isArray(b.work_experience)) {
+      const rows = b.work_experience
+        .filter(r => s(r.job_title) || s(r.company_name))
+        .map(r => ({
+          job_title:            s(r.job_title),
+          company_name:         s(r.company_name),
+          office_country:       s(r.office_country),
+          office_city:          s(r.office_city),
+          start_date:           s(r.start_date),
+          end_date:             s(r.end_date),
+          Currently_working:    r.Currently_working ? '1' : '0', // capital C — exact ACF field name
+          key_responsibilities: s(r.key_responsibilities),
+          employment_type:      s(r.employment_type),
+          key_achievements:     s(r.key_achievements),
+        }));
+      await clearRepeaterMeta(profileId, 'work_experience');
+      await writeRepeater(profileId, 'work_experience', rows);
+    }
+
+    // ── Education repeater ────────────────────────────────────────────────────
+    if (Array.isArray(b.education)) {
+      const rows = b.education
+        .filter(r => s(r.degree) || s(r.institution_name))
+        .map(r => ({
+          degree:           s(r.degree),
+          institution_name: s(r.institution_name),
+          edu_country:      s(r.edu_country),
+          edu_city:         s(r.edu_city),
+          edu_start_date:   s(r.edu_start_date),
+          edu_end_date:     s(r.edu_end_date),
+        }));
+      await clearRepeaterMeta(profileId, 'education');
+      await writeRepeater(profileId, 'education', rows);
+    }
+
+    // ── Certifications repeater ───────────────────────────────────────────────
+    if (Array.isArray(b.certifications)) {
+      const rows = b.certifications
+        .filter(r => s(r.certification_name))
+        .map(r => ({
+          certification_name:   s(r.certification_name),
+          credential_id:        s(r.credential_id),
+          issuing_organization: s(r.issuing_organization),
+          cert_issue_date:      s(r.cert_issue_date),
+          cert_expiry_date:     s(r.cert_expiry_date),
+          certificate_pdf:      s(r.certificate_pdf),
+        }));
+      await clearRepeaterMeta(profileId, 'certifications');
+      await writeRepeater(profileId, 'certifications', rows);
+    }
+
+    // ── Compliance tools repeater ─────────────────────────────────────────────
+    if (Array.isArray(b.compliance_tools)) {
+      const rows = b.compliance_tools
+        .filter(r => s(r.tool_name))
+        .map(r => ({ tool_name: s(r.tool_name) }));
+      await clearRepeaterMeta(profileId, 'compliance_tools');
+      await writeRepeater(profileId, 'compliance_tools', rows);
+    }
+
+    // ── Languages repeater ────────────────────────────────────────────────────
+    if (Array.isArray(b.language_proficiency)) {
+      const rows = b.language_proficiency
+        .filter(r => s(r.language))
+        .map(r => ({ language: s(r.language) }));
+      await clearRepeaterMeta(profileId, 'language_proficiency');
+      await writeRepeater(profileId, 'language_proficiency', rows);
+    }
+
+    // ── Timestamp ─────────────────────────────────────────────────────────────
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    await upsertPostMeta(profileId, 'profile_last_updated', now);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[candidate/profile PUT]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
 // ── GET /api/candidate/download ───────────────────────────────────────────────
 // Download candidate's own resume or a specific certificate PDF.
 // ?type=resume                — redirects to WP attachment URL

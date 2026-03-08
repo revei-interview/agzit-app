@@ -114,6 +114,11 @@ app.get('/scorecard', requireAuth, requireRole('dpr_candidate'), (req, res) => {
   res.sendFile(path.join(__dirname, 'public/scorecard/index.html'));
 });
 
+// Candidate profile edit page
+app.get('/profile-edit', requireAuth, requireRole('dpr_candidate'), (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/profile-edit/index.html'));
+});
+
 // Employer-scheduled interview room — PUBLIC (token-based, no WP login required)
 app.get('/employer-interviews', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/employer-interviews/index.html'));
