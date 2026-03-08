@@ -297,9 +297,10 @@ button { font-family: inherit; cursor: pointer; }
   grid-template-columns: 1fr auto;
   gap: 12px;
   align-items: start;
-  transition: box-shadow .2s;
+  transition: box-shadow .2s, border-color .2s;
+  cursor: pointer;
 }
-.iv-card:hover { box-shadow: 0 4px 16px rgba(9,16,31,0.06); }
+.iv-card:hover { box-shadow: 0 4px 16px rgba(9,16,31,0.10); border-color: #BFDBFE; }
 .iv-role { font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
 .iv-candidate { font-size: 13px; font-weight: 600; color: var(--blue); margin-bottom: 6px; }
 .iv-meta { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 10px; }
@@ -975,11 +976,11 @@ function renderInterviewList(container, list, max) {
     const bandPart  = iv.emp_readiness_band
       ? `<span class="${bandClass}">${bandLabel(iv.emp_readiness_band)}</span>` : '';
     const joinPart  = iv.join_url
-      ? `<a class="iv-join" href="${esc(iv.join_url)}" target="_blank" rel="noopener">Join Room</a>` : '';
+      ? `<a class="iv-join" href="${esc(iv.join_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Join Room</a>` : '';
     const scheduledPart = iv.scheduled_at ? `Scheduled: ${iv.scheduled_at}` : (iv.post_date ? fmtDate(iv.post_date) : '');
 
     return `
-    <div class="iv-card reveal">
+    <div class="iv-card reveal" onclick="openScorecard(${iv.id})" title="View scorecard">
       <div>
         <div class="iv-role">${esc(iv.interview_role || 'Interview')}</div>
         <div class="iv-candidate">${esc(iv.candidate_name || 'Candidate')}</div>
@@ -1202,6 +1203,10 @@ function statusLabel(s) {
 
 function bandLabel(b) {
   return { strong_match:'Strong Match', promising:'Promising', developing:'Developing', not_ready:'Not Ready' }[b] || b;
+}
+
+function openScorecard(id) {
+  window.location = '/employer-scorecard?id=' + id;
 }
 
 function applicationStatusLabel(s) {

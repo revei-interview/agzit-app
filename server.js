@@ -104,6 +104,11 @@ app.get('/employer-review', requireAuth, requireRole('dpr_employer', 'verified_e
   res.sendFile(path.join(__dirname, 'public/employer-review/index.html'));
 });
 
+// Employer interview scorecard
+app.get('/employer-scorecard', requireAuth, requireRole('dpr_employer', 'verified_employer'), (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/employer-scorecard/index.html'));
+});
+
 // Candidate scorecard detail page
 app.get('/scorecard', requireAuth, requireRole('dpr_candidate'), (req, res) => {
   res.sendFile(path.join(__dirname, 'public/scorecard/index.html'));

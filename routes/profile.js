@@ -24,7 +24,7 @@ async function findPost(dprId) {
 
 async function fetchPostMeta(postId) {
   const [rows] = await pool.execute(
-    "SELECT meta_key, meta_value FROM wp_postmeta WHERE post_id = ? AND meta_key NOT LIKE '\_%'",
+    "SELECT meta_key, meta_value FROM wp_postmeta WHERE post_id = ? AND LEFT(meta_key, 1) != '_'",
     [postId]
   );
   const meta = {};

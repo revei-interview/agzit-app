@@ -687,6 +687,98 @@ router.get('/interviews', ...guardAny, async (req, res) => {
   }
 });
 
+// ── GET /api/employer/interviews/:id ──────────────────────────────────────────
+// Full scorecard detail for a single employer interview
+// Ownership enforced: employer_user_id must match requesting user's WP user ID
+
+const FULL_INTERVIEW_KEYS = [
+  'candidate_name', 'candidate_email', 'total_work_experience',
+  'interview_role', 'session_type', 'scheduled_at', 'interview_started_at',
+  'interview_status', 'join_url', 'join_token', 'session_id',
+  'mock_overall_score', 'mock_performance_level', 'emp_readiness_band',
+  'score_communication', 'score_structure', 'score_role_knowledge',
+  'score_domain_application', 'score_problem_solving', 'score_confidence',
+  'score_question_handling', 'score_experience_relevance', 'score_resume_alignment',
+  'mock_strengths', 'mock_improvements', 'mock_next_focus', 'mock_attention_areas',
+  'emp_role_strengths', 'emp_role_gaps', 'emp_red_flags', 'emp_consistency_check',
+  'audio_url', 'video_url', 'resume_file',
+  'employer_user_id',
+];
+
+router.get('/interviews/:id', ...guardAny, async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id);
+    if (!postId) return res.status(400).json({ ok: false, error: 'Invalid interview ID' });
+
+    const [[user]] = await pool.execute(
+      'SELECT wp_user_id FROM agzit_users WHERE id = ?',
+      [req.user.user_id]
+    );
+    const wpId = user?.wp_user_id;
+
+    // Verify the post exists and is a published employer_interview
+    const [[post]] = await pool.execute(
+      "SELECT ID, post_title, post_date FROM wp_posts WHERE ID = ? AND post_type = 'employer_interview' AND post_status = 'publish' LIMIT 1",
+      [postId]
+    );
+    if (!post) return res.status(404).json({ ok: false, error: 'Interview not found' });
+
+    const m = await fetchPostMeta(postId, FULL_INTERVIEW_KEYS);
+
+    // Ownership check: allow only the employer who created it
+    if (wpId && m.employer_user_id && String(m.employer_user_id) !== String(wpId)) {
+      return res.status(403).json({ ok: false, error: 'Access denied' });
+    }
+
+    const int = (v) => (v !== null && v !== undefined && v !== '') ? parseInt(v) : null;
+
+    res.json({
+      ok: true,
+      interview: {
+        id:                       postId,
+        post_title:               post.post_title,
+        post_date:                post.post_date,
+        candidate_name:           m.candidate_name              || null,
+        candidate_email:          m.candidate_email             || null,
+        total_work_experience:    m.total_work_experience       || null,
+        interview_role:           m.interview_role              || null,
+        session_type:             m.session_type                || null,
+        scheduled_at:             m.scheduled_at                || null,
+        interview_started_at:     m.interview_started_at        ? parseInt(m.interview_started_at) : null,
+        interview_status:         m.interview_status            || null,
+        join_url:                 m.join_url                    || null,
+        session_id:               m.session_id                  || null,
+        mock_overall_score:       int(m.mock_overall_score),
+        mock_performance_level:   m.mock_performance_level      || null,
+        emp_readiness_band:       m.emp_readiness_band          || null,
+        score_communication:      int(m.score_communication),
+        score_structure:          int(m.score_structure),
+        score_role_knowledge:     int(m.score_role_knowledge),
+        score_domain_application: int(m.score_domain_application),
+        score_problem_solving:    int(m.score_problem_solving),
+        score_confidence:         int(m.score_confidence),
+        score_question_handling:  int(m.score_question_handling),
+        score_experience_relevance: int(m.score_experience_relevance),
+        score_resume_alignment:   int(m.score_resume_alignment),
+        mock_strengths:           m.mock_strengths              || null,
+        mock_improvements:        m.mock_improvements           || null,
+        mock_next_focus:          m.mock_next_focus             || null,
+        mock_attention_areas:     m.mock_attention_areas        || null,
+        emp_role_strengths:       m.emp_role_strengths          || null,
+        emp_role_gaps:            m.emp_role_gaps               || null,
+        emp_red_flags:            m.emp_red_flags               || null,
+        emp_consistency_check:    m.emp_consistency_check       || null,
+        audio_url:                m.audio_url                   || null,
+        video_url:                m.video_url                   || null,
+        resume_file:              m.resume_file                 || null,
+      },
+    });
+  } catch (err) {
+    console.error('[employer/interviews/:id]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
 // ── POST /api/employer/interviews/:id/cancel ──────────────────────────────────
 // Cancel an employer interview (must belong to requesting employer)
 
