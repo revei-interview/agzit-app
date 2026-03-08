@@ -284,7 +284,7 @@ router.get('/profile', ...guardAny, async (req, res) => {
 
 // ── GET /api/employer/candidates ──────────────────────────────────────────────
 // Paginated list of public, approved dpr_profile candidates
-// Query params: page, per_page, domain, career_level, open_for_work
+// Query params: page, per_page, domain, career_level, emp_status, work_type, country, open_for_work
 
 const CANDIDATE_KEYS = [
   'dpr_id',
@@ -308,8 +308,11 @@ router.get('/candidates', ...guardVerified, async (req, res) => {
   try {
     const page       = Math.max(1, parseInt(req.query.page)     || 1);
     const per_page   = Math.min(50, Math.max(1, parseInt(req.query.per_page) || 20));
-    const domain     = typeof req.query.domain === 'string'       ? req.query.domain.trim()       : '';
+    const domain     = typeof req.query.domain       === 'string' ? req.query.domain.trim()       : '';
     const career_lvl = typeof req.query.career_level === 'string' ? req.query.career_level.trim() : '';
+    const emp_status = typeof req.query.emp_status   === 'string' ? req.query.emp_status.trim()   : '';
+    const work_type  = typeof req.query.work_type    === 'string' ? req.query.work_type.trim()    : '';
+    const country    = typeof req.query.country      === 'string' ? req.query.country.trim()      : '';
     const open_only  = req.query.open_for_work === '1' || req.query.open_for_work === 'true';
     const offset     = (page - 1) * per_page;
 
@@ -326,8 +329,25 @@ router.get('/candidates', ...guardVerified, async (req, res) => {
       params.push(domain);
     }
     if (career_lvl) {
-      joins += " INNER JOIN wp_postmeta pc ON pc.post_id = p.ID AND pc.meta_key = 'current_career_level' AND pc.meta_value = ?";
-      params.push(career_lvl);
+      // Also match legacy 'lLead' typo when filtering for 'Lead'
+      if (career_lvl === 'Lead') {
+        joins += " INNER JOIN wp_postmeta pc ON pc.post_id = p.ID AND pc.meta_key = 'current_career_level' AND (pc.meta_value = 'Lead' OR pc.meta_value = 'lLead')";
+      } else {
+        joins += " INNER JOIN wp_postmeta pc ON pc.post_id = p.ID AND pc.meta_key = 'current_career_level' AND pc.meta_value = ?";
+        params.push(career_lvl);
+      }
+    }
+    if (emp_status) {
+      joins += " INNER JOIN wp_postmeta pe ON pe.post_id = p.ID AND pe.meta_key = 'current_employment_status' AND pe.meta_value = ?";
+      params.push(emp_status);
+    }
+    if (work_type) {
+      joins += " INNER JOIN wp_postmeta pwt ON pwt.post_id = p.ID AND pwt.meta_key = 'preferred_work_type' AND pwt.meta_value = ?";
+      params.push(work_type);
+    }
+    if (country) {
+      joins += " INNER JOIN wp_postmeta pco ON pco.post_id = p.ID AND pco.meta_key = 'residential_country' AND pco.meta_value LIKE ?";
+      params.push('%' + country + '%');
     }
     if (open_only) {
       joins += " INNER JOIN wp_postmeta pw ON pw.post_id = p.ID AND pw.meta_key = 'open_for_work_badge' AND pw.meta_value = '1'";

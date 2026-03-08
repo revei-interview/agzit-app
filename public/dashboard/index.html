@@ -749,6 +749,9 @@ function setSelectVal(id, val) {
   }
 }
 
+/* ── Career level normaliser (fixes legacy 'lLead' typo stored in DB) ─────── */
+function normCareerLevel(v) { return v === 'lLead' ? 'Lead' : (v || ''); }
+
 /* ── Performance level helpers ────────────────────────────────────────────── */
 const PERF_BANDS = {
   'Interview Ready':           { cls:'pb-5', desc:'You are performing at a high level and demonstrating strong readiness for this role.' },
@@ -922,7 +925,7 @@ function render(d, pd, id) {
     ['DPR ID',      prof.dpr_id],
     ['Status',      statusLabel(prof.dpr_status)],
     ['Industry',    prof.compliance_domains],
-    ['Career Level', prof.current_career_level],
+    ['Career Level', normCareerLevel(prof.current_career_level)],
   ].map(([k,v]) => v ? `<div class="info-row"><span class="info-key">${esc(k)}</span><span class="info-val">${esc(String(v))}</span></div>` : '').join('');
 
   /* overview scorecard mini */
@@ -1085,7 +1088,7 @@ function renderInterviews(sessions, id) {
             <span style="font-family:ui-monospace,monospace;font-size:11px;color:var(--muted);">${esc(s.session_id||'')}</span>
             ${s.started_at ? ` &mdash; ${fmtDT(s.started_at)}` : ''}
             ${s.duration_minutes ? ` &mdash; ${s.duration_minutes} min` : ''}
-            ${s.target_career_level ? ` &mdash; ${esc(s.target_career_level)}` : ''}
+            ${s.target_career_level ? ` &mdash; ${esc(normCareerLevel(s.target_career_level))}` : ''}
           </div>
         </div>
         <div class="ses-right">
@@ -1216,7 +1219,7 @@ function renderProfile(p) {
     <div class="section-title">Professional Summary</div>
     <div class="field-grid">
       ${fld('Industry / Domain',   p.compliance_domains)}
-      ${fld('Career Level',        p.current_career_level)}
+      ${fld('Career Level',        normCareerLevel(p.current_career_level))}
       ${fld('Total Experience',    p.total_work_experience ? p.total_work_experience + ' years' : null)}
       ${fld('Employment Status',   p.current_employment_status)}
       ${fld('Notice Period',       p.notice_period_in_days ? p.notice_period_in_days + ' days' : null)}

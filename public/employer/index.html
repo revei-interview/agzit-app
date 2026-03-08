@@ -736,24 +736,77 @@ button { font-family: inherit; cursor: pointer; }
             <span class="filter-label">Domain</span>
             <select class="filter-select" id="filter-domain">
               <option value="">All Domains</option>
-              <option value="Compliance">Compliance</option>
-              <option value="Accounting">Accounting</option>
-              <option value="HR">HR / People</option>
-              <option value="Investment Banking">Investment Banking</option>
-              <option value="Marketing">Marketing</option>
-              <option value="Sales">Sales</option>
+              <option value="Compliance / Regulatory">Compliance / Regulatory</option>
+              <option value="Finance / Treasury">Finance / Treasury</option>
+              <option value="Accounting / Taxation / Audit">Accounting / Taxation / Audit</option>
+              <option value="Banking / Financial Services">Banking / Financial Services</option>
+              <option value="Risk Management">Risk Management</option>
+              <option value="Fraud / Anti-Fraud">Fraud / Anti-Fraud</option>
+              <option value="Audit &amp; Assurance">Audit &amp; Assurance</option>
+              <option value="Legal / Law / Advisory">Legal / Law / Advisory</option>
+              <option value="Insurance / Underwriting / Actuarial">Insurance / Underwriting / Actuarial</option>
+              <option value="Human Resources / People Ops">Human Resources / People Ops</option>
+              <option value="Administration / Office Management">Administration / Office Management</option>
+              <option value="Sales / Business Development">Sales / Business Development</option>
+              <option value="Marketing / Brand / Digital Marketing">Marketing / Brand / Digital Marketing</option>
+              <option value="Product Management">Product Management</option>
+              <option value="Operations / Back Office">Operations / Back Office</option>
+              <option value="Procurement / Purchase / Vendor Management">Procurement / Purchase / Vendor Management</option>
+              <option value="Logistics / Supply Chain">Logistics / Supply Chain</option>
+              <option value="Customer Support / Helpdesk / Telecalling">Customer Support / Helpdesk / Telecalling</option>
+              <option value="Data / Analytics / BI">Data / Analytics / BI</option>
+              <option value="IT / Systems">IT / Systems</option>
+              <option value="Software Development / Engineering">Software Development / Engineering</option>
+              <option value="Cybersecurity / InfoSec">Cybersecurity / InfoSec</option>
+              <option value="Healthcare / Medical / Pharma">Healthcare / Medical / Pharma</option>
+              <option value="Education / Training / Coaching">Education / Training / Coaching</option>
+              <option value="Hospitality / Food &amp; Beverage">Hospitality / Food &amp; Beverage</option>
+              <option value="Real Estate / Property Management">Real Estate / Property Management</option>
+              <option value="Travel / Ticketing / Reservations">Travel / Ticketing / Reservations</option>
+              <option value="Transport / Driving">Transport / Driving</option>
+              <option value="Government / Public Sector">Government / Public Sector</option>
+              <option value="Senior Management / Leadership">Senior Management / Leadership</option>
+              <option value="Fresh Graduates / Trainees / Interns">Fresh Graduates / Trainees / Interns</option>
+              <option value="Other">Other</option>
             </select>
           </div>
           <div class="filter-group">
             <span class="filter-label">Career Level</span>
             <select class="filter-select" id="filter-career">
               <option value="">All Levels</option>
-              <option value="0-2 Years">0 – 2 Years</option>
-              <option value="3-5 Years">3 – 5 Years</option>
-              <option value="6-8 Years">6 – 8 Years</option>
-              <option value="9-12 Years">9 – 12 Years</option>
-              <option value="12+ Years">12+ Years</option>
+              <option value="Intern / Fresher">Intern / Fresher</option>
+              <option value="Junior / Associate">Junior / Associate</option>
+              <option value="Mid-level">Mid-level</option>
+              <option value="Senior">Senior</option>
+              <option value="Lead">Lead</option>
+              <option value="Manager">Manager</option>
+              <option value="Senior Manager">Senior Manager</option>
+              <option value="Director / Head">Director / Head</option>
             </select>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Employment Status</span>
+            <select class="filter-select" id="filter-emp-status">
+              <option value="">Any Status</option>
+              <option value="Employed">Employed</option>
+              <option value="Unemployed">Unemployed</option>
+              <option value="Fresher">Fresher</option>
+              <option value="Freelancer / Consultant">Freelancer / Consultant</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Work Type</span>
+            <select class="filter-select" id="filter-work-type">
+              <option value="">Any Type</option>
+              <option value="On-site">On-site</option>
+              <option value="Hybrid">Hybrid</option>
+              <option value="Remote">Remote</option>
+              <option value="Flexible / Any">Flexible / Any</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Country</span>
+            <input class="filter-input" id="filter-country" type="text" placeholder="e.g. United Kingdom" style="height:36px;">
           </div>
           <div class="filter-check-wrap">
             <input type="checkbox" id="filter-open" name="filter-open">
@@ -1014,13 +1067,19 @@ function searchByDprId() {
 // ── Candidates tab ───────────────────────────────────────────────────────────
 async function loadCandidates(page) {
   candidatePage = page;
-  const domain     = document.getElementById('filter-domain').value;
-  const careerLvl  = document.getElementById('filter-career').value;
-  const openOnly   = document.getElementById('filter-open').checked;
+  const domain    = document.getElementById('filter-domain').value;
+  const careerLvl = document.getElementById('filter-career').value;
+  const empStatus = document.getElementById('filter-emp-status').value;
+  const workType  = document.getElementById('filter-work-type').value;
+  const country   = (document.getElementById('filter-country').value || '').trim();
+  const openOnly  = document.getElementById('filter-open').checked;
 
   const params = new URLSearchParams({ page, per_page: 20 });
   if (domain)    params.set('domain', domain);
   if (careerLvl) params.set('career_level', careerLvl);
+  if (empStatus) params.set('emp_status', empStatus);
+  if (workType)  params.set('work_type', workType);
+  if (country)   params.set('country', country);
   if (openOnly)  params.set('open_for_work', '1');
 
   document.getElementById('candidates-loading').style.display = 'flex';
@@ -1056,13 +1115,15 @@ async function loadCandidates(page) {
   }
 }
 
+function normCareerLevel(v) { return v === 'lLead' ? 'Lead' : v; }
+
 function candidateCard(c) {
   const location = [c.residential_city, c.residential_country].filter(Boolean).join(', ');
   const exp      = c.total_work_experience ? c.total_work_experience + ' yrs' : null;
   const unlockedHtml = c.is_unlocked
     ? '<span class="unlocked-tag">Unlocked</span>'
     : '<span class="locked-tag">Locked</span>';
-  const profileUrl = WP_URL + '/view-profile/?dpr_id=' + encodeURIComponent(c.dpr_id || '');
+  const profileUrl = '/profile?dpr_id=' + encodeURIComponent(c.dpr_id || '');
 
   return `
   <div class="cand-card reveal">
@@ -1072,7 +1133,7 @@ function candidateCard(c) {
     </div>
     <div class="cand-tags">
       ${c.compliance_domains       ? `<span class="cand-tag">${esc(c.compliance_domains)}</span>` : ''}
-      ${c.current_career_level     ? `<span class="cand-tag">${esc(c.current_career_level)}</span>` : ''}
+      ${c.current_career_level     ? `<span class="cand-tag">${esc(normCareerLevel(c.current_career_level))}</span>` : ''}
       ${c.preferred_work_type      ? `<span class="cand-tag">${esc(c.preferred_work_type)}</span>` : ''}
       ${c.open_for_work_badge      ? `<span class="cand-tag cand-tag-green">Open for Work</span>` : ''}
     </div>
