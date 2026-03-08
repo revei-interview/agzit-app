@@ -1018,6 +1018,7 @@ const scheduleMailer = nodemailer.createTransport({
 });
 
 async function sendInterviewEmail({ candidateName, candidateEmail, interviewRole, sessionType, scheduledAt, joinUrl, joinToken }) {
+  console.log('[sendInterviewEmail] attempting to send to:', candidateEmail, '| role:', interviewRole);
   const durationMin = sessionType === '30-min' ? 30 : 20;
   const firstName   = candidateName.split(' ')[0];
 
@@ -1129,7 +1130,36 @@ async function sendInterviewEmail({ candidateName, candidateEmail, interviewRole
       contentType: 'text/calendar; method=REQUEST',
     }],
   });
+  console.log('[sendInterviewEmail] sent successfully to:', candidateEmail);
 }
+
+// ── GET /api/employer/test-email ─────────────────────────────────────────────
+// Verify SMTP connection without sending a real email.
+// Returns { connected, host, port, user, error? }
+
+router.get('/test-email', ...guardAny, async (req, res) => {
+  const cfg = {
+    host:   process.env.MAIL_HOST,
+    port:   parseInt(process.env.MAIL_PORT) || 465,
+    secure: process.env.MAIL_SECURE === 'true',
+    auth:   { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS ? '***set***' : '***missing***' },
+  };
+  console.log('[test-email] testing SMTP connection:', { host: cfg.host, port: cfg.port, secure: cfg.secure, user: cfg.auth.user });
+  try {
+    const t = nodemailer.createTransport({
+      host:   process.env.MAIL_HOST,
+      port:   parseInt(process.env.MAIL_PORT) || 465,
+      secure: process.env.MAIL_SECURE === 'true',
+      auth:   { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+    });
+    await t.verify();
+    console.log('[test-email] SMTP connection verified OK');
+    res.json({ connected: true, host: cfg.host, port: cfg.port, secure: cfg.secure, user: cfg.auth.user });
+  } catch (err) {
+    console.error('[test-email] SMTP connection FAILED:', err.message);
+    res.json({ connected: false, host: cfg.host, port: cfg.port, secure: cfg.secure, user: cfg.auth.user, error: err.message });
+  }
+});
 
 // ── POST /api/employer/schedule-interview ─────────────────────────────────────
 // Create a new employer-scheduled AI interview and email the candidate.
@@ -1208,12 +1238,21 @@ router.post('/schedule-interview', ...guardVerified, async (req, res) => {
       );
     }
 
-    // Send candidate email (fire-and-forget)
-    sendInterviewEmail({ candidateName, candidateEmail, interviewRole, sessionType, scheduledAt, joinUrl, joinToken })
-      .catch(err => console.error('[schedule-interview] email error (non-fatal):', err.message));
+    // Send candidate email — awaited so errors surface; schedule still succeeds if email fails
+    let emailSent  = true;
+    let emailError = null;
+    console.log('[schedule-interview] candidate email resolved:', candidateEmail);
+    try {
+      await sendInterviewEmail({ candidateName, candidateEmail, interviewRole, sessionType, scheduledAt, joinUrl, joinToken });
+      console.log('[schedule-interview] email sent successfully to:', candidateEmail);
+    } catch (err) {
+      emailSent  = false;
+      emailError = err.message;
+      console.error('[schedule-interview] email FAILED to:', candidateEmail, '|', err.message, err.stack);
+    }
 
-    console.log('[schedule-interview] created post_id=%d token=%s', postId, joinToken);
-    res.json({ ok: true, post_id: postId, join_url: joinUrl });
+    console.log('[schedule-interview] created post_id=%d token=%s emailSent=%s', postId, joinToken, emailSent);
+    res.json({ ok: true, post_id: postId, join_url: joinUrl, emailSent, ...(emailError && { emailError }) });
   } catch (err) {
     console.error('[employer/schedule-interview]', err);
     res.status(500).json({ ok: false, error: 'Server error' });
