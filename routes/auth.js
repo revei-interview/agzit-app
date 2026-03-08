@@ -93,13 +93,15 @@ function parseWpRole(capabilities) {
 
 // ── Email transporter ──────────────────────────────────────────────────────
 const transporter = nodemailer.createTransport({
-  host:   process.env.MAIL_HOST,
-  port:   parseInt(process.env.MAIL_PORT) || 465,
-  secure: process.env.MAIL_SECURE === 'true',
-  auth: {
-    user: process.env.MAIL_USER,
-    pass: process.env.MAIL_PASS,
-  },
+  host:              process.env.MAIL_HOST,
+  port:              587,
+  secure:            false,       // false = STARTTLS on 587 (not direct SSL)
+  requireTLS:        true,        // force TLS upgrade
+  auth:              { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+  tls:               { rejectUnauthorized: false }, // accept Hostinger's cert chain
+  connectionTimeout: 10000,
+  greetingTimeout:   10000,
+  socketTimeout:     10000,
 });
 
 // ── Helpers ────────────────────────────────────────────────────────────────

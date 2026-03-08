@@ -1011,10 +1011,15 @@ router.get('/profile-view', ...guardVerified, async (req, res) => {
 
 // ── Email transporter (schedule-interview) ────────────────────────────────────
 const scheduleMailer = nodemailer.createTransport({
-  host:   process.env.MAIL_HOST,
-  port:   parseInt(process.env.MAIL_PORT) || 465,
-  secure: process.env.MAIL_SECURE === 'true',
-  auth:   { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+  host:              process.env.MAIL_HOST,
+  port:              587,
+  secure:            false,       // false = STARTTLS on 587 (not direct SSL)
+  requireTLS:        true,        // force TLS upgrade
+  auth:              { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+  tls:               { rejectUnauthorized: false }, // accept Hostinger's cert chain
+  connectionTimeout: 10000,
+  greetingTimeout:   10000,
+  socketTimeout:     10000,
 });
 
 async function sendInterviewEmail({ candidateName, candidateEmail, interviewRole, sessionType, scheduledAt, joinUrl, joinToken }) {
@@ -1147,17 +1152,22 @@ router.get('/test-email', ...guardAny, async (req, res) => {
   console.log('[test-email] testing SMTP connection:', { host: cfg.host, port: cfg.port, secure: cfg.secure, user: cfg.auth.user });
   try {
     const t = nodemailer.createTransport({
-      host:   process.env.MAIL_HOST,
-      port:   parseInt(process.env.MAIL_PORT) || 465,
-      secure: process.env.MAIL_SECURE === 'true',
-      auth:   { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+      host:              process.env.MAIL_HOST,
+      port:              587,
+      secure:            false,
+      requireTLS:        true,
+      auth:              { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS },
+      tls:               { rejectUnauthorized: false },
+      connectionTimeout: 10000,
+      greetingTimeout:   10000,
+      socketTimeout:     10000,
     });
     await t.verify();
     console.log('[test-email] SMTP connection verified OK');
-    res.json({ connected: true, host: cfg.host, port: cfg.port, secure: cfg.secure, user: cfg.auth.user });
+    res.json({ connected: true, host: process.env.MAIL_HOST, port: 587, user: cfg.auth.user });
   } catch (err) {
     console.error('[test-email] SMTP connection FAILED:', err.message);
-    res.json({ connected: false, host: cfg.host, port: cfg.port, secure: cfg.secure, user: cfg.auth.user, error: err.message });
+    res.json({ connected: false, host: process.env.MAIL_HOST, port: 587, user: cfg.auth.user, error: err.message });
   }
 });
 
