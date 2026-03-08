@@ -527,9 +527,31 @@ router.get('/employer-interview-by-sid', requireAppToken, async (req, res) => {
        LIMIT 1`,
       [sid]
     );
-    if (!row) return res.status(404).json({ ok: false, error: 'Session not found', sid });
+    if (!row) return res.status(404).json({ ok: false, found: false, error: 'Session not found', sid });
 
-    res.json({ ok: true, post_id: row.ID, sid });
+    // Fetch all meta needed by the daily-backend employer IIFE and scorecard job
+    const postId = row.ID;
+    const [metaRows] = await pool.execute(
+      `SELECT meta_key, meta_value FROM wp_postmeta
+       WHERE post_id = ? AND meta_key IN (
+         'join_token','target_career_level','total_work_experience','context_pack','employer_user_id'
+       )`,
+      [postId]
+    );
+    const meta = {};
+    for (const r of metaRows) meta[r.meta_key] = r.meta_value;
+
+    res.json({
+      ok:                   true,
+      found:                true,
+      post_id:              postId,
+      sid,
+      token:                meta.join_token              || null,
+      target_career_level:  meta.target_career_level     || '',
+      total_experience:     parseFloat(meta.total_work_experience) || 0,
+      context_pack:         meta.context_pack            || '',
+      employer_user_id:     meta.employer_user_id        || null,
+    });
   } catch (err) {
     console.error('[internal/employer-interview-by-sid]', err);
     res.status(500).json({ ok: false, error: 'Server error' });
