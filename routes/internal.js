@@ -586,6 +586,7 @@ router.post('/save-employer-scorecard', requireAppToken, async (req, res) => {
       'score_communication', 'score_structure', 'score_role_knowledge',
       'score_domain_application', 'score_problem_solving', 'score_confidence',
       'score_question_handling', 'score_experience_relevance', 'score_resume_alignment',
+      'depth_specificity',
       'mock_overall_score', 'mock_performance_level',
       'mock_strengths', 'mock_improvements', 'mock_next_focus', 'mock_attention_areas',
       'emp_readiness_band', 'emp_red_flags', 'emp_role_strengths', 'emp_role_gaps', 'emp_consistency_check',
