@@ -83,8 +83,10 @@ router.get('/', async (req, res) => {
   try {
     const dprId = (req.query.dpr_id || '').trim();
     if (!dprId) return res.status(400).json({ ok: false, error: 'dpr_id required' });
+    console.log('[profile] dpr_id=%s', dprId);
 
     const post = await findPost(dprId);
+    console.log('[profile] post=%j', post);
     if (!post)                         return res.status(404).json({ ok: false, error: 'Profile not found' });
     if (post.post_status !== 'publish') return res.status(404).json({ ok: false, error: 'Profile not published' });
 

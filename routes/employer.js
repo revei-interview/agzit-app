@@ -709,19 +709,23 @@ router.get('/interviews/:id', ...guardAny, async (req, res) => {
   try {
     const postId = parseInt(req.params.id);
     if (!postId) return res.status(400).json({ ok: false, error: 'Invalid interview ID' });
+    console.log('[employer/interviews/:id] postId=%d user_id=%s', postId, req.user.user_id);
 
     const [[user]] = await pool.execute(
       'SELECT wp_user_id FROM agzit_users WHERE id = ?',
       [req.user.user_id]
     );
     const wpId = user?.wp_user_id;
+    console.log('[employer/interviews/:id] wpId=%s', wpId);
 
     // Verify the post exists and is a published employer_interview
     const [[post]] = await pool.execute(
-      "SELECT ID, post_title, post_date FROM wp_posts WHERE ID = ? AND post_type = 'employer_interview' AND post_status = 'publish' LIMIT 1",
+      "SELECT ID, post_title, post_status, post_date FROM wp_posts WHERE ID = ? AND post_type = 'employer_interview' LIMIT 1",
       [postId]
     );
+    console.log('[employer/interviews/:id] post=%j', post);
     if (!post) return res.status(404).json({ ok: false, error: 'Interview not found' });
+    if (post.post_status !== 'publish') return res.status(404).json({ ok: false, error: 'Interview not available' });
 
     const m = await fetchPostMeta(postId, FULL_INTERVIEW_KEYS);
 

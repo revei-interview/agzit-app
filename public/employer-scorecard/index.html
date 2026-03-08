@@ -37,12 +37,12 @@ a:hover { text-decoration: underline; }
 .load-label { font-size: 13px; color: var(--muted); font-weight: 600; }
 
 /* ── Error ── */
-#error-state { display: none; max-width: 520px; margin: 80px auto; padding: 32px; background: #fff; border: 1px solid var(--line); border-radius: 16px; text-align: center; }
+#error-state { max-width: 520px; margin: 80px auto; padding: 32px; background: #fff; border: 1px solid var(--line); border-radius: 16px; text-align: center; }
 #error-state h2 { font-size: 20px; font-weight: 800; margin-bottom: 10px; }
 #error-state p  { font-size: 14px; color: var(--muted); line-height: 1.7; }
 
 /* ── Main ── */
-#main { display: none; max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; }
+#main { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; }
 
 /* ── Back bar ── */
 .back-bar { margin-bottom: 20px; }
@@ -199,14 +199,14 @@ a:hover { text-decoration: underline; }
   <div class="load-label">Loading scorecard...</div>
 </div>
 
-<div id="error-state">
+<div id="error-state" style="display:none">
   <h2 id="err-title">Scorecard Not Found</h2>
   <p id="err-msg">This interview may have been removed or you do not have access.</p>
   <br>
   <a href="/employer" style="font-size:13px;font-weight:700;color:var(--blue);">← Back to Dashboard</a>
 </div>
 
-<div id="main">
+<div id="main" style="display:none">
   <div class="back-bar">
     <a class="back-btn" href="/employer">
       <span class="back-arrow">←</span> Back to Dashboard
