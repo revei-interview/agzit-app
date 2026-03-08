@@ -112,7 +112,7 @@ const INTERVIEW_KEYS = [
   'interview_role', 'session_type', 'scheduled_at',
   'interview_status', 'join_url', 'join_token', 'session_id',
   'mock_overall_score', 'mock_performance_level', 'emp_readiness_band',
-  'audio_url', 'video_url',
+  'audio_url', 'video_url', 'jd_raw_text',
 ];
 
 async function fetchEmployerInterviews(wpUserId, limit) {
@@ -156,6 +156,7 @@ async function fetchEmployerInterviews(wpUserId, limit) {
       emp_readiness_band:     m.emp_readiness_band      || null,
       audio_url:              m.audio_url               || null,
       video_url:              m.video_url               || null,
+      jd_raw_text:            m.jd_raw_text             || null,
     };
   });
 }
@@ -1239,6 +1240,261 @@ router.post('/schedule-interview', ...guardVerified, async (req, res) => {
     res.json({ ok: true, post_id: postId, join_url: joinUrl, emailSent, ...(emailError && { emailError }) });
   } catch (err) {
     console.error('[employer/schedule-interview]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── Helper: upsert a single wp_postmeta row ────────────────────────────────────
+async function upsertPostMeta(postId, key, value) {
+  const [rows] = await pool.execute(
+    'SELECT meta_id FROM wp_postmeta WHERE post_id = ? AND meta_key = ? LIMIT 1',
+    [postId, key]
+  );
+  if (rows.length > 0) {
+    await pool.execute(
+      'UPDATE wp_postmeta SET meta_value = ? WHERE meta_id = ?',
+      [String(value ?? ''), rows[0].meta_id]
+    );
+  } else {
+    await pool.execute(
+      'INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
+      [postId, key, String(value ?? '')]
+    );
+  }
+}
+
+// ── Shared email helper: format scheduledAt string → display string ────────────
+function fmtScheduledDisplay(scheduledAt) {
+  if (!scheduledAt) return 'To be confirmed';
+  const dt = new Date(scheduledAt.includes('T') ? scheduledAt + ':00Z' : scheduledAt.replace(' ', 'T') + 'Z');
+  return !isNaN(dt.getTime()) ? dt.toUTCString().replace('GMT', 'UTC') : scheduledAt;
+}
+
+// ── PATCH /api/employer/interviews/:id ─────────────────────────────────────────
+// Reschedule / edit interview details. Sends reschedule notification to candidate.
+
+router.patch('/interviews/:id', ...guardVerified, async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id);
+    if (!postId) return res.status(400).json({ ok: false, error: 'Invalid interview ID' });
+
+    const [[user]] = await pool.execute(
+      'SELECT wp_user_id FROM agzit_users WHERE id = ?', [req.user.user_id]
+    );
+    const wpId = user?.wp_user_id;
+    if (!wpId) return res.status(400).json({ ok: false, error: 'No WP user linked' });
+
+    const [[ownership]] = await pool.execute(
+      "SELECT meta_id FROM wp_postmeta WHERE post_id = ? AND meta_key = 'employer_user_id' AND meta_value = ? LIMIT 1",
+      [postId, String(wpId)]
+    );
+    if (!ownership) return res.status(403).json({ ok: false, error: 'Interview not found or access denied' });
+
+    const m = await fetchPostMeta(postId, [
+      'candidate_name', 'candidate_email', 'interview_role',
+      'session_type', 'scheduled_at', 'join_url', 'interview_status',
+    ]);
+    if (m.interview_status === 'cancelled') {
+      return res.status(400).json({ ok: false, error: 'Cannot edit a cancelled interview' });
+    }
+
+    const { scheduled_at, session_type, interview_role, jd_raw_text } = req.body;
+    if (scheduled_at)   await upsertPostMeta(postId, 'scheduled_at',   scheduled_at);
+    if (session_type)   await upsertPostMeta(postId, 'session_type',   session_type);
+    if (interview_role) await upsertPostMeta(postId, 'interview_role', interview_role);
+    if (jd_raw_text)    await upsertPostMeta(postId, 'jd_raw_text',    jd_raw_text);
+
+    await pool.execute(
+      'UPDATE wp_posts SET post_modified = NOW(), post_modified_gmt = UTC_TIMESTAMP() WHERE ID = ?',
+      [postId]
+    );
+
+    const finalRole    = interview_role || m.interview_role  || 'Interview';
+    const finalSlot    = scheduled_at   || m.scheduled_at   || '';
+    const finalType    = session_type   || m.session_type   || '20-min';
+    const durationMin  = finalType === '30-min' ? 30 : 20;
+    const firstName    = (m.candidate_name || '').split(' ')[0] || 'Candidate';
+    const scheduledDisplay = fmtScheduledDisplay(finalSlot);
+
+    if (m.candidate_email) {
+      makeBrevoClient().transactionalEmails.sendTransacEmail({
+        sender:      { name: 'AGZIT AI', email: 'no-reply@mail.agzit.com' },
+        to:          [{ email: m.candidate_email, name: m.candidate_name || '' }],
+        subject:     `Your AI Interview has been rescheduled — ${finalRole} | AGZIT`,
+        htmlContent: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:Inter,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:40px 16px;">
+<tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+  <tr><td style="background:linear-gradient(135deg,#0A1A3A 0%,#162848 100%);border-radius:16px 16px 0 0;padding:32px;text-align:center;">
+    <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#C9A24D;margin-bottom:12px;">AGZIT &middot; AI Career Intelligence</div>
+    <div style="font-size:24px;font-weight:800;color:#fff;margin-bottom:6px;">Interview Rescheduled</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.55);">Your updated interview details are below.</div>
+  </td></tr>
+  <tr><td style="background:#fff;padding:36px 32px;">
+    <p style="margin:0 0 22px;font-size:15.5px;color:#1E293B;line-height:1.75;">Hello <strong>${firstName}</strong>,</p>
+    <p style="margin:0 0 28px;font-size:15px;color:#374151;line-height:1.75;">Your AI Interview has been <strong>rescheduled</strong>. Please see the updated details below.</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;margin-bottom:28px;">
+      <tr><td style="padding:0 22px;"><table width="100%" cellpadding="0" cellspacing="0">
+        <tr><td style="padding:16px 0;border-bottom:1px solid #F1F5F9;">
+          <div style="font-size:10.5px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Interview Role</div>
+          <div style="font-size:16px;font-weight:700;color:#0A1A3A;">${finalRole}</div>
+        </td></tr>
+        <tr><td style="padding:16px 0;border-bottom:1px solid #F1F5F9;">
+          <div style="font-size:10.5px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">New Date &amp; Time</div>
+          <div style="font-size:16px;font-weight:700;color:#0A1A3A;">${scheduledDisplay}</div>
+        </td></tr>
+        <tr><td style="padding:16px 0;">
+          <div style="font-size:10.5px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Duration</div>
+          <div style="font-size:16px;font-weight:700;color:#0A1A3A;">${durationMin} Minutes</div>
+        </td></tr>
+      </table></td></tr>
+    </table>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+      <tr><td align="center">
+        <a href="${m.join_url || '#'}" style="display:inline-block;background:#0A1A3A;color:#fff;text-decoration:none;padding:15px 40px;border-radius:10px;font-size:15px;font-weight:700;">Join Your Interview</a>
+      </td></tr>
+    </table>
+    <p style="margin:0;font-size:12.5px;color:#94A3B8;">Join link: <span style="color:#0A1A3A;word-break:break-all;">${m.join_url || ''}</span></p>
+  </td></tr>
+  <tr><td style="background:#F8FAFC;border-top:1px solid #E2E8F0;border-radius:0 0 16px 16px;padding:20px 32px;text-align:center;">
+    <div style="font-size:11px;font-weight:700;color:#0A1A3A;letter-spacing:2px;text-transform:uppercase;">AGZIT</div>
+    <div style="font-size:12px;color:#94A3B8;margin-top:6px;">AI Career Intelligence System &nbsp;&bull;&nbsp; <a href="https://agzit.com" style="color:#C9A24D;text-decoration:none;">agzit.com</a></div>
+  </td></tr>
+</table></td></tr></table></body></html>`,
+      }).catch(err => console.error('[interviews/edit] reschedule email error:', err.message));
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[employer/interviews/edit]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── DELETE /api/employer/interviews/:id ─────────────────────────────────────────
+// Cancel interview + send cancellation email to candidate.
+
+router.delete('/interviews/:id', ...guardVerified, async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id);
+    if (!postId) return res.status(400).json({ ok: false, error: 'Invalid interview ID' });
+
+    const [[user]] = await pool.execute(
+      'SELECT wp_user_id FROM agzit_users WHERE id = ?', [req.user.user_id]
+    );
+    const wpId = user?.wp_user_id;
+    if (!wpId) return res.status(400).json({ ok: false, error: 'No WP user linked' });
+
+    const [[ownership]] = await pool.execute(
+      "SELECT meta_id FROM wp_postmeta WHERE post_id = ? AND meta_key = 'employer_user_id' AND meta_value = ? LIMIT 1",
+      [postId, String(wpId)]
+    );
+    if (!ownership) return res.status(403).json({ ok: false, error: 'Interview not found or access denied' });
+
+    const m = await fetchPostMeta(postId, [
+      'candidate_name', 'candidate_email', 'interview_role', 'session_type',
+      'scheduled_at', 'interview_status',
+    ]);
+    if (m.interview_status === 'completed') {
+      return res.status(400).json({ ok: false, error: 'Completed interviews cannot be cancelled' });
+    }
+    if (m.interview_status === 'cancelled') {
+      return res.json({ ok: true, already_cancelled: true });
+    }
+
+    await pool.execute(
+      "UPDATE wp_postmeta SET meta_value = 'cancelled' WHERE post_id = ? AND meta_key = 'interview_status'",
+      [postId]
+    );
+    await pool.execute(
+      'UPDATE wp_posts SET post_modified = NOW(), post_modified_gmt = UTC_TIMESTAMP() WHERE ID = ?',
+      [postId]
+    );
+
+    const firstName        = (m.candidate_name || '').split(' ')[0] || 'Candidate';
+    const role             = m.interview_role || 'Interview';
+    const scheduledDisplay = fmtScheduledDisplay(m.scheduled_at);
+
+    if (m.candidate_email) {
+      makeBrevoClient().transactionalEmails.sendTransacEmail({
+        sender:      { name: 'AGZIT AI', email: 'no-reply@mail.agzit.com' },
+        to:          [{ email: m.candidate_email, name: m.candidate_name || '' }],
+        subject:     `Your AI Interview has been cancelled — ${role} | AGZIT`,
+        htmlContent: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:Inter,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:40px 16px;">
+<tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+  <tr><td style="background:linear-gradient(135deg,#7F1D1D 0%,#991B1B 100%);border-radius:16px 16px 0 0;padding:32px;text-align:center;">
+    <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#FCA5A5;margin-bottom:12px;">AGZIT &middot; AI Career Intelligence</div>
+    <div style="font-size:24px;font-weight:800;color:#fff;margin-bottom:6px;">Interview Cancelled</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.7);">Your interview has been cancelled by the employer.</div>
+  </td></tr>
+  <tr><td style="background:#fff;padding:36px 32px;">
+    <p style="margin:0 0 22px;font-size:15.5px;color:#1E293B;line-height:1.75;">Hello <strong>${firstName}</strong>,</p>
+    <p style="margin:0 0 28px;font-size:15px;color:#374151;line-height:1.75;">
+      Your scheduled AI Interview for <strong>${role}</strong> on <strong>${scheduledDisplay}</strong> has been <strong>cancelled</strong> by the employer.
+    </p>
+    <p style="margin:0;font-size:14px;color:#6B7280;line-height:1.7;">If you have questions, please contact the employer directly.</p>
+  </td></tr>
+  <tr><td style="background:#F8FAFC;border-top:1px solid #E2E8F0;border-radius:0 0 16px 16px;padding:20px 32px;text-align:center;">
+    <div style="font-size:11px;font-weight:700;color:#0A1A3A;letter-spacing:2px;text-transform:uppercase;">AGZIT</div>
+    <div style="font-size:12px;color:#94A3B8;margin-top:6px;">AI Career Intelligence System &nbsp;&bull;&nbsp; <a href="https://agzit.com" style="color:#C9A24D;text-decoration:none;">agzit.com</a></div>
+  </td></tr>
+</table></td></tr></table></body></html>`,
+      }).catch(err => console.error('[interviews/cancel] email error:', err.message));
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[employer/interviews/delete]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── POST /api/employer/interviews/:id/resend-invite ────────────────────────────
+// Resend the original invite email with current interview details.
+
+router.post('/interviews/:id/resend-invite', ...guardVerified, async (req, res) => {
+  try {
+    const postId = parseInt(req.params.id);
+    if (!postId) return res.status(400).json({ ok: false, error: 'Invalid interview ID' });
+
+    const [[user]] = await pool.execute(
+      'SELECT wp_user_id FROM agzit_users WHERE id = ?', [req.user.user_id]
+    );
+    const wpId = user?.wp_user_id;
+    if (!wpId) return res.status(400).json({ ok: false, error: 'No WP user linked' });
+
+    const [[ownership]] = await pool.execute(
+      "SELECT meta_id FROM wp_postmeta WHERE post_id = ? AND meta_key = 'employer_user_id' AND meta_value = ? LIMIT 1",
+      [postId, String(wpId)]
+    );
+    if (!ownership) return res.status(403).json({ ok: false, error: 'Interview not found or access denied' });
+
+    const m = await fetchPostMeta(postId, [
+      'candidate_name', 'candidate_email', 'interview_role',
+      'session_type', 'scheduled_at', 'join_url', 'join_token', 'interview_status',
+    ]);
+    if (m.interview_status === 'cancelled') {
+      return res.status(400).json({ ok: false, error: 'Cannot resend invite for a cancelled interview' });
+    }
+    if (!m.candidate_email) {
+      return res.status(400).json({ ok: false, error: 'No candidate email on file' });
+    }
+
+    await sendInterviewEmail({
+      candidateName:  m.candidate_name  || '',
+      candidateEmail: m.candidate_email,
+      interviewRole:  m.interview_role  || '',
+      sessionType:    m.session_type    || '20-min',
+      scheduledAt:    m.scheduled_at    || '',
+      joinUrl:        m.join_url        || '',
+      joinToken:      m.join_token      || '',
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[employer/interviews/resend-invite]', err);
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });

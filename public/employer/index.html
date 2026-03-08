@@ -576,6 +576,62 @@ button { font-family: inherit; cursor: pointer; }
   .iv-right { flex-direction: row; align-items: center; }
   .overview-grid { grid-template-columns: 1fr !important; }
 }
+
+/* ── Action menu (three-dot) ─────────────────────────────────────────────── */
+.iv-action-wrap { position: relative; }
+.iv-action-btn {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: none; border: 1px solid var(--border);
+  color: var(--muted); font-size: 13px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  letter-spacing: 2px; transition: background .15s, border-color .15s; cursor: pointer;
+}
+.iv-action-btn:hover { background: var(--surface); border-color: #CBD0E0; color: var(--ink); }
+.iv-action-menu {
+  position: absolute; right: 0; top: 34px; z-index: 200;
+  background: #fff; border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(9,16,31,0.13); min-width: 170px; padding: 5px 0;
+  display: none;
+}
+.iv-action-menu.open { display: block; }
+.iv-action-item {
+  display: block; width: 100%; text-align: left;
+  padding: 9px 16px; font-size: 13px; font-weight: 600; color: var(--ink);
+  background: none; border: none; cursor: pointer; transition: background .12s;
+}
+.iv-action-item:hover { background: var(--surface); }
+.iv-action-item-danger { color: #B91C1C; }
+.iv-action-item-danger:hover { background: #FEF2F2; }
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+#toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+.toast {
+  min-width: 240px; max-width: 340px; padding: 12px 18px;
+  border-radius: 10px; font-size: 13.5px; font-weight: 600;
+  box-shadow: 0 4px 18px rgba(9,16,31,0.18); animation: toastIn .25s ease;
+}
+@keyframes toastIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+.toast-success { background: #F0FDF4; border: 1px solid #86EFAC; color: #166534; }
+.toast-error   { background: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; }
+
+/* ── Confirm overlay ─────────────────────────────────────────────────────── */
+.confirm-overlay {
+  position: fixed; inset: 0; background: rgba(9,16,31,0.45);
+  z-index: 1100; display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.confirm-box {
+  background: #fff; border-radius: 14px; padding: 28px 28px 24px; max-width: 400px; width: 100%;
+  box-shadow: 0 16px 48px rgba(9,16,31,0.22);
+}
+.confirm-title { font-size: 17px; font-weight: 800; color: var(--ink); margin-bottom: 10px; }
+.confirm-body  { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 22px; }
+.confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.btn-danger {
+  font-size: 14px; font-weight: 700; color: #fff;
+  background: #B91C1C; border: none; border-radius: 8px;
+  padding: 10px 20px; transition: background .15s; cursor: pointer;
+}
+.btn-danger:hover { background: #991B1B; }
 </style>
 <script src="/assets/layout.js" defer></script>
 </head>
@@ -928,6 +984,60 @@ button { font-family: inherit; cursor: pointer; }
   </div>
 </div>
 
+<!-- ── Edit / Reschedule Modal ──────────────────────────────────────────── -->
+<div id="edit-modal" style="display:none" class="modal-overlay" onclick="if(event.target===this)closeEditModal()">
+  <div class="modal-box">
+    <div class="modal-title">Edit Interview</div>
+    <div class="modal-sub">The candidate will receive a reschedule notification email.</div>
+    <div id="edit-modal-error" style="display:none;font-size:13px;color:#B91C1C;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:12px;"></div>
+    <input type="hidden" id="em-id">
+    <div class="form-group" style="margin-bottom:12px">
+      <span class="form-label">Candidate</span>
+      <div id="em-candidate" style="font-size:14px;font-weight:600;color:var(--ink);padding:10px 14px;background:var(--surface);border:1.5px solid var(--border);border-radius:8px;"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="em-role">Interview Role</label>
+      <input class="form-input" id="em-role" type="text" maxlength="120">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <label class="form-label" for="em-session-type">Duration</label>
+        <select class="form-select" id="em-session-type">
+          <option value="20-min">20 Minutes</option>
+          <option value="30-min">30 Minutes</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="em-scheduled-at">Date &amp; Time (UTC)</label>
+        <input class="form-input" id="em-scheduled-at" type="datetime-local">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="em-jd">Job Description</label>
+      <textarea class="form-textarea" id="em-jd" rows="4"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeEditModal()">Cancel</button>
+      <button class="btn-submit" id="btn-edit-submit" onclick="submitEditInterview()">Save &amp; Notify Candidate</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Cancel confirm overlay ───────────────────────────────────────────── -->
+<div id="cancel-confirm" style="display:none" class="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-title">Cancel Interview?</div>
+    <div class="confirm-body" id="cancel-confirm-body">The candidate will be notified. This cannot be undone.</div>
+    <div class="confirm-actions">
+      <button class="btn-cancel" onclick="closeCancelConfirm()">Go Back</button>
+      <button class="btn-danger" id="btn-confirm-cancel-action" onclick="confirmCancelInterview()">Cancel Interview</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast container ──────────────────────────────────────────────────── -->
+<div id="toast-container"></div>
+
 <script>
 'use strict';
 
@@ -939,6 +1049,7 @@ let candidatesLoaded = false;
 let interviewsFullLoaded = false;
 let candidatePage = 1;
 const WP_URL = 'https://agzit.com';
+const ivCache = {};            // id -> interview object (for edit/cancel pre-fill)
 
 // ── Boot ────────────────────────────────────────────────────────────────────
 (async function init() {
@@ -1061,6 +1172,8 @@ function renderInterviewList(container, list, max) {
   }
 
   const items = list.slice(0, max);
+  items.forEach(iv => { ivCache[iv.id] = iv; });
+
   container.innerHTML = items.map(iv => {
     const status = iv.interview_status || 'scheduled';
     const scorePart = iv.mock_overall_score
@@ -1068,9 +1181,21 @@ function renderInterviewList(container, list, max) {
     const bandClass = iv.emp_readiness_band ? `iv-band iv-band-${iv.emp_readiness_band}` : '';
     const bandPart  = iv.emp_readiness_band
       ? `<span class="${bandClass}">${bandLabel(iv.emp_readiness_band)}</span>` : '';
-    const joinPart  = iv.join_url
+    const joinPart  = iv.join_url && status !== 'cancelled'
       ? `<a class="iv-join" href="${esc(iv.join_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Join Room</a>` : '';
     const scheduledPart = iv.scheduled_at ? `Scheduled: ${iv.scheduled_at}` : (iv.post_date ? fmtDate(iv.post_date) : '');
+
+    // Three-dot action menu — only for active (scheduled/started) interviews
+    const isEditable = status === 'scheduled' || status === 'started';
+    const actionMenu = isEditable ? `
+      <div class="iv-action-wrap" onclick="event.stopPropagation()">
+        <button class="iv-action-btn" onclick="toggleActionMenu(event,${iv.id})" title="Actions">···</button>
+        <div class="iv-action-menu" id="amenu-${iv.id}">
+          <button class="iv-action-item" onclick="openEditModal(${iv.id})">Edit / Reschedule</button>
+          <button class="iv-action-item" onclick="resendInvite(${iv.id})">Resend Invite</button>
+          <button class="iv-action-item iv-action-item-danger" onclick="cancelInterviewConfirm(${iv.id})">Cancel Interview</button>
+        </div>
+      </div>` : '';
 
     return `
     <div class="iv-card reveal" onclick="openScorecard(${iv.id})" title="View scorecard">
@@ -1088,6 +1213,7 @@ function renderInterviewList(container, list, max) {
         ${scorePart}
         ${bandPart}
         ${joinPart}
+        ${actionMenu}
       </div>
     </div>`;
   }).join('');
@@ -1426,6 +1552,151 @@ function showError(msg) {
        <div style="color:#7C83A0;font-size:14px;margin-bottom:24px">${esc(msg)}</div>
        <a href="/login" style="background:#1A44C2;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px">Back to Login</a>
      </div>`;
+}
+
+// ── Action menu (three-dot) ───────────────────────────────────────────────────
+function toggleActionMenu(event, id) {
+  event.stopPropagation();
+  const menu = document.getElementById('amenu-' + id);
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  closeAllMenus();
+  if (!isOpen) menu.classList.add('open');
+}
+
+function closeAllMenus() {
+  document.querySelectorAll('.iv-action-menu.open').forEach(m => m.classList.remove('open'));
+}
+
+document.addEventListener('click', closeAllMenus);
+
+// ── Edit / Reschedule modal ───────────────────────────────────────────────────
+function openEditModal(id) {
+  closeAllMenus();
+  const iv = ivCache[id];
+  if (!iv) return;
+  document.getElementById('em-id').value           = id;
+  document.getElementById('em-candidate').textContent = iv.candidate_name || 'Candidate';
+  document.getElementById('em-role').value         = iv.interview_role || '';
+  document.getElementById('em-session-type').value = iv.session_type   || '20-min';
+  document.getElementById('em-scheduled-at').value = toDatetimeLocal(iv.scheduled_at);
+  document.getElementById('em-jd').value           = iv.jd_raw_text    || '';
+  document.getElementById('edit-modal-error').style.display = 'none';
+  document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').style.display = 'none';
+}
+
+function toDatetimeLocal(s) {
+  if (!s) return '';
+  return String(s).replace(' ', 'T').slice(0, 16);
+}
+
+async function submitEditInterview() {
+  const id          = document.getElementById('em-id').value;
+  const role        = (document.getElementById('em-role').value || '').trim();
+  const sessionType = document.getElementById('em-session-type').value;
+  const scheduledAt = (document.getElementById('em-scheduled-at').value || '').trim();
+  const jd          = (document.getElementById('em-jd').value || '').trim();
+  const errEl       = document.getElementById('edit-modal-error');
+  const btn         = document.getElementById('btn-edit-submit');
+
+  if (!role)        { errEl.textContent = 'Interview role is required.'; errEl.style.display = 'block'; return; }
+  if (!scheduledAt) { errEl.textContent = 'Date and time is required.';  errEl.style.display = 'block'; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  errEl.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/employer/interviews/' + id, {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ interview_role: role, session_type: sessionType, scheduled_at: scheduledAt, jd_raw_text: jd }),
+    });
+    const data = await res.json();
+    if (!data.ok) { errEl.textContent = data.error || 'Failed to update.'; errEl.style.display = 'block'; return; }
+    closeEditModal();
+    showToast('Interview updated. Candidate notified.', 'success');
+    refreshInterviewsAfterAction();
+  } catch (e) {
+    errEl.textContent = 'Network error. Please try again.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save & Notify Candidate';
+  }
+}
+
+// ── Cancel confirm ────────────────────────────────────────────────────────────
+let _cancelTargetId = null;
+
+function cancelInterviewConfirm(id) {
+  closeAllMenus();
+  _cancelTargetId = id;
+  const iv = ivCache[id];
+  const role = iv?.interview_role || 'this interview';
+  document.getElementById('cancel-confirm-body').textContent =
+    `Cancel the interview for "${role}"? The candidate will be notified. This cannot be undone.`;
+  document.getElementById('cancel-confirm').style.display = 'flex';
+}
+
+function closeCancelConfirm() {
+  document.getElementById('cancel-confirm').style.display = 'none';
+  _cancelTargetId = null;
+}
+
+async function confirmCancelInterview() {
+  if (!_cancelTargetId) return;
+  const id  = _cancelTargetId;
+  const btn = document.getElementById('btn-confirm-cancel-action');
+  btn.disabled = true;
+  btn.textContent = 'Cancelling...';
+  try {
+    const res  = await fetch('/api/employer/interviews/' + id, { method: 'DELETE', credentials: 'include' });
+    const data = await res.json();
+    closeCancelConfirm();
+    if (!data.ok) { showToast(data.error || 'Failed to cancel.', 'error'); return; }
+    showToast('Interview cancelled. Candidate notified.', 'success');
+    refreshInterviewsAfterAction();
+  } catch (e) {
+    closeCancelConfirm();
+    showToast('Network error. Please try again.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Cancel Interview';
+  }
+}
+
+// ── Resend invite ─────────────────────────────────────────────────────────────
+async function resendInvite(id) {
+  closeAllMenus();
+  try {
+    const res  = await fetch('/api/employer/interviews/' + id + '/resend-invite', { method: 'POST', credentials: 'include' });
+    const data = await res.json();
+    if (!data.ok) { showToast(data.error || 'Failed to resend invite.', 'error'); return; }
+    showToast('Invite resent to candidate.', 'success');
+  } catch (e) {
+    showToast('Network error. Please try again.', 'error');
+  }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, type) {
+  type = type || 'success';
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-' + type;
+  toast.textContent = msg;
+  document.getElementById('toast-container').appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+// ── Refresh interviews after edit/cancel ──────────────────────────────────────
+function refreshInterviewsAfterAction() {
+  interviewsFullLoaded = false;
+  loadInterviewsFull();
 }
 </script>
 
