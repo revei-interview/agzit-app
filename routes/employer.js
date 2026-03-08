@@ -9,7 +9,10 @@ const express    = require('express');
 const router     = express.Router();
 const pool       = require('../config/db');
 const crypto     = require('crypto');
-const SibApiV3Sdk = require('@getbrevo/brevo');
+const { BrevoClient, BrevoEnvironment } = require('@getbrevo/brevo');
+function makeBrevoClient() {
+  return new BrevoClient({ apiKey: process.env.BREVO_API_KEY, environment: BrevoEnvironment.Production });
+}
 const { requireAuth, requireRole } = require('../middleware/auth');
 
 // Guards
@@ -1112,18 +1115,13 @@ async function sendInterviewEmail({ candidateName, candidateEmail, interviewRole
 </table>
 </body></html>`;
 
-  const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-  apiInstance.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
-  const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-  sendSmtpEmail.sender      = { name: 'AGZIT AI', email: 'no-reply@mail.agzit.com' };
-  sendSmtpEmail.to          = [{ email: candidateEmail, name: candidateName }];
-  sendSmtpEmail.subject     = `Your AI Interview is Scheduled – ${interviewRole} | AGZIT`;
-  sendSmtpEmail.htmlContent = html;
-  sendSmtpEmail.attachment  = [{
-    name:    'interview-invite.ics',
-    content: Buffer.from(ics, 'utf8').toString('base64'),
-  }];
-  await apiInstance.sendTransacEmail(sendSmtpEmail);
+  await makeBrevoClient().transactionalEmails.sendTransacEmail({
+    sender:      { name: 'AGZIT AI', email: 'no-reply@mail.agzit.com' },
+    to:          [{ email: candidateEmail, name: candidateName }],
+    subject:     `Your AI Interview is Scheduled – ${interviewRole} | AGZIT`,
+    htmlContent: html,
+    attachment:  [{ name: 'interview-invite.ics', content: Buffer.from(ics, 'utf8').toString('base64') }],
+  });
   console.log('[sendInterviewEmail] sent successfully to:', candidateEmail);
 }
 
@@ -1133,14 +1131,12 @@ async function sendInterviewEmail({ candidateName, candidateEmail, interviewRole
 
 router.get('/test-email', ...guardAny, async (req, res) => {
   try {
-    const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-    apiInstance.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
-    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-    sendSmtpEmail.sender      = { name: 'AGZIT AI', email: 'no-reply@mail.agzit.com' };
-    sendSmtpEmail.to          = [{ email: 'no-reply@mail.agzit.com' }];
-    sendSmtpEmail.subject     = 'AGZIT SMTP Test';
-    sendSmtpEmail.htmlContent = '<p>SMTP test successful.</p>';
-    await apiInstance.sendTransacEmail(sendSmtpEmail);
+    await makeBrevoClient().transactionalEmails.sendTransacEmail({
+      sender:      { name: 'AGZIT AI', email: 'no-reply@mail.agzit.com' },
+      to:          [{ email: 'no-reply@mail.agzit.com' }],
+      subject:     'AGZIT SMTP Test',
+      htmlContent: '<p>SMTP test successful.</p>',
+    });
     console.log('[test-email] Brevo test email sent OK');
     res.json({ connected: true });
   } catch (err) {

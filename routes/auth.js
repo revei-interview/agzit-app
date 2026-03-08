@@ -9,7 +9,7 @@ const express  = require('express');
 const router   = express.Router();
 const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
-const SibApiV3Sdk = require('@getbrevo/brevo');
+const { BrevoClient, BrevoEnvironment } = require('@getbrevo/brevo');
 const crypto   = require('crypto');
 const db       = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
@@ -93,14 +93,13 @@ function parseWpRole(capabilities) {
 
 // ── Brevo email helper ─────────────────────────────────────────────────────
 async function sendBrevoEmail({ to, toName, subject, html }) {
-  const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-  apiInstance.authentications['api-key'].apiKey = process.env.BREVO_API_KEY;
-  const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-  sendSmtpEmail.sender      = { name: 'AGZIT AI', email: 'no-reply@mail.agzit.com' };
-  sendSmtpEmail.to          = [{ email: to, ...(toName && { name: toName }) }];
-  sendSmtpEmail.subject     = subject;
-  sendSmtpEmail.htmlContent = html;
-  return apiInstance.sendTransacEmail(sendSmtpEmail);
+  const client = new BrevoClient({ apiKey: process.env.BREVO_API_KEY, environment: BrevoEnvironment.Production });
+  return client.transactionalEmails.sendTransacEmail({
+    sender:      { name: 'AGZIT AI', email: 'no-reply@mail.agzit.com' },
+    to:          [{ email: to, ...(toName && { name: toName }) }],
+    subject,
+    htmlContent: html,
+  });
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
