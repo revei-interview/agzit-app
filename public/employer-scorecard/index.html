@@ -94,24 +94,21 @@ a:hover { text-decoration: underline; }
 }
 .score-number sub { font-size: 11px; font-weight: 600; color: var(--muted); }
 .score-info { flex: 1; min-width: 0; }
-.score-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; }
-.score-perf-badge {
-  display: inline-block; padding: 5px 13px; border-radius: 999px;
-  font-size: 12.5px; font-weight: 800; margin-bottom: 6px;
-}
-.score-sub { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.score-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; display: flex; align-items: center; gap: 4px; }
+.score-sub { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-top: 6px; }
 
 .readiness-card {
   background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 22px 24px;
 }
-.readiness-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 12px; }
+.readiness-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 12px; display: flex; align-items: center; gap: 4px; }
 .readiness-band {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 8px 16px; border-radius: 10px;
   font-size: 15px; font-weight: 800; margin-bottom: 12px;
 }
-.band-strong_match { background: #DCFCE7; color: #15803D; }
-.band-promising    { background: #DBEAFE; color: #1D4ED8; }
+.band-exceptional  { background: #DCFCE7; color: #15803D; }
+.band-strong       { background: #DBEAFE; color: #1D4ED8; }
+.band-promising    { background: #CCFBF1; color: #0F766E; }
 .band-developing   { background: #FEF3C7; color: #B45309; }
 .band-not_ready    { background: #FEE2E2; color: #B91C1C; }
 
@@ -132,12 +129,12 @@ a:hover { text-decoration: underline; }
 .section-title { font-size: 15px; font-weight: 800; color: var(--ink); }
 .section-sub { font-size: 12px; color: var(--muted); margin-left: auto; }
 
-/* ── 9 competency grid ── */
-.comp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+/* ── 10 competency grid ── */
+.comp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .comp-item {
   background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
 }
-.comp-name  { font-size: 11.5px; font-weight: 700; color: var(--soft); margin-bottom: 10px; line-height: 1.4; }
+.comp-name  { font-size: 11.5px; font-weight: 700; color: var(--soft); margin-bottom: 10px; line-height: 1.4; display: flex; align-items: flex-start; gap: 4px; }
 .comp-score-row { display: flex; align-items: center; gap: 10px; }
 .comp-bar-wrap { flex: 1; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
 .comp-bar-fill { height: 100%; border-radius: 3px; transition: width .5s ease; }
@@ -149,12 +146,10 @@ a:hover { text-decoration: underline; }
 .feedback-card { border-radius: 14px; padding: 18px 20px; border: 1px solid; }
 .fb-green  { background: var(--green-lt); border-color: #A7F3D0; }
 .fb-blue   { background: var(--blue-lt);  border-color: #BFDBFE; }
-.fb-purple { background: var(--purple-lt); border-color: #C4B5FD; }
 .fb-amber  { background: var(--amber-lt); border-color: #FCD34D; }
 .fb-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
 .fb-green  .fb-label { color: var(--green); }
 .fb-blue   .fb-label { color: var(--blue); }
-.fb-purple .fb-label { color: var(--purple); }
 .fb-amber  .fb-label { color: var(--amber); }
 .fb-text { font-size: 13px; line-height: 1.75; color: var(--ink); }
 .fb-text li { margin-bottom: 5px; }
@@ -166,28 +161,35 @@ a:hover { text-decoration: underline; }
 .intel-sub  { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 6px; margin-top: 12px; }
 .intel-text { font-size: 12.5px; line-height: 1.75; color: var(--soft); }
 
-/* ── Recording ── */
-.recording-row { display: flex; gap: 12px; flex-wrap: wrap; }
-.rec-btn {
-  display: inline-flex; align-items: center; gap: 7px;
-  background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 10px;
-  font-size: 13px; font-weight: 700; text-decoration: none;
-  transition: opacity .15s;
+/* ── Video recording ── */
+.video-wrap { margin-top: 4px; }
+.video-wrap video { width: 100%; max-width: 640px; border-radius: 8px; display: block; }
+
+/* ── Tooltips ── */
+.tt { position: relative; display: inline-flex; align-items: center; cursor: default; }
+.tt-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--line); color: var(--muted); font-size: 9px; font-weight: 800;
+  flex-shrink: 0; cursor: default; user-select: none; line-height: 1;
 }
-.rec-btn:hover { opacity: .85; text-decoration: none; }
-.rec-btn.secondary { background: var(--surface); color: var(--ink); border: 1px solid var(--line); }
-.rec-btn.secondary:hover { background: #E8EAF2; }
+.tt-body {
+  display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
+  transform: translateX(-50%); background: #09101F; color: #fff;
+  font-size: 11.5px; font-weight: 500; line-height: 1.55;
+  padding: 9px 12px; border-radius: 9px; width: 260px; max-width: 260px;
+  z-index: 9999; pointer-events: none; white-space: normal; text-transform: none;
+  letter-spacing: 0;
+}
+.tt:hover .tt-body { display: block; }
 
 /* ── Responsive ── */
 @media (max-width: 700px) {
   .score-overview  { grid-template-columns: 1fr; }
-  .comp-grid       { grid-template-columns: repeat(2, 1fr); }
+  .comp-grid       { grid-template-columns: 1fr; }
   .feedback-grid   { grid-template-columns: 1fr; }
   .intel-grid      { grid-template-columns: 1fr; }
   #main            { padding: 20px 14px 48px; }
-}
-@media (max-width: 420px) {
-  .comp-grid { grid-template-columns: 1fr; }
 }
 </style>
 <script src="/assets/layout.js" defer></script>
@@ -219,7 +221,7 @@ a:hover { text-decoration: underline; }
   <!-- Score overview -->
   <div class="score-overview" id="score-overview"></div>
 
-  <!-- 9 Competency scores -->
+  <!-- 10 Competency scores -->
   <div class="section-card" id="comp-section" style="display:none">
     <div class="section-head">
       <span class="section-bar section-bar-blue"></span>
@@ -229,11 +231,9 @@ a:hover { text-decoration: underline; }
     <div class="comp-grid" id="comp-grid"></div>
   </div>
 
-  <!-- Feedback cards -->
+  <!-- Feedback cards (Strengths / Improvements / Attention — no Next Focus) -->
   <div id="feedback-section" style="display:none">
     <div class="feedback-grid" id="feedback-grid"></div>
-    <!-- next-focus spans full width -->
-    <div id="next-focus-card" style="margin-bottom:16px;display:none"></div>
   </div>
 
   <!-- Employer intelligence -->
@@ -245,13 +245,13 @@ a:hover { text-decoration: underline; }
     <div class="intel-grid" id="intel-grid"></div>
   </div>
 
-  <!-- Recording -->
+  <!-- Video recording (inline) -->
   <div class="section-card" id="recording-section" style="display:none">
     <div class="section-head">
       <span class="section-bar section-bar-purple"></span>
       <span class="section-title">Session Recording</span>
     </div>
-    <div class="recording-row" id="recording-row"></div>
+    <div class="video-wrap" id="video-wrap"></div>
   </div>
 </div>
 
@@ -273,7 +273,7 @@ function titleCase(s) {
   return String(s || '').replace(/[_\-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
-// Render a bullet-point text field (split by \n or •)
+// Render a bullet-point text field (split by \n)
 function renderBullets(text) {
   if (!text) return '';
   const lines = String(text).split(/\n/).map(l => l.trim()).filter(Boolean);
@@ -288,41 +288,50 @@ function renderProse(text) {
   return '<p style="font-size:13px;line-height:1.8;color:var(--soft);">' + esc(String(text)).replace(/\n/g, '<br>') + '</p>';
 }
 
-// Score colour by value 0–10
+// Score colour: 0–4 red, 5–6 amber, 7–10 green
 function scoreColor(v) {
   if (v === null) return '#CBD5E1';
-  if (v >= 8) return '#22C55E';
-  if (v >= 6) return '#3B82F6';
-  if (v >= 4) return '#F59E0B';
+  if (v >= 7) return '#22C55E';
+  if (v >= 5) return '#F59E0B';
   return '#EF4444';
 }
 
 // Overall score ring colour 0–100
 function ringColor(v) {
   if (v === null) return '#CBD5E1';
-  if (v >= 75) return '#22C55E';
-  if (v >= 60) return '#3B82F6';
+  if (v >= 85) return '#22C55E';
+  if (v >= 70) return '#3B82F6';
   if (v >= 50) return '#F59E0B';
   return '#EF4444';
 }
 
-// Performance level badge colours (5-band candidate scale)
-const PERF_COLORS = {
-  'Interview Ready':           { bg:'#DCFCE7', bd:'#86EFAC', tx:'#166534' },
-  'Strong Potential':          { bg:'#DBEAFE', bd:'#93C5FD', tx:'#1D4ED8' },
-  'Developing Professional':   { bg:'#CCFBF1', bd:'#5EEAD4', tx:'#0F766E' },
-  'Needs Structured Practice': { bg:'#FEF3C7', bd:'#FCD34D', tx:'#92400E' },
-  'Foundation Level':          { bg:'#FEE2E2', bd:'#FCA5A5', tx:'#991B1B' },
-};
-function perfBadge(level) {
-  const c = PERF_COLORS[level] || { bg:'#F1F5F9', bd:'#CBD5E1', tx:'#475569' };
-  return `<span class="score-perf-badge" style="background:${c.bg};border:1px solid ${c.bd};color:${c.tx};">${esc(level)}</span>`;
+// Compute employer readiness band from overall_score (/100)
+function computeBand(score) {
+  if (score === null || score === undefined) return null;
+  if (score >= 85) return 'exceptional';
+  if (score >= 70) return 'strong';
+  if (score >= 50) return 'promising';
+  if (score >= 30) return 'developing';
+  return 'not_ready';
 }
 
-const BAND_LABELS = { strong_match: 'Strong Match', promising: 'Promising', developing: 'Developing', not_ready: 'Not Ready' };
+const BAND_LABELS = {
+  exceptional: 'Exceptional',
+  strong:      'Strong',
+  promising:   'Promising',
+  developing:  'Developing',
+  not_ready:   'Not Ready',
+};
+
+const BAND_TIP = '85–100 Exceptional: Strongly recommended. 70–84 Strong: Recommended with standard onboarding. 50–69 Promising: Consider with structured support. 30–49 Developing: Suitable for junior roles with mentoring. 0–29 Not Ready: Does not meet minimum threshold.';
+
+function ttHtml(tipText) {
+  return `<span class="tt"><span class="tt-icon">i</span><span class="tt-body">${esc(tipText)}</span></span>`;
+}
+
 function bandBadge(band) {
-  const cls = 'readiness-band band-' + (band || '');
-  return `<div class="${cls}">${esc(BAND_LABELS[band] || titleCase(band))}</div>`;
+  const cls = 'readiness-band band-' + (band || 'not_ready');
+  return `<div class="${cls}">${esc(BAND_LABELS[band] || titleCase(band || 'Unknown'))}</div>`;
 }
 
 function statusBadge(s) {
@@ -331,21 +340,34 @@ function statusBadge(s) {
   return `<span class="${cls}">${labels[s] || s || 'Scheduled'}</span>`;
 }
 
-// SVG score ring (80x80)
-function scoreRing(score, maxScore) {
+// SVG score ring (80x80), score out of 100
+function scoreRing(score) {
   const r = 34; const c = 40;
   const circ = 2 * Math.PI * r;
-  const pct  = maxScore > 0 ? Math.min(1, (score ?? 0) / maxScore) : 0;
-  const dash  = circ;
+  const pct  = score !== null ? Math.min(1, score / 100) : 0;
   const offset = circ * (1 - pct);
   const color = ringColor(score);
   return `<svg width="80" height="80" viewBox="0 0 80 80">
     <circle class="score-ring-bg" cx="${c}" cy="${c}" r="${r}"/>
     <circle class="score-ring-fg" cx="${c}" cy="${c}" r="${r}"
-      stroke="${color}" stroke-dasharray="${dash}" stroke-dashoffset="${offset}"/>
+      stroke="${color}" stroke-dasharray="${circ}" stroke-dashoffset="${offset}"/>
   </svg>
-  <div class="score-number">${score ?? '--'}<sub>/${maxScore}</sub></div>`;
+  <div class="score-number">${score ?? '--'}<sub>/100</sub></div>`;
 }
+
+// ── Competency definitions (tooltips) ────────────────────────────────────────
+const COMP_TIPS = {
+  score_communication:        'Communication Clarity: Ability to express ideas clearly, concisely and professionally.',
+  score_structure:            'Answer Structure: Ability to organise responses logically with a clear beginning, middle and conclusion.',
+  score_role_knowledge:       'Role Knowledge: Depth of understanding of domain, tools and processes required for the role.',
+  score_domain_application:   'Domain Application: Ability to apply role knowledge to real-world scenarios and practical situations.',
+  score_problem_solving:      'Problem Solving: Ability to analyse issues, identify root causes and propose effective solutions.',
+  score_confidence:           'Confidence & Presence: Vocal confidence, pacing and professional demeanour during the interview.',
+  score_question_handling:    'Question Handling: Ability to address the actual question asked without deflecting or going off-topic.',
+  score_experience_relevance: 'Experience Relevance: Degree to which past experience maps to the requirements of the role.',
+  score_resume_alignment:     'Resume Alignment: Consistency between interview claims and what is stated on the resume.',
+  depth_specificity:          'Depth & Specificity: Degree to which the candidate supports answers with real examples, specific tools, quantifiable outcomes and concrete cases rather than vague generic responses.',
+};
 
 // ── Render functions ────────────────────────────────────────────────────────────
 
@@ -366,26 +388,24 @@ function renderSessionHeader(iv) {
 }
 
 function renderScoreOverview(iv) {
-  const hasScore = iv.mock_overall_score !== null;
-  const hasBand  = !!iv.emp_readiness_band;
+  const band = computeBand(iv.overall_score);
 
   let html = '';
 
-  // Left: overall score ring + performance level
+  // Left: overall score ring (X/100) — no mock_performance_level badge
   html += `<div class="score-card">
-    <div class="score-ring-wrap">${scoreRing(iv.mock_overall_score, 100)}</div>
+    <div class="score-ring-wrap">${scoreRing(iv.overall_score)}</div>
     <div class="score-info">
       <div class="score-label">Overall Score</div>
-      ${iv.mock_performance_level ? perfBadge(iv.mock_performance_level) : ''}
-      <div class="score-sub">AI-assessed mock interview performance.</div>
+      <div class="score-sub">AI Interview Assessment</div>
+      ${iv.overall_score === null ? '<div style="font-size:12.5px;color:var(--muted);margin-top:8px;">Scorecard available once the interview is completed.</div>' : ''}
     </div>
   </div>`;
 
-  // Right: employer readiness band
+  // Right: employer readiness band (computed from overall_score)
   html += `<div class="readiness-card">
-    <div class="readiness-label">Employer Readiness</div>
-    ${hasBand ? bandBadge(iv.emp_readiness_band) : '<div style="color:var(--muted);font-size:13px;">Not assessed yet</div>'}
-    ${!hasScore ? '<div style="font-size:12.5px;color:var(--muted);margin-top:8px;">Scorecard will be available once the interview is completed.</div>' : ''}
+    <div class="readiness-label">Employer Readiness ${ttHtml(BAND_TIP)}</div>
+    ${band ? bandBadge(band) : '<div style="color:var(--muted);font-size:13px;">Not assessed yet</div>'}
   </div>`;
 
   el('score-overview').innerHTML = html;
@@ -402,17 +422,19 @@ function renderCompetencies(iv) {
     { key: 'score_question_handling',    label: 'Question Handling' },
     { key: 'score_experience_relevance', label: 'Experience Relevance' },
     { key: 'score_resume_alignment',     label: 'Resume Alignment' },
+    { key: 'depth_specificity',          label: 'Depth & Specificity' },
   ];
 
   const hasAny = comps.some(c => iv[c.key] !== null);
   if (!hasAny) return;
 
   el('comp-grid').innerHTML = comps.map(c => {
-    const v = iv[c.key];
+    const v   = iv[c.key];
     const pct = v !== null ? (v / 10 * 100) : 0;
     const color = scoreColor(v);
+    const tip = COMP_TIPS[c.key] || '';
     return `<div class="comp-item">
-      <div class="comp-name">${esc(c.label)}</div>
+      <div class="comp-name">${esc(c.label)}${tip ? ttHtml(tip) : ''}</div>
       <div class="comp-score-row">
         <div class="comp-bar-wrap"><div class="comp-bar-fill" style="width:${pct}%;background:${color};"></div></div>
         <span class="comp-num">${v ?? '–'}</span><span class="comp-denom">/10</span>
@@ -424,40 +446,29 @@ function renderCompetencies(iv) {
 }
 
 function renderFeedback(iv) {
+  // mock_next_focus intentionally excluded — not shown to employers
   const pairs = [
-    { key: 'mock_strengths',     cls: 'fb-green',  label: 'Strengths' },
-    { key: 'mock_improvements',  cls: 'fb-blue',   label: 'Areas to Improve' },
+    { key: 'mock_strengths',       cls: 'fb-green', label: 'Strengths' },
+    { key: 'mock_improvements',    cls: 'fb-blue',  label: 'Areas to Improve' },
     { key: 'mock_attention_areas', cls: 'fb-amber', label: 'Attention Areas' },
   ];
 
-  const gridCards = pairs.filter(p => iv[p.key]);
-  const hasFocus  = !!iv.mock_next_focus;
-  const hasFeedback = gridCards.length > 0 || hasFocus;
+  const cards = pairs.filter(p => iv[p.key]);
+  if (!cards.length) return;
 
-  if (!hasFeedback) return;
-
-  el('feedback-grid').innerHTML = gridCards.map(p => `
+  el('feedback-grid').innerHTML = cards.map(p => `
     <div class="feedback-card ${p.cls}">
       <div class="fb-label">${esc(p.label)}</div>
       <div class="fb-text">${renderBullets(iv[p.key])}</div>
     </div>`).join('');
 
-  if (hasFocus) {
-    el('next-focus-card').innerHTML = `
-      <div class="feedback-card fb-purple" style="margin:0;">
-        <div class="fb-label">Next Focus</div>
-        <div class="fb-text">${renderProse(iv.mock_next_focus)}</div>
-      </div>`;
-    show(el('next-focus-card'));
-  }
-
   show(el('feedback-section'));
 }
 
 function renderIntelligence(iv) {
-  const hasStrengths  = !!iv.emp_role_strengths;
-  const hasGaps       = !!iv.emp_role_gaps;
-  const hasRedFlags   = !!iv.emp_red_flags;
+  const hasStrengths   = !!iv.emp_role_strengths;
+  const hasGaps        = !!iv.emp_role_gaps;
+  const hasRedFlags    = !!iv.emp_red_flags;
   const hasConsistency = !!iv.emp_consistency_check;
 
   if (!hasStrengths && !hasGaps && !hasRedFlags && !hasConsistency) return;
@@ -490,27 +501,13 @@ function renderIntelligence(iv) {
 }
 
 function renderRecording(iv) {
-  let html = '';
-  if (iv.audio_url) {
-    html += `<a class="rec-btn" href="${esc(iv.audio_url)}" target="_blank" rel="noopener">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3a9 9 0 100 18A9 9 0 0012 3zm-2 13V8l7 4-7 4z"/></svg>
-      Play Audio
-    </a>`;
-  }
-  if (iv.video_url) {
-    html += `<a class="rec-btn" href="${esc(iv.video_url)}" target="_blank" rel="noopener">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 7.5l-6 4.5 6 4.5V7.5zM10 8H4v8h6V8z"/></svg>
-      View Video
-    </a>`;
-  }
-  if (iv.resume_file) {
-    html += `<a class="rec-btn secondary" href="${esc(iv.resume_file)}" target="_blank" rel="noopener noreferrer">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      Resume
-    </a>`;
-  }
-  if (!html) return;
-  el('recording-row').innerHTML = html;
+  // Audio link removed — video shown inline only
+  if (!iv.video_url) return;
+  el('video-wrap').innerHTML = `<video controls preload="none"
+    style="width:100%;max-width:640px;border-radius:8px;">
+    <source src="${esc(iv.video_url)}">
+    Your browser does not support the video element.
+  </video>`;
   show(el('recording-section'));
 }
 

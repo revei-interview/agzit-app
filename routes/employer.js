@@ -699,6 +699,7 @@ const FULL_INTERVIEW_KEYS = [
   'score_communication', 'score_structure', 'score_role_knowledge',
   'score_domain_application', 'score_problem_solving', 'score_confidence',
   'score_question_handling', 'score_experience_relevance', 'score_resume_alignment',
+  'depth_specificity',
   'mock_strengths', 'mock_improvements', 'mock_next_focus', 'mock_attention_areas',
   'emp_role_strengths', 'emp_role_gaps', 'emp_red_flags', 'emp_consistency_check',
   'audio_url', 'video_url', 'resume_file',
@@ -736,6 +737,16 @@ router.get('/interviews/:id', ...guardAny, async (req, res) => {
 
     const int = (v) => (v !== null && v !== undefined && v !== '') ? parseInt(v) : null;
 
+    // Compute overall_score as sum of all 10 competency scores (max 100)
+    const scoreKeys = [
+      'score_communication', 'score_structure', 'score_role_knowledge',
+      'score_domain_application', 'score_problem_solving', 'score_confidence',
+      'score_question_handling', 'score_experience_relevance', 'score_resume_alignment',
+      'depth_specificity',
+    ];
+    const parsedScores = scoreKeys.map(k => int(m[k])).filter(s => s !== null);
+    const overall_score = parsedScores.length > 0 ? parsedScores.reduce((a, b) => a + b, 0) : null;
+
     res.json({
       ok: true,
       interview: {
@@ -752,8 +763,7 @@ router.get('/interviews/:id', ...guardAny, async (req, res) => {
         interview_status:         m.interview_status            || null,
         join_url:                 m.join_url                    || null,
         session_id:               m.session_id                  || null,
-        mock_overall_score:       int(m.mock_overall_score),
-        mock_performance_level:   m.mock_performance_level      || null,
+        overall_score,
         emp_readiness_band:       m.emp_readiness_band          || null,
         score_communication:      int(m.score_communication),
         score_structure:          int(m.score_structure),
@@ -764,9 +774,9 @@ router.get('/interviews/:id', ...guardAny, async (req, res) => {
         score_question_handling:  int(m.score_question_handling),
         score_experience_relevance: int(m.score_experience_relevance),
         score_resume_alignment:   int(m.score_resume_alignment),
+        depth_specificity:        int(m.depth_specificity),
         mock_strengths:           m.mock_strengths              || null,
         mock_improvements:        m.mock_improvements           || null,
-        mock_next_focus:          m.mock_next_focus             || null,
         mock_attention_areas:     m.mock_attention_areas        || null,
         emp_role_strengths:       m.emp_role_strengths          || null,
         emp_role_gaps:            m.emp_role_gaps               || null,
