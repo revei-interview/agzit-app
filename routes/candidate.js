@@ -24,7 +24,7 @@ async function getProfileId(userId) {
 // Fetch all non-private postmeta for a WP post (excludes ACF field-key rows)
 async function fetchPostMeta(postId) {
   const [rows] = await pool.execute(
-    "SELECT meta_key, meta_value FROM wp_postmeta WHERE post_id = ? AND meta_key NOT LIKE '\_%'",
+    "SELECT meta_key, meta_value FROM wp_postmeta WHERE post_id = ? AND LEFT(meta_key, 1) != '_'",
     [postId]
   );
   const meta = {};
@@ -74,10 +74,11 @@ const SESSION_SUBFIELDS = [
   'target_career_level', 'interview_status', 'duration_minutes',
   'audio_url', 'video_url', 'recording_id', 'share_token', 'share_expires_at',
   'jd_raw_text',
-  // Scorecard — 9 core scores
+  // Scorecard — 10 core scores
   'score_communication', 'score_structure', 'score_role_knowledge',
   'score_domain_application', 'score_problem_solving', 'score_confidence',
   'score_question_handling', 'score_experience_relevance', 'score_resume_alignment',
+  'depth_specificity',
   // Scorecard — overall + feedback
   'mock_overall_score', 'mock_performance_level',
   'mock_strengths', 'mock_improvements', 'mock_next_focus', 'mock_attention_areas',

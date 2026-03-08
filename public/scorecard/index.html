@@ -31,14 +31,14 @@
     .load-label { font-size: 13px; color: var(--muted); font-weight: 600; }
 
     #error-state {
-      display: none; max-width: 520px; margin: 80px auto; padding: 32px;
+      max-width: 520px; margin: 80px auto; padding: 32px;
       background: #fff; border: 1px solid var(--line); border-radius: 16px; text-align: center;
     }
     #error-state h2 { font-size: 20px; font-weight: 800; margin-bottom: 10px; }
     #error-state p  { font-size: 14px; color: var(--muted); line-height: 1.7; }
 
     /* ── Main ── */
-    #main { display: none; max-width: 820px; margin: 0 auto; padding: 28px 20px 72px; }
+    #main { max-width: 820px; margin: 0 auto; padding: 28px 20px 72px; }
 
     /* ── Top bar ── */
     .top-bar {
@@ -135,8 +135,8 @@
     .guide-range { font-size: 10.5px; color: #94A3B8; font-weight: 600; margin-top: 2px; }
     .guide-desc  { font-size: 12px; color: #475569; line-height: 1.65; }
 
-    /* ── 3x3 competency grid ── */
-    .score-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; margin-bottom: 4px; }
+    /* ── 2-col competency grid (10 items = 5 rows × 2) ── */
+    .score-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 9px; margin-bottom: 4px; }
     .score-card { position: relative; border-radius: 12px; padding: 14px 10px 12px; text-align: center; transition: box-shadow .15s; }
     .score-card:hover { box-shadow: 0 3px 14px rgba(10,26,58,0.08); }
     .info-btn {
@@ -187,7 +187,7 @@
     .reveal.visible { opacity: 1; transform: none; }
 
     /* ── Responsive ── */
-    @media (max-width: 580px) { .score-grid { grid-template-columns: repeat(2,1fr) !important; } .header-band { flex-direction: column; } .hb-right { text-align: left; } .hb-track { margin-left: 0; } .guide-row { flex-direction: column; gap: 5px; } .guide-meta { min-width: unset; } }
+    @media (max-width: 580px) { .score-grid { grid-template-columns: 1fr !important; } .header-band { flex-direction: column; } .hb-right { text-align: left; } .hb-track { margin-left: 0; } .guide-row { flex-direction: column; gap: 5px; } .guide-meta { min-width: unset; } }
     @media (max-width: 360px) { .score-grid { grid-template-columns: 1fr !important; } }
   </style>
 <script src="/assets/layout.js" defer></script>
@@ -199,13 +199,13 @@
   <div class="load-label">Loading scorecard...</div>
 </div>
 
-<div id="error-state">
+<div id="error-state" style="display:none">
   <h2 id="err-title">Scorecard Not Found</h2>
   <p id="err-msg">This session may not have a scorecard yet, or the session ID is incorrect.</p>
   <a href="/dashboard" style="display:inline-block;margin-top:16px;background:#09101F;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:700;">Back to Dashboard</a>
 </div>
 
-<div id="main">
+<div id="main" style="display:none">
   <!-- Top bar -->
   <div class="top-bar">
     <a class="back-btn" href="/dashboard">&larr; Back to Dashboard</a>
@@ -233,6 +233,13 @@
 
   <!-- Feedback card -->
   <div class="card reveal" id="feedback-card" style="display:none"></div>
+
+  <!-- Video recording card -->
+  <div class="card reveal" id="video-card" style="display:none">
+    <div class="sec-label" style="margin-bottom:12px;">Interview Recording</div>
+    <video id="vid-player" controls preload="none"
+      style="width:100%;border-radius:10px;background:#000;display:block;"></video>
+  </div>
 
 </div><!-- #main -->
 
@@ -276,10 +283,10 @@ function barGrad(score) {
 }
 
 function scoreColor(v) {
-  if (v >= 9) return { tx: '#166534', bg: '#F0FDF4', bd: '#86EFAC', bar: '#16a34a', ibg: '#DCFCE7', itx: '#166534' };
-  if (v >= 7) return { tx: '#0F766E', bg: '#F0FDFA', bd: '#5EEAD4', bar: '#0d9488', ibg: '#CCFBF1', itx: '#0F766E' };
-  if (v >= 5) return { tx: '#92400E', bg: '#FFFBEB', bd: '#FCD34D', bar: '#d97706', ibg: '#FEF3C7', itx: '#92400E' };
-  return           { tx: '#991B1B', bg: '#FFF5F5', bd: '#FCA5A5', bar: '#dc2626', ibg: '#FEE2E2', itx: '#991B1B' };
+  if (v >= 8) return { tx: '#0B7A47', bg: '#E4F5EE', bd: '#6EE7B7', bar: '#0B7A47', ibg: '#D1FAE5', itx: '#065F46' };
+  if (v >= 6) return { tx: '#166534', bg: '#F0FDF4', bd: '#86EFAC', bar: '#22C55E', ibg: '#DCFCE7', itx: '#166534' };
+  if (v >= 4) return { tx: '#92400E', bg: '#FFFBEB', bd: '#FCD34D', bar: '#D97706', ibg: '#FEF3C7', itx: '#92400E' };
+  return           { tx: '#991B1B', bg: '#FFF5F5', bd: '#FCA5A5', bar: '#E53E3E', ibg: '#FEE2E2', itx: '#991B1B' };
 }
 
 // ── Core score definitions ────────────────────────────────────────────────────
@@ -302,6 +309,8 @@ const CORE_SCORES = [
     def: 'Relevance of past experience to the target role, with specific personal contributions and articulated outcomes rather than generic team-level descriptions.' },
   { field: 'score_resume_alignment',    label: 'Resume Fit',    short: 'Authenticity and Consistency',
     def: 'Spoken answers align with the claims made on the CV. Flags inconsistencies in stated responsibilities, timelines, or achievements that appear during the interview.' },
+  { field: 'depth_specificity',         label: 'Depth & Specificity', short: 'Precision and Evidence',
+    def: 'Names specific tools, sources, platforms, or case-specific steps rather than giving generic high-level descriptions. Evaluated on how precise, evidenced, and tool-specific the answers are.' },
 ];
 
 // ── Render scorecard ──────────────────────────────────────────────────────────
@@ -462,8 +471,8 @@ function downloadScorecard() {
 }
 
 function buildPdfHtml(info, sc, fb) {
-  function barCol(v) { if(v>=9) return '#16a34a'; if(v>=7) return '#0d9488'; if(v>=5) return '#d97706'; return '#dc2626'; }
-  const labels = { score_communication:'Communication', score_structure:'Structure', score_role_knowledge:'Role Knowledge', score_domain_application:'Domain Application', score_problem_solving:'Problem Solving', score_confidence:'Confidence', score_question_handling:'Q. Handling', score_experience_relevance:'Experience', score_resume_alignment:'Resume Fit' };
+  function barCol(v) { if(v>=8) return '#0B7A47'; if(v>=6) return '#22C55E'; if(v>=4) return '#D97706'; return '#E53E3E'; }
+  const labels = { score_communication:'Communication', score_structure:'Structure', score_role_knowledge:'Role Knowledge', score_domain_application:'Domain Application', score_problem_solving:'Problem Solving', score_confidence:'Confidence', score_question_handling:'Q. Handling', score_experience_relevance:'Experience', score_resume_alignment:'Resume Fit', depth_specificity:'Depth & Specificity' };
   let rows = '';
   for (const [k,lbl] of Object.entries(labels)) {
     const v = sc[k]||0; const col = barCol(v);
@@ -538,6 +547,12 @@ function setupReveal() {
 
     // Render scorecard
     renderScorecard(s);
+
+    // Video player
+    if (s.video_url) {
+      el('vid-player').src = s.video_url;
+      el('video-card').style.display = '';
+    }
 
     el('loading').style.display = 'none';
     el('main').style.display    = '';
