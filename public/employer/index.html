@@ -928,6 +928,17 @@ button { font-family: inherit; cursor: pointer; }
         <div class="section-title">Your Scheduled Interviews</div>
         <button id="btn-schedule" class="ql-btn ql-btn-primary" onclick="openScheduleModal()" style="display:none">+ Schedule AI Interview</button>
       </div>
+      <div id="iv-search-wrap" style="margin-bottom:16px;display:none">
+        <div style="position:relative;max-width:320px">
+          <input class="filter-input" id="iv-search-email" type="text"
+            placeholder="Search by candidate email..."
+            style="width:100%;padding-right:32px;"
+            oninput="filterInterviews()">
+          <button onclick="clearIvSearch()"
+            style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:0;line-height:1;"
+            title="Clear">×</button>
+        </div>
+      </div>
       <div id="interviews-list-full" class="loading-row" style="display:none">
         <div class="spinner"></div> Loading interviews...
       </div>
@@ -1049,6 +1060,7 @@ let profileLoaded = false;
 let candidatesLoaded = false;
 let interviewsFullLoaded = false;
 let candidatePage = 1;
+let allInterviewsList = [];    // full list for client-side email filter
 const WP_URL = 'https://agzit.com';
 const ivCache = {};            // id -> interview object (for edit/cancel pre-fill)
 
@@ -1473,13 +1485,40 @@ async function loadInterviewsFull() {
     const data = await res.json();
     loadingEl.style.display = 'none';
     if (!data.ok) throw new Error(data.error);
-    renderInterviewList(listEl, data.interviews, 1000);
+    allInterviewsList = data.interviews || [];
+    if (allInterviewsList.length) document.getElementById('iv-search-wrap').style.display = 'block';
+    renderInterviewList(listEl, allInterviewsList, 1000);
     interviewsFullLoaded = true;
     initReveal();
   } catch (e) {
     loadingEl.style.display = 'none';
     listEl.innerHTML = `<div class="notice notice-amber">${esc(e.message || 'Failed to load interviews.')}</div>`;
   }
+}
+
+function filterInterviews() {
+  const query  = (document.getElementById('iv-search-email').value || '').toLowerCase().trim();
+  const listEl = document.getElementById('interviews-list');
+  if (!query) {
+    renderInterviewList(listEl, allInterviewsList, 1000);
+    initReveal();
+    return;
+  }
+  const filtered = allInterviewsList.filter(iv =>
+    (iv.candidate_email || '').toLowerCase().includes(query)
+  );
+  if (!filtered.length) {
+    listEl.innerHTML = `<div class="empty-state"><div class="empty-state-title">No interviews match your search</div><div class="empty-state-sub">Try a different email address.</div></div>`;
+  } else {
+    renderInterviewList(listEl, filtered, 1000);
+    initReveal();
+  }
+}
+
+function clearIvSearch() {
+  document.getElementById('iv-search-email').value = '';
+  renderInterviewList(document.getElementById('interviews-list'), allInterviewsList, 1000);
+  initReveal();
 }
 
 // ── Schedule Interview Modal ──────────────────────────────────────────────────

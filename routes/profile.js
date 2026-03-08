@@ -6,6 +6,7 @@
 const { Router } = require('express');
 const router = Router();
 const pool   = require('../config/db');
+const jwt    = require('jsonwebtoken');
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -77,6 +78,25 @@ async function incrementViewCount(postId, current) {
   } catch (_) {}
 }
 
+// ── Unlock helpers ────────────────────────────────────────────────────────────
+
+function parseUnlockedMap(raw) {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return typeof parsed === 'object' && parsed !== null ? parsed : {};
+  } catch { return {}; }
+}
+
+function isProfileUnlocked(unlockedMap, dprId) {
+  if (!dprId) return false;
+  const entry = unlockedMap[dprId];
+  if (!entry) return false;
+  const expires = parseInt(entry.expires) || 0;
+  if (expires > 0 && Math.floor(Date.now() / 1000) > expires) return false;
+  return true;
+}
+
 // ── GET / ─────────────────────────────────────────────────────────────────────
 
 router.get('/', async (req, res) => {
@@ -98,6 +118,47 @@ router.get('/', async (req, res) => {
     // Increment view count (fire-and-forget)
     const currentViews = parseInt(meta.dpr_id_view_count) || 0;
     incrementViewCount(post.ID, currentViews);
+
+    // ── Optional auth: check if viewer is a verified employer with unlock ──────
+    let viewerIsEmployer = false;
+    let viewerCanSeeContact = false;
+    let contactEmail = null;
+    let contactPhone = null;
+
+    const contactVis = (meta.contact_visibility || 'co_verified_only').trim();
+
+    if (contactVis === 'co_public') {
+      viewerCanSeeContact = true;
+    } else if (contactVis === 'co_verified_only') {
+      // Try to identify the viewer from their JWT cookie (no error if absent)
+      try {
+        const token = req.cookies?.agzit_token;
+        if (token) {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          if (decoded.role === 'verified_employer' && decoded.wp_user_id) {
+            viewerIsEmployer = true;
+            // Check unlocked_profiles user meta for this employer
+            const [[umRow]] = await pool.execute(
+              "SELECT meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'unlocked_profiles' LIMIT 1",
+              [decoded.wp_user_id]
+            );
+            const unlockedMap = parseUnlockedMap(umRow?.meta_value);
+            if (isProfileUnlocked(unlockedMap, meta.dpr_id)) {
+              viewerCanSeeContact = true;
+            }
+          } else if (decoded.role === 'dpr_employer') {
+            // Pending employer — can see the lock state but can't unlock yet
+            viewerIsEmployer = true;
+          }
+        }
+      } catch (_) { /* invalid/expired JWT — treat as public visitor */ }
+    }
+
+    if (viewerCanSeeContact) {
+      contactEmail = meta.email_address || null;
+      contactPhone = meta.phone_number  || null;
+    }
+    // ── End optional auth ──────────────────────────────────────────────────────
 
     // Repeaters
     const workExperience = parseRepeater(meta, 'work_experience', [
@@ -186,6 +247,13 @@ router.get('/', async (req, res) => {
         // Resume (public only)
         resume_url:           resumeUrl,
         resume_visibility:    resumeVis,
+
+        // Contact (employer unlock gated)
+        viewer_is_employer:      viewerIsEmployer,
+        viewer_can_see_contact:  viewerCanSeeContact,
+        contact_visibility:      contactVis,
+        contact_email:           contactEmail,
+        contact_phone:           contactPhone,
       },
     });
   } catch (err) {

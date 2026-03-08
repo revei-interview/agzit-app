@@ -582,6 +582,27 @@ function renderRight(p) {
     </div>
   </div>`;
 
+  // Contact details (employer unlock gated)
+  const contactVis = p.contact_visibility || 'co_verified_only';
+  if (contactVis !== 'co_private') {
+    if (p.viewer_can_see_contact && (p.contact_email || p.contact_phone)) {
+      let cHtml = `<div style="font-size:9.5px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--blue);margin-bottom:10px;">Contact Details</div>`;
+      if (p.contact_email) cHtml += kv('Email', p.contact_email);
+      if (p.contact_phone) cHtml += kv('Phone', p.contact_phone);
+      html += `<div class="card card-blue reveal">${cHtml}</div>`;
+    } else if (p.viewer_is_employer && !p.viewer_can_see_contact) {
+      html += `<div class="card reveal">
+        <div style="font-size:9.5px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Contact Details</div>
+        <div style="font-size:13px;color:#374151;line-height:1.65;margin-bottom:12px;">Unlock this profile to view the candidate's contact details.</div>
+        <button data-dpr-id="${esc(p.dpr_id)}" onclick="unlockProfile(this)"
+          style="width:100%;padding:10px 16px;background:var(--blue);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;">
+          Unlock Contact Details
+        </button>
+        <div id="unlock-msg" style="margin-top:8px;font-size:12.5px;display:none;line-height:1.5;"></div>
+      </div>`;
+    }
+  }
+
   // Privacy note
   html += `<div class="card card-surface reveal">
     <div style="font-size:11px;font-weight:800;color:#94A3B8;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Privacy &amp; Access</div>
@@ -673,6 +694,36 @@ function applyDisplayName(p) {
     console.error('[profile]', err);
   }
 })();
+
+async function unlockProfile(btn) {
+  const dprId  = btn.dataset.dprId;
+  const msgEl  = document.getElementById('unlock-msg');
+  btn.disabled = true;
+  btn.textContent = 'Unlocking...';
+  try {
+    const res  = await fetch('/api/employer/unlock', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dpr_id: dprId }),
+    });
+    const data = await res.json();
+    if (data.ok || data.already_unlocked) {
+      window.location.reload();
+    } else {
+      msgEl.style.color   = '#B91C1C';
+      msgEl.textContent   = data.error || 'Failed to unlock. Please try again.';
+      msgEl.style.display = 'block';
+      btn.disabled        = false;
+      btn.textContent     = 'Unlock Contact Details';
+    }
+  } catch (_) {
+    msgEl.style.color   = '#B91C1C';
+    msgEl.textContent   = 'Network error. Please try again.';
+    msgEl.style.display = 'block';
+    btn.disabled        = false;
+    btn.textContent     = 'Unlock Contact Details';
+  }
+}
 </script>
 </body>
 </html>
