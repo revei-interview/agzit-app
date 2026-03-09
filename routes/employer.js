@@ -212,16 +212,23 @@ router.get('/dashboard', ...guardAny, async (req, res) => {
     const recentInterviews = await fetchEmployerInterviews(wpId, 5);
 
     // Team status — is this user a team admin or a member?
-    const [[teamAdminRow]] = await pool.execute(
-      "SELECT id FROM agzit_employer_team WHERE admin_user_id = ? AND status != 'removed' LIMIT 1",
-      [user.id]
-    );
-    const [[teamMemberRow]] = await pool.execute(
-      "SELECT admin_user_id FROM agzit_employer_team WHERE member_user_id = ? AND status = 'active' LIMIT 1",
-      [user.id]
-    );
-    const is_team_admin  = !!teamAdminRow;
-    const is_team_member = !!teamMemberRow;
+    // Guard: table may not exist on first deploy before initDB completes
+    let is_team_admin  = false;
+    let is_team_member = false;
+    try {
+      const [[teamAdminRow]] = await pool.execute(
+        "SELECT id FROM agzit_employer_team WHERE admin_user_id = ? AND status != 'removed' LIMIT 1",
+        [user.id]
+      );
+      const [[teamMemberRow]] = await pool.execute(
+        "SELECT admin_user_id FROM agzit_employer_team WHERE member_user_id = ? AND status = 'active' LIMIT 1",
+        [user.id]
+      );
+      is_team_admin  = !!teamAdminRow;
+      is_team_member = !!teamMemberRow;
+    } catch (teamErr) {
+      console.warn('[employer/dashboard] team query skipped:', teamErr.message);
+    }
 
     res.json({
       ok: true,

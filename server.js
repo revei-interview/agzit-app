@@ -163,10 +163,47 @@ app.use((req, res) => {
 // ── Background jobs ────────────────────────────────────────────────────────
 require('./jobs/session-cleanup');
 
-// ── Start ──────────────────────────────────────────────────────────────────
+// ── DB init — runs before server accepts any connections ────────────────────
+async function initDB() {
+  const pool = require('./config/db');
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_employer_team (
+      id             INT AUTO_INCREMENT PRIMARY KEY,
+      admin_user_id  INT NOT NULL,
+      member_user_id INT DEFAULT NULL,
+      member_email   VARCHAR(255) NOT NULL,
+      member_name    VARCHAR(255) DEFAULT NULL,
+      team_role      ENUM('admin','member') DEFAULT 'member',
+      status         ENUM('invited','active','removed') DEFAULT 'invited',
+      invite_token   VARCHAR(128) DEFAULT NULL,
+      invited_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+      joined_at      DATETIME DEFAULT NULL,
+      UNIQUE KEY unique_member (admin_user_id, member_email)
+    )
+  `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_magic_links (
+      id         INT AUTO_INCREMENT PRIMARY KEY,
+      user_id    INT NOT NULL,
+      token      VARCHAR(128) NOT NULL UNIQUE,
+      token_type ENUM('team_invite','login') DEFAULT 'login',
+      expires_at DATETIME NOT NULL,
+      used       TINYINT DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  console.log('[init] DB tables ensured');
+}
+
+// ── Start — only after tables are confirmed to exist ────────────────────────
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 AGZIT App running on port ${PORT}`);
-  console.log(`   ENV: ${process.env.NODE_ENV}`);
-  console.log(`   WP:  ${process.env.WP_URL}`);
+initDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`🚀 AGZIT App running on port ${PORT}`);
+    console.log(`   ENV: ${process.env.NODE_ENV}`);
+    console.log(`   WP:  ${process.env.WP_URL}`);
+  });
+}).catch(err => {
+  console.error('[init] DB init failed:', err.message);
+  process.exit(1);
 });
