@@ -647,26 +647,5 @@ router.post('/save-employer-recording-urls', requireAppToken, async (req, res) =
   }
 });
 
-// ── POST /api/internal/migrate-join-urls ──────────────────────────────────────
-// ONE-TIME migration: update join_url from agzit.com/employer-interview-room
-// to app.agzit.com/employer-interviews. Delete this endpoint after running.
-
-router.post('/migrate-join-urls', requireAppToken, async (req, res) => {
-  try {
-    const [result] = await pool.execute(
-      `UPDATE wp_postmeta
-       SET meta_value = REPLACE(meta_value,
-         'https://agzit.com/employer-interview-room/?token=',
-         'https://app.agzit.com/employer-interviews?token=')
-       WHERE meta_key = 'join_url'
-         AND meta_value LIKE 'https://agzit.com/employer-interview-room/%'`
-    );
-    res.json({ ok: true, rows_updated: result.affectedRows });
-  } catch (err) {
-    console.error('[internal/migrate-join-urls]', err);
-    res.status(500).json({ ok: false, error: 'Server error' });
-  }
-});
-
 module.exports = router;
 
