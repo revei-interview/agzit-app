@@ -801,35 +801,44 @@ router.get('/interviews', ...guardAny, async (req, res) => {
       interview_credits = parseInt(cm.employer_interview_credits) || 0;
       credits_used      = parseInt(cm.employer_credits_used)      || 0;
     }
-    // Compute summary stats from the full interview list
-    const completed  = interviews.filter(i => i.interview_status === 'completed');
-    const scored     = completed.filter(i => i.overall_score !== null);
-    const avg_score  = scored.length ? Math.round(scored.reduce((s, i) => s + i.overall_score, 0) / scored.length) : null;
 
-    function computeBand(score) {
-      if (score === null || score === undefined) return null;
-      if (score >= 81) return 'exceptional';
-      if (score >= 71) return 'strong';
-      if (score >= 61) return 'promising';
-      if (score >= 51) return 'developing';
-      return 'not_ready';
+    // Fetch team_role for this employer from wp_usermeta
+    let team_role = 'admin';
+    if (wpId) {
+      const [[teamRoleRow]] = await pool.execute(
+        "SELECT meta_value FROM wp_usermeta WHERE user_id=? AND meta_key='employer_team_role' LIMIT 1",
+        [wpId]
+      );
+      team_role = teamRoleRow?.meta_value || 'admin';
     }
+
+    // Compute summary stats
+    const completed        = interviews.filter(iv => iv.interview_status === 'completed');
+    const total_interviews = interviews.length;
+    const completed_count  = completed.length;
+    const avg_score = completed_count > 0
+      ? Math.round((completed.reduce((s, iv) => s + (iv.overall_score || 0), 0) / completed_count) * 10) / 10
+      : null;
     const bandCounts = {};
-    for (const i of scored) {
-      const b = computeBand(i.overall_score);
-      if (b) bandCounts[b] = (bandCounts[b] || 0) + 1;
-    }
-    const bandEntries = Object.entries(bandCounts);
-    const top_band = bandEntries.length ? bandEntries.sort((a, b) => b[1] - a[1])[0][0] : null;
+    completed.forEach(iv => {
+      if (iv.emp_readiness_band) bandCounts[iv.emp_readiness_band] = (bandCounts[iv.emp_readiness_band] || 0) + 1;
+    });
+    const top_band = Object.keys(bandCounts).sort((a, b) => bandCounts[b] - bandCounts[a])[0] || null;
 
-    const stats = {
-      total_interviews: interviews.length,
-      completed_count:  completed.length,
+    res.json({
+      ok: true,
+      count: interviews.length,
+      interviews,
+      interview_credits,
+      credits_used,
+      team_role,
+      total_interviews,
+      completed_count,
       avg_score,
       top_band,
-    };
-
-    res.json({ ok: true, count: interviews.length, interviews, interview_credits, credits_used, stats });
+      // Also nested for backward compatibility
+      stats: { total_interviews, completed_count, avg_score, top_band },
+    });
   } catch (err) {
     console.error('[employer/interviews]', err);
     res.status(500).json({ ok: false, error: 'Server error' });
@@ -1882,8 +1891,68 @@ router.get('/team/accept', async (req, res) => {
   }
 });
 
-// ── Updated schedule-interview: shared credits pool ───────────────────────────
-// (Middleware patched: if the user is a team member, use admin's wp_user_id for credit deduction)
-// This is handled inside schedule-interview by resolving the effective wp_user_id.
+// ── Startup: ensure tables exist + seed employer_team_role for existing employers ──
+
+(async () => {
+  try {
+    // Ensure agzit_employer_team table exists
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS agzit_employer_team (
+        id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        admin_user_id   INT UNSIGNED NOT NULL,
+        member_user_id  INT UNSIGNED DEFAULT NULL,
+        member_email    VARCHAR(255) NOT NULL,
+        team_role       ENUM('admin','member') NOT NULL DEFAULT 'member',
+        status          ENUM('invited','active','removed') NOT NULL DEFAULT 'invited',
+        invite_token    VARCHAR(128) DEFAULT NULL,
+        invited_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        joined_at       DATETIME DEFAULT NULL,
+        INDEX idx_admin  (admin_user_id),
+        INDEX idx_member (member_user_id),
+        INDEX idx_email  (member_email),
+        INDEX idx_token  (invite_token)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Ensure agzit_magic_links table exists
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS agzit_magic_links (
+        id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        token      VARCHAR(128) NOT NULL UNIQUE,
+        user_id    INT UNSIGNED NOT NULL,
+        purpose    VARCHAR(32) NOT NULL DEFAULT 'login',
+        expires_at DATETIME NOT NULL,
+        used_at    DATETIME DEFAULT NULL,
+        INDEX idx_token (token),
+        INDEX idx_user  (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    // Seed employer_team_role = 'admin' for verified_employer users who have no role set
+    const [employers] = await pool.execute(`
+      SELECT DISTINCT u.ID
+      FROM wp_users u
+      JOIN wp_usermeta um
+        ON u.ID = um.user_id
+        AND um.meta_key = 'wp_capabilities'
+        AND um.meta_value LIKE '%verified_employer%'
+      LEFT JOIN wp_usermeta tr
+        ON u.ID = tr.user_id
+        AND tr.meta_key = 'employer_team_role'
+      WHERE tr.umeta_id IS NULL
+    `);
+    for (const emp of employers) {
+      await pool.execute(
+        "INSERT INTO wp_usermeta (user_id, meta_key, meta_value) VALUES (?, 'employer_team_role', 'admin')",
+        [emp.ID]
+      );
+    }
+    if (employers.length > 0) {
+      console.log(`[employer] Seeded employer_team_role=admin for ${employers.length} existing employer(s)`);
+    }
+  } catch (e) {
+    console.error('[employer] Startup seed error:', e.message);
+  }
+})();
 
 module.exports = router;
