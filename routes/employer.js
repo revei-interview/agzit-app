@@ -279,7 +279,7 @@ router.get('/profile', ...guardAny, async (req, res) => {
     res.json({
       ok: true,
       profile: {
-        first_name:          meta.dpr_employer_first_name              || user.first_name,
+        first_name:          meta.dpr_employer_first_name              || (user.first_name && !user.first_name.includes('@') ? user.first_name : '') || '',
         work_email:          meta.dpr_verified_work_email              || null,
         linkedin_url:        meta.dpr_verified_linkedin                || null,
         company_name:        meta.dpr_company_name                     || null,
@@ -295,6 +295,63 @@ router.get('/profile', ...guardAny, async (req, res) => {
     });
   } catch (err) {
     console.error('[employer/profile]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── PUT /api/employer/profile ─────────────────────────────────────────────────
+// Update editable employer profile fields.
+// Body: { first_name, company_name, company_website, designation, department, linkedin_url }
+
+router.put('/profile', ...guardAny, async (req, res) => {
+  try {
+    const [[user]] = await pool.execute(
+      'SELECT id, email, first_name, wp_user_id FROM agzit_users WHERE id = ?',
+      [req.user.user_id]
+    );
+    if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
+
+    const allowed = ['first_name', 'company_name', 'company_website', 'designation', 'department', 'linkedin_url'];
+    const body    = req.body || {};
+
+    // Map frontend keys → wp_usermeta keys
+    const WP_META_MAP = {
+      company_name:    'dpr_company_name',
+      company_website: 'dpr_company_website',
+      designation:     'dpr_designation',
+      department:      'dpr_department',
+      linkedin_url:    'dpr_verified_linkedin',
+      first_name:      'dpr_employer_first_name',
+    };
+
+    const updates = [];
+    for (const key of allowed) {
+      if (Object.prototype.hasOwnProperty.call(body, key)) {
+        updates.push({ key, value: String(body[key] ?? '').trim() });
+      }
+    }
+    if (!updates.length) return res.status(400).json({ ok: false, error: 'No fields to update' });
+
+    // Update wp_usermeta if WP user exists
+    if (user.wp_user_id) {
+      for (const { key, value } of updates) {
+        const metaKey = WP_META_MAP[key];
+        if (metaKey) await upsertUserMeta(user.wp_user_id, metaKey, value);
+      }
+    }
+
+    // Also update agzit_users.first_name if first_name was submitted
+    const nameUpdate = updates.find(u => u.key === 'first_name');
+    if (nameUpdate && nameUpdate.value) {
+      await pool.execute(
+        'UPDATE agzit_users SET first_name = ? WHERE id = ?',
+        [nameUpdate.value, user.id]
+      );
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[employer/profile PUT]', err);
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });

@@ -101,12 +101,15 @@ button { font-family: inherit; cursor: pointer; }
   letter-spacing: 0.2px;
 }
 .hero-name {
-  font-size: clamp(24px, 3.5vw, 34px);
+  font-size: clamp(22px, 3.2vw, 32px);
   font-weight: 800;
   color: #fff;
   letter-spacing: -0.8px;
-  line-height: 1.15;
+  line-height: 1.2;
   margin-bottom: 10px;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  max-width: 680px;
 }
 .hero-company {
   font-size: 14px;
@@ -562,6 +565,30 @@ button { font-family: inherit; cursor: pointer; }
 .btn-submit:hover { background: #1b2340; }
 .btn-submit:disabled { opacity: 0.55; cursor: not-allowed; }
 
+/* ── Profile edit form ───────────────────────────────────────────────────── */
+.profile-edit-form { display: none; }
+.profile-edit-form.active { display: block; }
+.edit-field-group { margin-bottom: 14px; }
+.edit-field-label {
+  display: block; font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;
+}
+.edit-field-input {
+  width: 100%; padding: 10px 13px; border: 1.5px solid var(--border); border-radius: 9px;
+  font-size: 14px; font-weight: 500; color: var(--ink); font-family: inherit;
+  background: #fff; transition: border-color .15s;
+  box-sizing: border-box;
+}
+.edit-field-input:focus { outline: none; border-color: var(--blue); }
+.profile-edit-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+.card-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.card-header-row .card-title { margin-bottom: 0; }
+.btn-edit-profile {
+  font-size: 13px; font-weight: 700; color: var(--blue); background: #EAF0FF;
+  border: none; border-radius: 8px; padding: 7px 16px; cursor: pointer; transition: background .15s;
+}
+.btn-edit-profile:hover { background: #DBEAFE; }
+
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
   .stats-row { grid-template-columns: repeat(2, 1fr); }
@@ -776,14 +803,54 @@ button { font-family: inherit; cursor: pointer; }
 
         <!-- Personal Info -->
         <div class="card reveal">
-          <div class="card-title">Personal Information</div>
+          <div class="card-header-row">
+            <div class="card-title">Personal Information</div>
+            <button class="btn-edit-profile" id="btn-edit-profile" onclick="startEditProfile()">Edit Profile</button>
+          </div>
+          <!-- Display mode -->
           <div class="info-grid" id="profile-personal-grid"></div>
+          <!-- Edit mode (personal fields) -->
+          <div class="profile-edit-form" id="profile-edit-personal">
+            <div class="edit-field-group">
+              <label class="edit-field-label" for="ef-first-name">First Name</label>
+              <input class="edit-field-input" id="ef-first-name" type="text" placeholder="Your first name">
+            </div>
+            <div class="edit-field-group">
+              <label class="edit-field-label" for="ef-linkedin">LinkedIn URL</label>
+              <input class="edit-field-input" id="ef-linkedin" type="url" placeholder="https://linkedin.com/in/...">
+            </div>
+          </div>
         </div>
 
         <!-- Company Info -->
         <div class="card reveal">
           <div class="card-title">Company Information</div>
+          <!-- Display mode -->
           <div class="info-grid" id="profile-company-grid"></div>
+          <!-- Edit mode (company fields) -->
+          <div class="profile-edit-form" id="profile-edit-company">
+            <div class="edit-field-group">
+              <label class="edit-field-label" for="ef-company-name">Company Name</label>
+              <input class="edit-field-input" id="ef-company-name" type="text" placeholder="Your company name">
+            </div>
+            <div class="edit-field-group">
+              <label class="edit-field-label" for="ef-company-website">Company Website</label>
+              <input class="edit-field-input" id="ef-company-website" type="url" placeholder="https://yourcompany.com">
+            </div>
+            <div class="edit-field-group">
+              <label class="edit-field-label" for="ef-designation">Designation</label>
+              <input class="edit-field-input" id="ef-designation" type="text" placeholder="e.g. Compliance Manager">
+            </div>
+            <div class="edit-field-group">
+              <label class="edit-field-label" for="ef-department">Department</label>
+              <input class="edit-field-input" id="ef-department" type="text" placeholder="e.g. Compliance">
+            </div>
+            <!-- Save / Cancel -->
+            <div class="profile-edit-actions">
+              <button class="btn-submit" id="btn-save-profile" onclick="saveEditProfile()">Save Changes</button>
+              <button class="btn-cancel" onclick="cancelEditProfile()">Cancel</button>
+            </div>
+          </div>
         </div>
 
         <!-- Verification Info -->
@@ -1004,7 +1071,10 @@ function render() {
   const ri   = DATA.recent_interviews || [];
 
   // Hero
-  document.getElementById('hero-name').textContent = 'Welcome back, ' + (user.first_name || user.email);
+  const heroDisplay = (user.first_name && !user.first_name.includes('@'))
+    ? user.first_name
+    : ((user.email || '').split('@')[0] || 'there');
+  document.getElementById('hero-name').textContent = 'Welcome back, ' + heroDisplay;
   document.getElementById('hero-company').textContent = ep.company_name || 'Company not set';
 
   const isVerified = USER_ROLE === 'verified_employer';
@@ -1161,6 +1231,7 @@ async function loadProfile() {
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
     const p = data.profile;
+    _profileSnapshot = p; // store for edit/revert
 
     document.getElementById('profile-personal-grid').innerHTML = [
       ['First Name',    p.first_name],
@@ -1192,6 +1263,79 @@ async function loadProfile() {
     document.getElementById('profile-loading').style.display = 'none';
     document.getElementById('profile-content').innerHTML = `<div class="notice notice-amber">${esc(e.message || 'Failed to load profile.')}</div>`;
     document.getElementById('profile-content').style.display = 'block';
+  }
+}
+
+// ── Profile edit ─────────────────────────────────────────────────────────────
+let _profileSnapshot = null; // last-loaded profile data for cancel revert
+
+function startEditProfile() {
+  const p = _profileSnapshot;
+  if (!p) return;
+  // Pre-fill personal fields
+  document.getElementById('ef-first-name').value        = p.first_name      || '';
+  document.getElementById('ef-linkedin').value          = p.linkedin_url    || '';
+  // Pre-fill company fields
+  document.getElementById('ef-company-name').value      = p.company_name    || '';
+  document.getElementById('ef-company-website').value   = p.company_website || '';
+  document.getElementById('ef-designation').value       = p.designation     || '';
+  document.getElementById('ef-department').value        = p.department      || '';
+
+  // Toggle display/edit mode
+  document.getElementById('profile-personal-grid').style.display = 'none';
+  document.getElementById('profile-company-grid').style.display  = 'none';
+  document.getElementById('profile-edit-personal').classList.add('active');
+  document.getElementById('profile-edit-company').classList.add('active');
+  document.getElementById('btn-edit-profile').style.display      = 'none';
+}
+
+function cancelEditProfile() {
+  document.getElementById('profile-personal-grid').style.display = '';
+  document.getElementById('profile-company-grid').style.display  = '';
+  document.getElementById('profile-edit-personal').classList.remove('active');
+  document.getElementById('profile-edit-company').classList.remove('active');
+  document.getElementById('btn-edit-profile').style.display      = '';
+}
+
+async function saveEditProfile() {
+  const btn = document.getElementById('btn-save-profile');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  try {
+    const payload = {
+      first_name:      document.getElementById('ef-first-name').value.trim(),
+      company_name:    document.getElementById('ef-company-name').value.trim(),
+      company_website: document.getElementById('ef-company-website').value.trim(),
+      designation:     document.getElementById('ef-designation').value.trim(),
+      department:      document.getElementById('ef-department').value.trim(),
+      linkedin_url:    document.getElementById('ef-linkedin').value.trim(),
+    };
+    const res  = await fetch('/api/employer/profile', {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Save failed');
+
+    showToast('Profile updated', 'success');
+    cancelEditProfile();
+    // Reload profile data to reflect changes
+    profileLoaded = false;
+    document.getElementById('profile-content').style.display = 'none';
+    document.getElementById('profile-loading').style.display = 'flex';
+    await loadProfile();
+    // Update hero first_name if changed
+    if (payload.first_name) {
+      DATA.user.first_name = payload.first_name;
+      document.getElementById('hero-name').textContent = 'Welcome back, ' + payload.first_name;
+    }
+  } catch (e) {
+    showToast(e.message || 'Error saving profile', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Changes';
   }
 }
 
