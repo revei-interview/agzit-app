@@ -11,8 +11,6 @@ const crypto   = require('crypto');
 const https    = require('https');
 const jwt      = require('jsonwebtoken');
 const multer    = require('multer');
-const FormData  = require('form-data');
-const fetch     = require('node-fetch');
 
 // multer: in-memory storage, 5 MB limit, PDF only
 const upload = multer({
@@ -1221,67 +1219,73 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
   ]
 }`;
 
-    // Upload PDF to OpenAI Files API
-    let fileId;
+    // Extract text from PDF buffer directly (no library needed)
+    let pdfText = '';
     try {
-      const form = new FormData();
-      form.append('file', req.file.buffer, {
-        filename: 'resume.pdf',
-        contentType: 'application/pdf',
-      });
-      form.append('purpose', 'assistants');
-
-      const uploadRes = await fetch('https://api.openai.com/v1/files', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          ...form.getHeaders(),
-        },
-        body: form,
-      });
-      const uploadData = await uploadRes.json();
-      if (!uploadRes.ok) throw new Error(JSON.stringify(uploadData));
-      fileId = uploadData.id;
-    } catch (e) {
-      console.error('[parse-resume] file upload error:', e.message);
-      return res.status(422).json({ ok: false, error: 'Could not process PDF. Please fill the form manually.' });
-    }
-
-    // Call GPT-4o with the uploaded file
-    let rawText;
-    try {
-      const oaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          max_tokens: 2048,
-          response_format: { type: 'json_object' },
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'text', text: `Extract structured profile data from the attached resume PDF. Return ONLY valid JSON matching this schema, no markdown:\n\n${schema}` },
-              { type: 'file', file: { file_id: fileId } },
-            ],
-          }],
-        }),
-      });
-      const oaiData = await oaiRes.json();
-      if (!oaiRes.ok) {
-        console.error('[parse-resume] OpenAI error:', JSON.stringify(oaiData));
-        throw new Error('OpenAI API error');
+      const pdfStr = req.file.buffer.toString('latin1');
+      // Extract text between BT...ET blocks (PDF text operators)
+      const btMatches = pdfStr.match(/BT[\s\S]*?ET/g) || [];
+      const textParts = [];
+      for (const block of btMatches) {
+        const strMatches = block.match(/\(([^)]*)\)\s*Tj/g) || [];
+        for (const m of strMatches) {
+          textParts.push(m.replace(/^\(/, '').replace(/\)\s*Tj$/, ''));
+        }
+        // Also handle TJ arrays
+        const tjMatches = block.match(/\[([^\]]*)\]\s*TJ/g) || [];
+        for (const m of tjMatches) {
+          const parts = m.match(/\(([^)]*)\)/g) || [];
+          textParts.push(parts.map(p => p.slice(1, -1)).join(''));
+        }
       }
-      rawText = oaiData.choices[0].message.content;
-    } finally {
-      // Clean up the uploaded file
-      fetch(`https://api.openai.com/v1/files/${fileId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
-      }).catch(() => {});
+      // Also grab any raw text streams
+      const streamMatches = pdfStr.match(/stream\r?\n([\s\S]*?)\r?\nendstream/g) || [];
+      for (const s of streamMatches) {
+        const inner = s.replace(/^stream\r?\n/, '').replace(/\r?\nendstream$/, '');
+        if (/[a-zA-Z]{4,}/.test(inner) && !/^\x00/.test(inner)) {
+          textParts.push(inner);
+        }
+      }
+      pdfText = textParts.join(' ').replace(/\s+/g, ' ').trim();
+    } catch (e) {
+      console.error('[parse-resume] text extract error:', e.message);
+      return res.status(422).json({ ok: false, error: 'Could not read PDF. Please ensure it is a text-based PDF.' });
     }
+
+    if (!pdfText || pdfText.length < 50) {
+      return res.status(422).json({ ok: false, error: 'PDF appears to be empty or image-only. Please upload a text-based PDF.' });
+    }
+
+    // Call GPT-4o with extracted text
+    const systemPrompt = 'You are a resume parser. Extract structured data and return ONLY valid JSON matching the schema. No markdown, no explanation.';
+    const userContent  = `Extract profile data from this resume text and return JSON matching this schema exactly:\n\n${schema}\n\nResume text:\n${pdfText.slice(0, 12000)}`;
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
+
+    const oaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      signal: AbortSignal.timeout(30000),
+      body: JSON.stringify({
+        model:           'gpt-4o',
+        max_tokens:      2048,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user',   content: userContent  },
+        ],
+      }),
+    });
+    const oaiData = await oaiRes.json();
+    if (!oaiRes.ok) {
+      console.error('[parse-resume] OpenAI error:', JSON.stringify(oaiData));
+      throw new Error('OpenAI API error');
+    }
+    const rawText = oaiData.choices[0].message.content;
 
     // Strip markdown code fences if model wrapped JSON
     let jsonText = rawText.trim();
