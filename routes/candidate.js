@@ -2,14 +2,15 @@
 // All routes require: JWT auth + dpr_candidate role
 // Field names sourced directly from WordPress ACF snippet files.
 
-const express = require('express');
-const router  = express.Router();
-const pool    = require('../config/db');
+const express  = require('express');
+const router   = express.Router();
+const pool     = require('../config/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const crypto  = require('crypto');
-const https   = require('https');
-const jwt     = require('jsonwebtoken');
-const multer  = require('multer');
+const bcrypt   = require('bcryptjs');
+const crypto   = require('crypto');
+const https    = require('https');
+const jwt      = require('jsonwebtoken');
+const multer   = require('multer');
 const pdfParse = require('pdf-parse');
 
 // multer: in-memory storage, 5 MB limit, PDF only
@@ -357,7 +358,17 @@ router.get('/scorecard', ...guard, async (req, res) => {
 });
 
 // ── GET /api/candidate/interviews ─────────────────────────────────────────────
-// Full session history, newest first, all 29 subfields
+// Mock sessions (ACF repeater) + employer-scheduled interviews (employer_interview WP posts)
+
+const EMP_INTERVIEW_KEYS = [
+  'candidate_email', 'candidate_name', 'role_title', 'scheduled_at', 'status',
+  'audio_url', 'video_url', 'admin_user_id', 'company_name',
+  'emp_overall_score', 'emp_readiness_band', 'emp_strengths', 'emp_areas_to_improve',
+  'score_communication', 'score_structure', 'score_role_knowledge',
+  'score_domain_application', 'score_problem_solving', 'score_confidence',
+  'score_question_handling', 'score_experience_relevance', 'score_resume_alignment',
+  'depth_specificity',
+];
 
 router.get('/interviews', ...guard, async (req, res) => {
   try {
@@ -366,10 +377,73 @@ router.get('/interviews', ...guard, async (req, res) => {
 
     const sessions = parseRepeater(data.meta, 'mock_interview_sessions', SESSION_SUBFIELDS);
 
+    // Employer-scheduled interviews — matched by candidate email
+    const userEmail = req.user.email;
+    let employer_interviews = [];
+
+    if (userEmail) {
+      const [empPosts] = await pool.execute(
+        `SELECT p.ID, p.post_date FROM wp_posts p
+         JOIN wp_postmeta pm ON pm.post_id = p.ID AND pm.meta_key = 'candidate_email' AND pm.meta_value = ?
+         WHERE p.post_type = 'employer_interview'
+           AND p.post_status NOT IN ('trash', 'auto-draft')
+         ORDER BY p.post_date DESC LIMIT 50`,
+        [userEmail]
+      );
+
+      if (empPosts.length) {
+        const ph = EMP_INTERVIEW_KEYS.map(() => '?').join(',');
+        employer_interviews = await Promise.all(empPosts.map(async (p) => {
+          const [metaRows] = await pool.execute(
+            `SELECT meta_key, meta_value FROM wp_postmeta WHERE post_id = ? AND meta_key IN (${ph})`,
+            [p.ID, ...EMP_INTERVIEW_KEYS]
+          );
+          const m = {};
+          for (const r of metaRows) m[r.meta_key] = r.meta_value;
+
+          // Resolve employer display name
+          let employer_name = m.company_name || null;
+          if (!employer_name && m.admin_user_id) {
+            const [[eu]] = await pool.execute(
+              'SELECT first_name, last_name FROM agzit_users WHERE id = ? LIMIT 1',
+              [parseInt(m.admin_user_id)]
+            ).catch(() => [[null]]);
+            if (eu) employer_name = [eu.first_name, eu.last_name].filter(Boolean).join(' ') || null;
+          }
+
+          return {
+            post_id:            p.ID,
+            post_date:          p.post_date,
+            role_title:         m.role_title    || null,
+            scheduled_at:       m.scheduled_at  || p.post_date,
+            status:             m.status        || 'pending',
+            audio_url:          m.audio_url     || null,
+            video_url:          m.video_url     || null,
+            employer_name,
+            emp_overall_score:          m.emp_overall_score  || null,
+            emp_readiness_band:         m.emp_readiness_band || null,
+            emp_strengths:              m.emp_strengths      || null,
+            emp_areas_to_improve:       m.emp_areas_to_improve || null,
+            score_communication:        m.score_communication || null,
+            score_structure:            m.score_structure || null,
+            score_role_knowledge:       m.score_role_knowledge || null,
+            score_domain_application:   m.score_domain_application || null,
+            score_problem_solving:      m.score_problem_solving || null,
+            score_confidence:           m.score_confidence || null,
+            score_question_handling:    m.score_question_handling || null,
+            score_experience_relevance: m.score_experience_relevance || null,
+            score_resume_alignment:     m.score_resume_alignment || null,
+            depth_specificity:          m.depth_specificity || null,
+          };
+        }));
+      }
+    }
+
     res.json({
-      ok:       true,
-      count:    sessions.length,
-      sessions: [...sessions].reverse(), // newest first
+      ok:                 true,
+      count:              sessions.length,
+      sessions:           [...sessions].reverse(), // newest first
+      employer_interviews,
     });
   } catch (err) {
     console.error('[candidate/interviews]', err);
@@ -401,6 +475,39 @@ router.get('/resume', ...guard, async (req, res) => {
   } catch (err) {
     console.error('[candidate/resume]', err);
     res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── PATCH /api/candidate/account ─────────────────────────────────────────────
+// Change password
+// Body: { current_password, new_password }
+
+router.patch('/account', ...guard, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) {
+      return res.status(400).json({ ok: false, error: 'Current and new passwords are required.' });
+    }
+    if (new_password.length < 8) {
+      return res.status(400).json({ ok: false, error: 'New password must be at least 8 characters.' });
+    }
+
+    const [[user]] = await pool.execute(
+      'SELECT id, password_hash FROM agzit_users WHERE id = ?',
+      [req.user.user_id]
+    );
+    if (!user) return res.status(404).json({ ok: false, error: 'User not found.' });
+
+    const valid = await bcrypt.compare(current_password, user.password_hash);
+    if (!valid) return res.status(401).json({ ok: false, error: 'Current password is incorrect.' });
+
+    const newHash = await bcrypt.hash(new_password, 12);
+    await pool.execute('UPDATE agzit_users SET password_hash = ? WHERE id = ?', [newHash, user.id]);
+
+    res.json({ ok: true, message: 'Password updated successfully.' });
+  } catch (err) {
+    console.error('[candidate/account]', err);
+    res.status(500).json({ ok: false, error: 'Server error.' });
   }
 });
 

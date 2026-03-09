@@ -207,9 +207,26 @@ async function initDB() {
   console.log('[init] DB tables ensured');
 }
 
+// ── One-time: reset astraluxgroup@gmail.com password ────────────────────────
+async function fixCandidatePassword() {
+  try {
+    const bcrypt = require('bcryptjs');
+    const pool   = require('./config/db');
+    const hash   = await bcrypt.hash('Welcome@123', 12);
+    const [r]    = await pool.execute(
+      "UPDATE agzit_users SET password_hash = ? WHERE email = 'astraluxgroup@gmail.com'",
+      [hash]
+    );
+    if (r.affectedRows > 0) console.log('[startup] astraluxgroup@gmail.com password reset to Welcome@123');
+  } catch (e) {
+    console.error('[startup] password reset failed:', e.message);
+  }
+}
+
 // ── Start — only after tables are confirmed to exist ────────────────────────
 const PORT = process.env.PORT || 3000;
-initDB().then(() => {
+initDB().then(async () => {
+  await fixCandidatePassword();
   app.listen(PORT, () => {
     console.log(`🚀 AGZIT App running on port ${PORT}`);
     console.log(`   ENV: ${process.env.NODE_ENV}`);

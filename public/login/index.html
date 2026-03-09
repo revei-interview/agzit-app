@@ -797,7 +797,7 @@ document.addEventListener('keydown', e => {
       showMagicProcessError(data.error || 'This login link is invalid or has expired.');
       return;
     }
-    window.location.href = data.redirectTo || '/employer';
+    window.location.href = data.redirectTo || '/dashboard';
   } catch (err) {
     showMagicProcessError('Network error. Please try again.');
   }

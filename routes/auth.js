@@ -405,13 +405,44 @@ router.post('/send-magic-link', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Please enter a valid email address.' });
     }
 
-    // Only respond after DB check to prevent user enumeration — always return ok
-    const [[user]] = await db.query(
-      'SELECT id, role FROM agzit_users WHERE email = ? LIMIT 1',
+    // 1. Check Render-native agzit_users first
+    let [[user]] = await db.query(
+      'SELECT id FROM agzit_users WHERE email = ? LIMIT 1',
       [email]
     );
 
-    if (user && (user.role === 'verified_employer' || user.role === 'dpr_employer')) {
+    // 2. Fallback: check wp_users and auto-create agzit_users row
+    if (!user) {
+      const [[wpUser]] = await db.query(
+        'SELECT ID, display_name FROM wp_users WHERE user_email = ? LIMIT 1',
+        [email]
+      );
+      if (wpUser) {
+        const [[capRow]] = await db.query(
+          "SELECT meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'wp_capabilities' LIMIT 1",
+          [wpUser.ID]
+        );
+        const role      = parseWpRole(capRow?.meta_value || '');
+        const firstName = (wpUser.display_name || '').split(' ')[0] || '';
+        // Placeholder hash — magic link bypasses password check
+        const placeholderHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 8);
+        try {
+          const [ins] = await db.query(
+            `INSERT INTO agzit_users (email, password_hash, role, first_name, wp_user_id)
+             VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE wp_user_id = VALUES(wp_user_id)`,
+            [email, placeholderHash, role, firstName, wpUser.ID]
+          );
+          const newId = ins.insertId || null;
+          const [[fetched]] = await db.query('SELECT id FROM agzit_users WHERE email = ? LIMIT 1', [email]);
+          user = fetched || (newId ? { id: newId } : null);
+        } catch (migErr) {
+          console.error('[magic-link] wp_user migration failed:', migErr.message);
+        }
+      }
+    }
+
+    if (user) {
       const token     = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
@@ -423,20 +454,26 @@ router.post('/send-magic-link', async (req, res) => {
       );
 
       const magicUrl = `https://app.agzit.com/login?ml=${token}`;
-      await sendBrevoEmail({
-        to:      email,
-        subject: 'Your AGZIT login link',
-        html: `<div style="font-family:'Plus Jakarta Sans',system-ui,sans-serif;max-width:480px;margin:0 auto;padding:40px 24px;">
-          <div style="font-size:24px;font-weight:800;color:#09101F;margin-bottom:8px;">AGZIT AI</div>
-          <h2 style="font-size:20px;font-weight:800;color:#09101F;margin:0 0 16px;">Your magic login link</h2>
-          <p style="color:#7C83A0;font-size:15px;line-height:1.7;margin:0 0 24px;">Click the button below to log in instantly. This link expires in <strong>15 minutes</strong> and can only be used once.</p>
-          <div style="text-align:center;margin-bottom:24px;">
-            <a href="${magicUrl}" style="display:inline-block;background:#1A44C2;color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-size:15px;font-weight:700;">Log in to AGZIT</a>
-          </div>
-          <p style="color:#B0B5CC;font-size:13px;line-height:1.7;">If you did not request this, you can safely ignore this email.</p>
-        </div>`,
-      });
+      try {
+        await sendBrevoEmail({
+          to:      email,
+          subject: 'Your AGZIT login link',
+          html: `<div style="font-family:'Plus Jakarta Sans',system-ui,sans-serif;max-width:480px;margin:0 auto;padding:40px 24px;">
+            <div style="font-size:24px;font-weight:800;color:#09101F;margin-bottom:8px;">AGZIT AI</div>
+            <h2 style="font-size:20px;font-weight:800;color:#09101F;margin:0 0 16px;">Your magic login link</h2>
+            <p style="color:#7C83A0;font-size:15px;line-height:1.7;margin:0 0 24px;">Click the button below to log in instantly. This link expires in <strong>15 minutes</strong> and can only be used once.</p>
+            <div style="text-align:center;margin-bottom:24px;">
+              <a href="${magicUrl}" style="display:inline-block;background:#1A44C2;color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-size:15px;font-weight:700;">Log in to AGZIT</a>
+            </div>
+            <p style="color:#B0B5CC;font-size:13px;line-height:1.7;">If you did not request this, you can safely ignore this email.</p>
+          </div>`,
+        });
+        console.log('[magic-link] sent to:', email);
+      } catch (emailErr) {
+        console.error('[magic-link] Brevo error:', emailErr);
+      }
     }
+
     // Always return ok to prevent user enumeration
     res.json({ ok: true, message: 'If this email is registered, a login link has been sent.' });
   } catch (err) {

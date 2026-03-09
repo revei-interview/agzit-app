@@ -457,6 +457,29 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   .ov-two-col { grid-template-columns: 1fr; }
   .ov-actions { grid-template-columns: 1fr; }
 }
+
+/* ── Account tab form ─────────────────────────────────────────────────────── */
+.acc-field { margin-bottom: 14px; }
+.acc-label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+.acc-input {
+  width: 100%; padding: 10px 14px; border-radius: 10px;
+  border: 1.5px solid var(--line); font-size: 13.5px; font-weight: 500;
+  color: var(--ink); background: var(--white); font-family: var(--font);
+  transition: border-color .15s;
+}
+.acc-input:focus { outline: none; border-color: var(--blue); }
+#acc-feedback.ok  { color: var(--green); }
+#acc-feedback.err { color: var(--red); }
+
+/* ── Employer interviews ──────────────────────────────────────────────────── */
+.emp-band {
+  display: inline-flex; align-items: center;
+  padding: 4px 11px; border-radius: 999px; font-size: 11.5px; font-weight: 700;
+}
+.emp-band-strong  { background: var(--green-lt); color: var(--green); }
+.emp-band-promise { background: #DBEAFE; color: #1D4ED8; }
+.emp-band-develop { background: #EDE9FE; color: #5B21B6; }
+.emp-band-not-ready { background: var(--red-lt); color: var(--red); }
 </style>
 <script src="/assets/layout.js" defer></script>
 </head>
@@ -525,6 +548,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
             <button class="tab-btn" data-tab="scorecard">Scorecard</button>
             <button class="tab-btn" data-tab="interviews" id="tab-btn-interviews">Interviews</button>
             <button class="tab-btn" data-tab="resume">Resume</button>
+            <button class="tab-btn" data-tab="account">Account</button>
           </div>
 
           <!-- ── Overview ──────────────────────────────────────────────── -->
@@ -673,6 +697,35 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
             </div>
             <button class="btn-save" id="vis-save" onclick="saveVisibility()">Save Settings</button>
             <div id="vis-feedback"></div>
+          </div>
+
+          <!-- ── Account ───────────────────────────────────────────────── -->
+          <div class="tab-pane" id="tab-account">
+            <div style="max-width:440px;">
+              <div class="card-title" style="margin-bottom:6px;">Change Password</div>
+              <p style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6;">
+                Set a new password for your account. Must be at least 8 characters.
+              </p>
+              <div class="acc-field">
+                <label class="acc-label" for="acc-cur-pw">Current Password</label>
+                <input type="password" id="acc-cur-pw" class="acc-input" placeholder="Enter current password" autocomplete="current-password">
+              </div>
+              <div class="acc-field">
+                <label class="acc-label" for="acc-new-pw">New Password</label>
+                <input type="password" id="acc-new-pw" class="acc-input" placeholder="Enter new password" autocomplete="new-password">
+              </div>
+              <div class="acc-field">
+                <label class="acc-label" for="acc-confirm-pw">Confirm New Password</label>
+                <input type="password" id="acc-confirm-pw" class="acc-input" placeholder="Re-enter new password" autocomplete="new-password">
+              </div>
+              <button class="btn-save" id="acc-save-btn" onclick="changePassword(event)">Update Password</button>
+              <div id="acc-feedback" style="font-size:12.5px;margin-top:10px;min-height:16px;"></div>
+            </div>
+            <div class="divider" style="margin:28px 0 20px;max-width:440px;"></div>
+            <div style="max-width:440px;">
+              <div class="card-title" style="margin-bottom:6px;">Account Details</div>
+              <div id="acc-details"></div>
+            </div>
           </div>
 
         </div><!-- /.tabs-outer -->
@@ -982,6 +1035,9 @@ function render(d, pd, id) {
 
   /* ── Interviews tab ──────────────────────────────────────────────────────── */
   if (recent.length) renderInterviews(recent, id);
+  if (id && id.employer_interviews && id.employer_interviews.length) {
+    renderEmployerInterviews(id.employer_interviews);
+  }
 
   /* ── Profile tab ─────────────────────────────────────────────────────────── */
   if (pd && pd.profile) renderProfile(pd.profile);
@@ -993,6 +1049,13 @@ function render(d, pd, id) {
     setSelectVal('sel-contact', pd.profile.contact_visibility);
     setSelectVal('sel-resume',  pd.profile.resume_visibility);
   }
+
+  /* ── Account tab ────────────────────────────────────────────────────────── */
+  el('acc-details').innerHTML = [
+    ['Email',       user.email],
+    ['Name',        [user.first_name, user.last_name].filter(Boolean).join(' ') || '—'],
+    ['Member since', fmtDate(user.created_at)],
+  ].map(([k,v]) => `<div class="info-row"><span class="info-key">${esc(k)}</span><span class="info-val">${esc(v||'—')}</span></div>`).join('');
 
   /* ── Show app ─────────────────────────────────────────────────────────────── */
   el('loading').style.display = 'none';
@@ -1299,6 +1362,142 @@ function fld(label, val, raw) {
     <div class="field-label">${esc(label)}</div>
     <div class="field-val${empty?' empty':''}">${raw ? (val||'—') : esc(val||'—')}</div>
   </div>`;
+}
+
+/* ── Change password ──────────────────────────────────────────────────────── */
+window.changePassword = async function (event) {
+  const btn  = event.currentTarget;
+  const fb   = el('acc-feedback');
+  const cur  = (el('acc-cur-pw').value || '').trim();
+  const np   = (el('acc-new-pw').value || '').trim();
+  const cp   = (el('acc-confirm-pw').value || '').trim();
+
+  fb.textContent = ''; fb.className = '';
+  if (!cur || !np || !cp) { fb.textContent = 'Please fill all fields.'; fb.className = 'err'; return; }
+  if (np.length < 8)       { fb.textContent = 'New password must be at least 8 characters.'; fb.className = 'err'; return; }
+  if (np !== cp)            { fb.textContent = 'New passwords do not match.'; fb.className = 'err'; return; }
+
+  btn.disabled = true; btn.textContent = 'Updating…';
+  try {
+    const res  = await fetch('/api/candidate/account', {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: cur, new_password: np }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      fb.textContent = 'Password updated successfully.'; fb.className = 'ok';
+      el('acc-cur-pw').value = ''; el('acc-new-pw').value = ''; el('acc-confirm-pw').value = '';
+    } else {
+      fb.textContent = data.error || 'Update failed.'; fb.className = 'err';
+    }
+  } catch (e) {
+    fb.textContent = 'Network error. Please try again.'; fb.className = 'err';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Update Password';
+  }
+};
+
+/* ── Employer interviews renderer ─────────────────────────────────────────── */
+function renderEmployerInterviews(list) {
+  if (!list || !list.length) return;
+
+  const EMP_STATUS = {
+    pending:   { label: 'Scheduled',  style: 'background:#DBEAFE;color:#1D4ED8;' },
+    confirmed: { label: 'Confirmed',  style: 'background:#DBEAFE;color:#1D4ED8;' },
+    completed: { label: 'Completed',  style: 'background:var(--green-lt);color:var(--green);' },
+    cancelled: { label: 'Cancelled',  style: 'background:var(--surface);color:var(--muted);' },
+    no_show:   { label: 'No Show',    style: 'background:var(--amber-lt);color:var(--amber);' },
+  };
+  const bandCls = (b) => ({
+    'Strong Match': 'emp-band-strong',
+    'Promising':    'emp-band-promise',
+    'Developing':   'emp-band-develop',
+    'Not Ready':    'emp-band-not-ready',
+  }[b] || 'emp-band-promise');
+
+  let html = '<div class="section-title" style="margin-top:24px;">Employer-Scheduled Interviews</div>';
+  list.forEach((ei, idx) => {
+    const statusInfo = EMP_STATUS[ei.status] || { label: esc(ei.status||'Pending'), style: 'background:#DBEAFE;color:#1D4ED8;' };
+    const hasScore   = ei.emp_overall_score;
+    const vidId      = `evid_${idx}`;
+    const audId      = `eaud_${idx}`;
+
+    html += `<div class="ses-card ${ei.status === 'completed' ? 'ses-completed' : ''}">
+      <div class="ses-top">
+        <div>
+          <div class="ses-role">${esc(ei.role_title || 'Employer Interview')}</div>
+          <div class="ses-meta">
+            ${ei.employer_name ? esc(ei.employer_name) + ' &middot; ' : ''}
+            ${fmtDate(ei.scheduled_at || ei.post_date)}
+          </div>
+        </div>
+        <div class="ses-right">
+          <span class="status-pill" style="${statusInfo.style}font-size:11.5px;font-weight:700;padding:4px 11px;">${statusInfo.label}</span>
+          ${hasScore ? `<span class="score-chip">${ei.emp_overall_score}/100</span>` : ''}
+          ${ei.emp_readiness_band ? `<span class="emp-band ${bandCls(ei.emp_readiness_band)}">${esc(ei.emp_readiness_band)}</span>` : ''}
+        </div>
+      </div>`;
+
+    if (ei.video_url || ei.audio_url) {
+      html += `<div class="ses-actions">`;
+      if (ei.video_url) html += `<button class="btn-sm" onclick="openModal('${vidId}')">Play Video</button>`;
+      if (ei.audio_url) html += `<button class="btn-sm" onclick="openModal('${audId}')">Play Audio</button>`;
+      html += `</div>`;
+    }
+
+    if (hasScore) {
+      html += `<div class="ses-scorecard">
+        <div class="ses-sc-header">
+          <div class="ses-sc-score">${ei.emp_overall_score}/100</div>
+          ${ei.emp_readiness_band ? `<span class="emp-band ${bandCls(ei.emp_readiness_band)}">${esc(ei.emp_readiness_band)}</span>` : ''}
+        </div>`;
+      const comps = [
+        ['Communication', ei.score_communication], ['Structure', ei.score_structure],
+        ['Role Knowledge', ei.score_role_knowledge], ['Domain', ei.score_domain_application],
+        ['Problem Solving', ei.score_problem_solving],
+      ];
+      html += comps.map(([l, v]) => {
+        const n = parseInt(v)||0;
+        return `<div class="comp-row"><span class="comp-label" style="font-size:12px;width:140px;">${esc(l)}</span>
+          <div class="comp-track"><div class="comp-fill" style="width:${n*10}%"></div></div>
+          <span class="comp-val">${n}/10</span></div>`;
+      }).join('');
+      if (ei.emp_strengths)        html += `<div class="fb-block"><div class="fb-label">Strengths</div><div class="fb-text">${esc(ei.emp_strengths)}</div></div>`;
+      if (ei.emp_areas_to_improve) html += `<div class="fb-block"><div class="fb-label">Areas to Improve</div><div class="fb-text">${esc(ei.emp_areas_to_improve)}</div></div>`;
+      html += `</div>`;
+    }
+
+    html += `</div>`;
+
+    const modCont = el('modals');
+    if (ei.video_url) {
+      modCont.insertAdjacentHTML('beforeend', `
+        <div class="modal" id="${vidId}" onclick="if(event.target===this)closeModal('${vidId}')">
+          <div class="modal-inner">
+            <div class="modal-head">
+              <div class="modal-title">Video — ${esc(ei.role_title||'Employer Interview')}${ei.employer_name?' ('+esc(ei.employer_name)+')':''}</div>
+              <button class="modal-close" onclick="closeModal('${vidId}')">Close</button>
+            </div>
+            <div class="modal-body"><video class="modal-player" controls playsinline preload="metadata"><source src="${esc(ei.video_url)}">No video support.</video></div>
+          </div>
+        </div>`);
+    }
+    if (ei.audio_url) {
+      modCont.insertAdjacentHTML('beforeend', `
+        <div class="modal" id="${audId}" onclick="if(event.target===this)closeModal('${audId}')">
+          <div class="modal-inner audio">
+            <div class="modal-head">
+              <div class="modal-title">Audio — ${esc(ei.role_title||'Employer Interview')}${ei.employer_name?' ('+esc(ei.employer_name)+')':''}</div>
+              <button class="modal-close" onclick="closeModal('${audId}')">Close</button>
+            </div>
+            <div class="modal-body"><audio controls preload="metadata" style="width:100%;border-radius:10px;"><source src="${esc(ei.audio_url)}">No audio support.</audio></div>
+          </div>
+        </div>`);
+    }
+  });
+
+  el('interviews-content').insertAdjacentHTML('beforeend', html);
 }
 
 /* ── Visibility save ──────────────────────────────────────────────────────── */
