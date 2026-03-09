@@ -223,11 +223,17 @@ async function fixCandidatePassword() {
     );
 
     if (existing) {
-      // UPDATE existing row
-      const [r] = await pool.execute(
-        'UPDATE agzit_users SET password_hash = ? WHERE email = ?', [hash, TARGET]
+      // UPDATE password + fix first_name/last_name from wp_users
+      const [[wpUser]] = await pool.execute(
+        'SELECT display_name FROM wp_users WHERE user_email = ? LIMIT 1', [TARGET]
       );
-      console.log('[init] candidate password fixed, rows affected:', r.affectedRows);
+      const firstName = (wpUser?.display_name || '').split(' ')[0] || '';
+      const lastName  = (wpUser?.display_name || '').split(' ').slice(1).join(' ') || '';
+      const [r] = await pool.execute(
+        'UPDATE agzit_users SET password_hash = ?, first_name = ?, last_name = ? WHERE email = ?',
+        [hash, firstName, lastName, TARGET]
+      );
+      console.log('[init] candidate password + name fixed, rows affected:', r.affectedRows, 'name:', firstName, lastName);
       return;
     }
 

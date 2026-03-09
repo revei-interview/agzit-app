@@ -480,6 +480,23 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 .emp-band-promise { background: #DBEAFE; color: #1D4ED8; }
 .emp-band-develop { background: #EDE9FE; color: #5B21B6; }
 .emp-band-not-ready { background: var(--red-lt); color: var(--red); }
+
+/* ── Onboarding state (no DPR profile) ───────────────────────────────────── */
+.onb-banner { background: linear-gradient(135deg, var(--ink) 0%, #1E2B4A 100%); color: #fff; border-radius: var(--radius); padding: 32px 36px; margin-bottom: 14px; }
+.onb-banner-title { font-size: 22px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+.onb-banner-sub { font-size: 14px; color: rgba(255,255,255,.72); line-height: 1.6; margin-bottom: 20px; }
+.onb-ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn-onb-primary { display: inline-flex; align-items: center; padding: 11px 22px; border-radius: 10px; font-size: 13.5px; font-weight: 700; background: var(--blue); color: #fff; cursor: pointer; }
+.btn-onb-ghost { display: inline-flex; align-items: center; padding: 10px 20px; border-radius: 10px; font-size: 13.5px; font-weight: 700; border: 1.5px solid rgba(255,255,255,.25); color: #fff; }
+.step-list { display: flex; flex-direction: column; gap: 0; }
+.step { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
+.step:last-child { border-bottom: none; }
+.step-icon { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; margin-top: 1px; }
+.step-done .step-icon { background: var(--green-lt); color: var(--green); }
+.step-pending .step-icon { background: var(--surface); color: var(--muted); border: 1.5px solid var(--line); }
+.step-title { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 3px; }
+.step-done .step-title { color: var(--green); }
+.step-sub { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
 </style>
 <script src="/assets/layout.js" defer></script>
 </head>
@@ -554,6 +571,45 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
           <!-- ── Overview ──────────────────────────────────────────────── -->
           <div class="tab-pane active" id="tab-overview">
 
+            <!-- Onboarding state (shown when user has no DPR profile) -->
+            <div id="ov-onboarding" style="display:none;">
+              <div class="onb-banner">
+                <div class="onb-banner-title">Welcome to AGZIT!</div>
+                <div class="onb-banner-sub">Complete the steps below to set up your DPR profile, get discovered by employers, and start practising with AI mock interviews.</div>
+                <div class="onb-ctas">
+                  <a href="/register" class="btn-onb-primary">Build Your DPR Profile</a>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-title" style="margin-bottom:14px;">Getting Started</div>
+                <div class="step-list">
+                  <div class="step step-done">
+                    <div class="step-icon">&#10003;</div>
+                    <div>
+                      <div class="step-title">Create your account</div>
+                      <div class="step-sub">Done. You are registered on AGZIT.</div>
+                    </div>
+                  </div>
+                  <div class="step step-pending">
+                    <div class="step-icon">2</div>
+                    <div>
+                      <div class="step-title">Complete your DPR Profile</div>
+                      <div class="step-sub">Add your experience, skills, and resume to appear in employer searches. <a href="/register" style="color:var(--blue);font-weight:700;">Get started</a></div>
+                    </div>
+                  </div>
+                  <div class="step step-pending">
+                    <div class="step-icon">3</div>
+                    <div>
+                      <div class="step-title">Schedule an AI Mock Interview</div>
+                      <div class="step-sub">Practice with a real-time AI interviewer tailored to your role. Available after completing your DPR profile.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Main overview content (hidden for new users) -->
+            <div id="ov-main-content">
             <div class="ov-two-col">
 
               <!-- Left col -->
@@ -621,6 +677,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
               <a href="https://agzit.com/dpr-registration/" class="btn-primary">Update DPR Profile</a>
               <a id="ov-preview-link" href="#" class="btn-secondary" target="_blank" style="width:auto;display:none;">Preview Public Profile</a>
             </div>
+            </div><!-- /ov-main-content -->
 
           </div>
 
@@ -649,6 +706,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
               <div class="empty">
                 <div class="empty-heading">No interviews yet</div>
                 <div class="empty-sub">Start an AI mock interview. Your recordings and scores will appear here.</div>
+                <a href="/interview-start" class="btn-blue" style="width:auto;padding:11px 22px;display:inline-flex;margin:12px auto 0;">Schedule Interview</a>
               </div>
             </div>
           </div>
@@ -880,13 +938,18 @@ async function init() {
 
 /* ── Render ───────────────────────────────────────────────────────────────── */
 function render(d, pd, id) {
-  const user = d.user   || {};
-  const prof = d.profile || {};
-  const ent  = d.entitlements || {};
-  const sc   = d.latest_scorecard;
+  const user   = d.user   || {};
+  const prof   = d.profile || {};
+  const ent    = d.entitlements || {};
+  const sc     = d.latest_scorecard;
   const recent = d.recent_interviews || [];
+  const hasDpr = !!d.profile;
 
   const firstName = user.first_name || (user.email || '').split('@')[0] || 'there';
+
+  /* ── Onboarding toggle ────────────────────────────────────────────────────── */
+  el('ov-onboarding').style.display   = hasDpr ? 'none' : '';
+  el('ov-main-content').style.display = hasDpr ? '' : 'none';
 
 
   /* hero */
@@ -1040,7 +1103,7 @@ function render(d, pd, id) {
   }
 
   /* ── Profile tab ─────────────────────────────────────────────────────────── */
-  if (pd && pd.profile) renderProfile(pd.profile);
+  renderProfile(pd ? pd.profile : null);
 
   /* ── Resume tab ──────────────────────────────────────────────────────────── */
   if (pd && pd.profile) {
@@ -1237,7 +1300,15 @@ function renderInterviews(sessions, id) {
 
 /* ── Profile renderer ─────────────────────────────────────────────────────── */
 function renderProfile(p) {
-  if (!p) return;
+  if (!p) {
+    el('profile-content').innerHTML = `
+      <div class="empty" style="padding:40px 24px;">
+        <div class="empty-heading">No DPR Profile Yet</div>
+        <div class="empty-sub">Create your DPR Profile to appear in employer searches and unlock AI mock interviews.</div>
+        <a href="/register" class="btn-blue" style="width:auto;padding:11px 22px;display:inline-flex;margin:12px auto 0;">Create DPR Profile</a>
+      </div>`;
+    return;
+  }
 
   /* resume status (used in overview card and resume tab) */
   const hasRes = !!(p.resume_upload);

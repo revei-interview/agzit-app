@@ -231,8 +231,8 @@ router.get('/dashboard', ...guard, async (req, res) => {
 router.get('/profile', ...guard, async (req, res) => {
   try {
     const data = await loadProfile(req.user.user_id);
-    if (!data) return res.status(404).json({ ok: false, error: 'Profile not found' });
-    const { meta } = data;
+    if (!data) return res.json({ ok: true, profile: null, has_dpr_profile: false });
+    const { meta, profileId } = data;
 
     // Repeaters — exact subfield names from dpr-self-profile + dpr-build-context-pack-v2
     const workExperience = parseRepeater(meta, 'work_experience', [
@@ -255,7 +255,9 @@ router.get('/profile', ...guard, async (req, res) => {
     ]);
 
     res.json({
-      ok: true,
+      ok:              true,
+      has_dpr_profile: true,
+      dpr_post_id:     profileId,
       profile: {
         // ── Personal information
         dpr_id:                           meta.dpr_id,
@@ -855,7 +857,47 @@ const PROFILE_VISIBILITY_VALUES = {
 router.put('/profile', ...guard, async (req, res) => {
   try {
     const profileId = await getProfileId(req.user.user_id);
-    if (!profileId) return res.status(404).json({ ok: false, error: 'Profile not found' });
+
+    // ── No DPR profile — update basic account fields only ─────────────────────
+    if (!profileId) {
+      const b = req.body;
+      const s = v => (typeof v === 'string' ? v.trim() : '');
+      const wpUserId = req.user.wp_user_id;
+
+      // Update agzit_users name fields
+      const agzitUpdates = {};
+      if (b.first_name !== undefined) agzitUpdates.first_name = s(b.first_name);
+      if (b.last_name  !== undefined) agzitUpdates.last_name  = s(b.last_name);
+      if (Object.keys(agzitUpdates).length) {
+        const setCols = Object.keys(agzitUpdates).map(k => `${k} = ?`).join(', ');
+        await pool.execute(
+          `UPDATE agzit_users SET ${setCols} WHERE id = ?`,
+          [...Object.values(agzitUpdates), req.user.user_id]
+        );
+      }
+
+      if (wpUserId) {
+        // Update wp_users.display_name
+        const firstName = s(b.first_name || '');
+        const lastName  = s(b.last_name  || '');
+        const displayName = [firstName, lastName].filter(Boolean).join(' ');
+        if (displayName) {
+          await pool.execute('UPDATE wp_users SET display_name = ? WHERE ID = ?', [displayName, wpUserId]);
+        }
+
+        // Upsert wp_usermeta
+        const META_KEYS = [
+          'first_name', 'last_name',
+          'dpr_current_role', 'dpr_department', 'dpr_linkedin_url',
+          'dpr_work_email', 'dpr_phone', 'dpr_bio',
+        ];
+        for (const key of META_KEYS) {
+          if (b[key] !== undefined) await upsertUserMeta(wpUserId, key, s(b[key]));
+        }
+      }
+
+      return res.json({ ok: true });
+    }
 
     const b = req.body;
     const s = v => (typeof v === 'string' ? v.trim() : '');
