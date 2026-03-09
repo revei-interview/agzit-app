@@ -175,7 +175,7 @@
       // Auth detection — after nav is in DOM so we can update elements
       fetch('/api/auth/me', { credentials: 'include' })
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (user) { if (user) applyUser(user); })
+        .then(function (data) { if (data && data.user) applyUser(data.user); })
         .catch(function () { /* stay logged-out */ });
     });
 
