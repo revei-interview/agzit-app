@@ -936,14 +936,29 @@ button { font-family: inherit; cursor: pointer; }
         <button id="btn-schedule" class="ql-btn ql-btn-primary" onclick="openScheduleModal()" style="display:none">+ Schedule AI Interview</button>
       </div>
       <div id="iv-search-wrap" style="margin-bottom:16px;display:none">
-        <div style="position:relative;max-width:320px">
-          <input class="filter-input" id="iv-search-email" type="text"
-            placeholder="Search by candidate email..."
-            style="width:100%;padding-right:32px;"
-            oninput="filterInterviews()">
-          <button onclick="clearIvSearch()"
-            style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:0;line-height:1;"
-            title="Clear">×</button>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <div style="position:relative;flex:1;min-width:200px;max-width:280px;">
+            <input class="filter-input" id="iv-search-email" type="text"
+              placeholder="Search by candidate name / email..."
+              style="width:100%;padding-right:32px;"
+              oninput="filterInterviews()">
+            <button onclick="clearIvSearch()"
+              style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:0;line-height:1;"
+              title="Clear">×</button>
+          </div>
+          <select id="iv-filter-status" class="filter-input" style="min-width:140px;cursor:pointer;" onchange="filterInterviews()">
+            <option value="">All Statuses</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="started">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <select id="iv-sort" class="filter-input" style="min-width:160px;cursor:pointer;" onchange="filterInterviews()">
+            <option value="recent">Most Recent</option>
+            <option value="oldest">Oldest First</option>
+            <option value="score_desc">Highest Score</option>
+            <option value="score_asc">Lowest Score</option>
+          </select>
         </div>
       </div>
       <div id="interviews-list-full" class="loading-row" style="display:none">
@@ -1654,26 +1669,51 @@ function renderInterviewStats(stats) {
 }
 
 function filterInterviews() {
-  const query  = (document.getElementById('iv-search-email').value || '').toLowerCase().trim();
-  const listEl = document.getElementById('interviews-list');
-  if (!query) {
-    renderInterviewList(listEl, allInterviewsList, 1000);
-    initReveal();
-    return;
+  const query      = (document.getElementById('iv-search-email')?.value  || '').toLowerCase().trim();
+  const statusFilt = (document.getElementById('iv-filter-status')?.value || '');
+  const sort       = (document.getElementById('iv-sort')?.value          || 'recent');
+  const listEl     = document.getElementById('interviews-list');
+
+  let list = allInterviewsList.slice();
+
+  // Filter by text (name or email)
+  if (query) {
+    list = list.filter(iv =>
+      (iv.candidate_email || '').toLowerCase().includes(query) ||
+      (iv.candidate_name  || '').toLowerCase().includes(query)
+    );
   }
-  const filtered = allInterviewsList.filter(iv =>
-    (iv.candidate_email || '').toLowerCase().includes(query)
-  );
-  if (!filtered.length) {
-    listEl.innerHTML = `<div class="empty-state"><div class="empty-state-title">No interviews match your search</div><div class="empty-state-sub">Try a different email address.</div></div>`;
+
+  // Filter by status
+  if (statusFilt) {
+    list = list.filter(iv => (iv.interview_status || '') === statusFilt);
+  }
+
+  // Sort
+  if (sort === 'oldest') {
+    list = list.slice().reverse();
+  } else if (sort === 'score_desc') {
+    list = list.slice().sort((a, b) => (b.overall_score ?? -1) - (a.overall_score ?? -1));
+  } else if (sort === 'score_asc') {
+    list = list.slice().sort((a, b) => (a.overall_score ?? 999) - (b.overall_score ?? 999));
+  }
+  // 'recent' keeps API order (already newest-first)
+
+  if (!list.length) {
+    listEl.innerHTML = `<div class="empty-state"><div class="empty-state-title">No interviews match your filters</div><div class="empty-state-sub">Try adjusting the status filter or search term.</div></div>`;
   } else {
-    renderInterviewList(listEl, filtered, 1000);
+    renderInterviewList(listEl, list, 1000);
     initReveal();
   }
 }
 
 function clearIvSearch() {
-  document.getElementById('iv-search-email').value = '';
+  const searchEl = document.getElementById('iv-search-email');
+  const statusEl = document.getElementById('iv-filter-status');
+  const sortEl   = document.getElementById('iv-sort');
+  if (searchEl) searchEl.value = '';
+  if (statusEl) statusEl.value = '';
+  if (sortEl)   sortEl.value   = 'recent';
   renderInterviewList(document.getElementById('interviews-list'), allInterviewsList, 1000);
   initReveal();
 }
