@@ -10,6 +10,7 @@ const crypto  = require('crypto');
 const https   = require('https');
 const jwt     = require('jsonwebtoken');
 const multer  = require('multer');
+const pdfParse = require('pdf-parse');
 
 // multer: in-memory storage, 5 MB limit, PDF only
 const upload = multer({
@@ -38,35 +39,37 @@ function isProfileUnlocked(unlockedMap, dprId) {
   return true;
 }
 
-// ── Anthropic API helper ─────────────────────────────────────────────────────
+// ── OpenAI API helper ────────────────────────────────────────────────────────
 
-async function callClaude(systemPrompt, messages, maxTokens = 1500, extraHeaders = {}) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
+async function callOpenAI(systemPrompt, userContent, maxTokens = 1500) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method:  'POST',
     headers: {
-      'Content-Type':    'application/json',
-      'x-api-key':       apiKey,
-      'anthropic-version': '2023-06-01',
-      ...extraHeaders,
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${apiKey}`,
     },
+    signal: AbortSignal.timeout(30000),
     body: JSON.stringify({
-      model:      'claude-sonnet-4-6',
-      max_tokens: maxTokens,
-      system:     systemPrompt,
-      messages,
+      model:       'gpt-4o',
+      temperature: 0,
+      max_tokens:  maxTokens,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userContent  },
+      ],
     }),
   });
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Claude API ${res.status}: ${errText.slice(0, 200)}`);
+    throw new Error(`OpenAI API ${res.status}: ${errText.slice(0, 200)}`);
   }
 
   const data = await res.json();
-  return data?.content?.[0]?.text?.trim() || '';
+  return data?.choices?.[0]?.message?.content?.trim() || '';
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -1023,11 +1026,22 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
     if (req.file.mimetype !== 'application/pdf') {
       return res.status(400).json({ ok: false, error: 'File must be a PDF.' });
     }
-    if (!process.env.ANTHROPIC_API_KEY) {
+    if (!process.env.OPENAI_API_KEY) {
       return res.status(503).json({ ok: false, error: 'Resume parsing not available. Please fill the form manually.' });
     }
 
-    const pdfBase64 = req.file.buffer.toString('base64');
+    // Extract raw text from PDF buffer, then send to OpenAI
+    let pdfText;
+    try {
+      const parsed = await pdfParse(req.file.buffer);
+      pdfText = parsed.text?.trim() || '';
+    } catch (e) {
+      console.error('[parse-resume] pdf-parse error:', e.message);
+      return res.status(422).json({ ok: false, error: 'Could not read PDF. Please ensure the file is not password-protected.' });
+    }
+    if (!pdfText) {
+      return res.status(422).json({ ok: false, error: 'PDF appears to be empty or image-only. Please upload a text-based PDF.' });
+    }
 
     const schema = `{
   "full_name": "string",
@@ -1066,26 +1080,10 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
   ]
 }`;
 
-    const systemPrompt = 'Extract structured profile data from this resume PDF. Return ONLY valid JSON matching the schema. No markdown, no explanation, no trailing commas.';
+    const systemPrompt = 'Extract structured profile data from the resume text below. Return ONLY valid JSON matching the schema. No markdown fences, no explanation, no trailing commas.';
+    const userContent  = `Schema:\n${schema}\n\nResume text:\n${pdfText.slice(0, 40000)}`;
 
-    const rawText = await callClaude(
-      systemPrompt,
-      [{
-        role: 'user',
-        content: [
-          {
-            type: 'document',
-            source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 },
-          },
-          {
-            type: 'text',
-            text: `Extract all profile information and return JSON exactly matching this schema:\n${schema}`,
-          },
-        ],
-      }],
-      2048,
-      { 'anthropic-beta': 'pdfs-2024-09-25' }
-    );
+    const rawText = await callOpenAI(systemPrompt, userContent, 2048);
 
     // Strip markdown code fences if model wrapped JSON
     let jsonText = rawText.trim();
@@ -1104,7 +1102,7 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
     return res.json({ ok: true, data: parsed });
   } catch (err) {
     console.error('[parse-resume]', err.message);
-    if (err.message?.startsWith('ANTHROPIC_API_KEY')) {
+    if (err.message?.startsWith('OPENAI_API_KEY')) {
       return res.status(503).json({ ok: false, error: 'Resume parsing not configured.' });
     }
     res.status(500).json({ ok: false, error: 'Server error' });
@@ -1129,11 +1127,11 @@ router.post('/resume/ai-rewrite', ...guard, async (req, res) => {
     if (!content) {
       return res.status(400).json({ ok: false, error: 'content is required' });
     }
-    if (!process.env.ANTHROPIC_API_KEY) {
+    if (!process.env.OPENAI_API_KEY) {
       return res.status(503).json({ ok: false, error: 'AI rewrite not configured.' });
     }
 
-    const contextLines = [
+    const userContent = [
       `Section: ${section}`,
       targetRole ? `Target Role: ${targetRole}` : null,
       jobTitle   ? `Current Job Title: ${jobTitle}` : null,
@@ -1142,9 +1140,9 @@ router.post('/resume/ai-rewrite', ...guard, async (req, res) => {
       content,
     ].filter(l => l !== null).join('\n');
 
-    const rewritten = await callClaude(
+    const rewritten = await callOpenAI(
       'You are a professional resume writer. Rewrite the provided content to be concise, impactful and ATS-optimised for the target role. Return ONLY the rewritten text, no explanation, no preamble.',
-      [{ role: 'user', content: contextLines }],
+      userContent,
       800
     );
 
