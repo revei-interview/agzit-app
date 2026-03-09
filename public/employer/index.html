@@ -1123,6 +1123,10 @@ const ivCache = {};            // id -> interview object (for edit/cancel pre-fi
 
 // ── Boot ────────────────────────────────────────────────────────────────────
 async function loadDashboard() {
+  console.log('[dashboard] loadDashboard called');
+
+  // ── Fetch phase: retry once on network error ──
+  let data = null;
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       const res = await fetch('/api/employer/dashboard', { credentials: 'include' });
@@ -1130,26 +1134,32 @@ async function loadDashboard() {
         window.location.href = '/login?next=/employer';
         return;
       }
-      const data = await res.json();
+      data = await res.json();
       if (!data.ok) { showError(data.error || 'Failed to load dashboard.'); return; }
-
-      DATA = data;
-      USER_ROLE     = data.user.role;
-      IS_TEAM_ADMIN = !!data.is_team_admin;
-
-      render();
-      document.getElementById('loading-overlay').style.display = 'none';
-      document.getElementById('app').style.display = 'block';
-      initReveal();
-
-      // Prefetch interview list so overview stats + interviews tab are ready immediately
-      loadInterviewsFull();
-      return; // success
+      break; // fetch succeeded
     } catch (e) {
-      if (attempt === 1) await new Promise(r => setTimeout(r, 2000)); // wait 2s then retry
+      console.warn('[dashboard] fetch attempt', attempt, 'failed:', e.message);
+      if (attempt === 1) await new Promise(r => setTimeout(r, 2000));
     }
   }
-  showError('Please refresh the page.');
+  if (!data) { showError('Please refresh the page.'); return; }
+  console.log('[dashboard] data received ok:true');
+
+  DATA          = data;
+  USER_ROLE     = data.user.role;
+  IS_TEAM_ADMIN = !!data.is_team_admin;
+
+  // ── Render phase: errors here are logged but do NOT call showError() ──
+  try { render(); console.log('[dashboard] render complete'); }
+  catch (e) { console.error('[dashboard] render error:', e); }
+
+  document.getElementById('loading-overlay').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+
+  try { initReveal(); } catch (e) { console.error('[dashboard] initReveal error:', e); }
+
+  // Prefetch interview list so overview stats + interviews tab are ready immediately
+  loadInterviewsFull();
 }
 loadDashboard();
 
@@ -1159,95 +1169,120 @@ function render() {
   const ep   = DATA.employer_profile || {};
   const us   = DATA.unlock_stats || { used_today: 0, used_this_month: 0, limit_daily: 5, limit_monthly: 50, remaining_today: 5, remaining_monthly: 50 };
   const ri   = DATA.recent_interviews || [];
-
-  // Hero — prefer dpr_employer_first_name (real name) over agzit_users.first_name (may be email)
-  const heroDisplay = ep.first_name || ((user.email || '').split('@')[0] || 'there');
-  document.getElementById('hero-name').textContent = 'Welcome back, ' + heroDisplay;
-  document.getElementById('hero-company').textContent = ep.company_name || 'Company not set';
-
   const isVerified = USER_ROLE === 'verified_employer';
-  const badgeEl = document.getElementById('hero-badge');
-  if (isVerified) {
-    badgeEl.innerHTML = '<span class="badge badge-verified"><span class="badge-dot"></span>Verified Employer</span>';
-  } else {
-    badgeEl.innerHTML = '<span class="badge badge-pending"><span class="badge-dot"></span>Pending Verification</span>';
-  }
 
-  // Stat cards
-  const statusEl = document.getElementById('stat-status');
-  if (isVerified) {
-    statusEl.textContent = 'Verified';
-    statusEl.style.color = '#0B7A47';
-    document.getElementById('stat-status-sub').textContent = verifiedUntilText(ep.verified_until);
-  } else {
-    statusEl.textContent = 'Pending';
-    statusEl.style.color = '#B45309';
-    document.getElementById('stat-status-sub').textContent = applicationStatusLabel(ep.application_status);
-  }
+  // ── Hero + badge ────────────────────────────────────────────────────────────
+  try {
+    const heroDisplay = ep.first_name || ((user.email || '').split('@')[0] || 'there');
+    document.getElementById('hero-name').textContent = 'Welcome back, ' + heroDisplay;
+    document.getElementById('hero-company').textContent = ep.company_name || 'Company not set';
+    const badgeEl = document.getElementById('hero-badge');
+    if (isVerified) {
+      badgeEl.innerHTML = '<span class="badge badge-verified"><span class="badge-dot"></span>Verified Employer</span>';
+    } else {
+      badgeEl.innerHTML = '<span class="badge badge-pending"><span class="badge-dot"></span>Pending Verification</span>';
+    }
+    console.log('[dashboard] hero rendered');
+  } catch (e) { console.error('[dashboard] hero render error:', e); }
 
-  document.getElementById('stat-day').textContent   = us.used_today + ' / ' + us.limit_daily;
-  document.getElementById('stat-day-sub').textContent = us.remaining_today + ' remaining today';
-  document.getElementById('stat-month').textContent  = us.used_this_month + ' / ' + us.limit_monthly;
-  document.getElementById('stat-month-sub').textContent = us.remaining_monthly + ' remaining this month';
-  document.getElementById('stat-email').textContent  = ep.work_email || '—';
-  document.getElementById('stat-email-sub').textContent = ep.work_email ? 'Verified work email' : 'Not verified';
+  // ── Stat cards ──────────────────────────────────────────────────────────────
+  try {
+    const statusEl = document.getElementById('stat-status');
+    if (isVerified) {
+      statusEl.textContent = 'Verified';
+      statusEl.style.color = '#0B7A47';
+      document.getElementById('stat-status-sub').textContent = verifiedUntilText(ep.verified_until);
+    } else {
+      statusEl.textContent = 'Pending';
+      statusEl.style.color = '#B45309';
+      document.getElementById('stat-status-sub').textContent = applicationStatusLabel(ep.application_status);
+    }
+    document.getElementById('stat-day').textContent   = us.used_today + ' / ' + us.limit_daily;
+    document.getElementById('stat-day-sub').textContent = us.remaining_today + ' remaining today';
+    document.getElementById('stat-month').textContent  = us.used_this_month + ' / ' + us.limit_monthly;
+    document.getElementById('stat-month-sub').textContent = us.remaining_monthly + ' remaining this month';
+    document.getElementById('stat-email').textContent  = ep.work_email || '—';
+    document.getElementById('stat-email-sub').textContent = ep.work_email ? 'Verified work email' : 'Not verified';
+    console.log('[dashboard] stat cards rendered');
+  } catch (e) { console.error('[dashboard] stat cards render error:', e); }
 
-  // Overview — unlock bars
-  const dayPct   = Math.round((us.used_today    / us.limit_daily)   * 100);
-  const monthPct = Math.round((us.used_this_month / us.limit_monthly) * 100);
-  document.getElementById('unlock-fill-day').style.width   = dayPct   + '%';
-  document.getElementById('unlock-fill-month').style.width = monthPct + '%';
-  document.getElementById('unlock-day-text').textContent   = us.used_today    + ' / ' + us.limit_daily   + ' used';
-  document.getElementById('unlock-month-text').textContent = us.used_this_month + ' / ' + us.limit_monthly + ' used';
+  // ── Overview unlock bars ─────────────────────────────────────────────────────
+  try {
+    const dayPct   = Math.round((us.used_today    / us.limit_daily)   * 100);
+    const monthPct = Math.round((us.used_this_month / us.limit_monthly) * 100);
+    document.getElementById('unlock-fill-day').style.width   = dayPct   + '%';
+    document.getElementById('unlock-fill-month').style.width = monthPct + '%';
+    document.getElementById('unlock-day-text').textContent   = us.used_today    + ' / ' + us.limit_daily   + ' used';
+    document.getElementById('unlock-month-text').textContent = us.used_this_month + ' / ' + us.limit_monthly + ' used';
+    console.log('[dashboard] unlock bars rendered');
+  } catch (e) { console.error('[dashboard] unlock bars render error:', e); }
 
-  // Overview — company summary grid
-  const companyGrid = document.getElementById('overview-company-grid');
-  companyGrid.innerHTML = [
-    ['Company', ep.company_name],
-    ['Designation', ep.designation],
-    ['Department', ep.department],
-    ['Work Email', ep.work_email],
-    ['LinkedIn', ep.linkedin_url ? `<a href="${esc(ep.linkedin_url)}" target="_blank" rel="noopener">${esc(ep.linkedin_url)}</a>` : null],
-    ['Status', applicationStatusLabel(ep.application_status)],
-  ].map(([lbl, val]) => infoItem(lbl, val)).join('');
+  // ── Overview company grid ────────────────────────────────────────────────────
+  try {
+    const companyGrid = document.getElementById('overview-company-grid');
+    companyGrid.innerHTML = [
+      ['Company', ep.company_name],
+      ['Designation', ep.designation],
+      ['Department', ep.department],
+      ['Work Email', ep.work_email],
+      ['LinkedIn', ep.linkedin_url ? `<a href="${esc(ep.linkedin_url)}" target="_blank" rel="noopener">${esc(ep.linkedin_url)}</a>` : null],
+      ['Status', applicationStatusLabel(ep.application_status)],
+    ].map(([lbl, val]) => infoItem(lbl, val)).join('');
+    console.log('[dashboard] company grid rendered');
+  } catch (e) { console.error('[dashboard] company grid render error:', e); }
 
-  // Verification notice (Overview tab)
-  const noticeEl = document.getElementById('verification-notice');
-  if (!isVerified) {
-    const steps = pendingSteps(ep.application_status);
-    noticeEl.innerHTML = `
-      <div class="notice notice-amber reveal">
-        <strong>Your employer account is pending verification.</strong>
-        <ul>${steps.map(s => `<li>${s}</li>`).join('')}</ul>
-      </div>`;
-  } else {
-    noticeEl.innerHTML = `
-      <div class="notice notice-green reveal">
-        <strong>Verified Employer.</strong>
-        You have full access to the DPR candidate directory.
-        ${ep.verified_until ? 'Verification valid until ' + fmtDate(ep.verified_until * 1000) + '.' : ''}
-      </div>`;
-  }
+  // ── Verification notice ──────────────────────────────────────────────────────
+  try {
+    const noticeEl = document.getElementById('verification-notice');
+    if (!isVerified) {
+      const steps = pendingSteps(ep.application_status);
+      noticeEl.innerHTML = `
+        <div class="notice notice-amber reveal">
+          <strong>Your employer account is pending verification.</strong>
+          <ul>${steps.map(s => `<li>${s}</li>`).join('')}</ul>
+        </div>`;
+    } else {
+      noticeEl.innerHTML = `
+        <div class="notice notice-green reveal">
+          <strong>Verified Employer.</strong>
+          You have full access to the DPR candidate directory.
+          ${ep.verified_until ? 'Verification valid until ' + fmtDate(ep.verified_until * 1000) + '.' : ''}
+        </div>`;
+    }
+    console.log('[dashboard] verification notice rendered');
+  } catch (e) { console.error('[dashboard] verification notice render error:', e); }
 
-  // Overview — recent interviews
-  renderInterviewList(document.getElementById('overview-interviews'), ri, 5);
+  // ── Overview recent interviews ───────────────────────────────────────────────
+  try {
+    renderInterviewList(document.getElementById('overview-interviews'), ri, 5);
+    console.log('[dashboard] overview interviews rendered');
+  } catch (e) { console.error('[dashboard] overview interviews render error:', e); }
 
-  // Interviews tab
-  renderInterviewList(document.getElementById('interviews-list'), ri, 20);
+  // ── Interviews tab ───────────────────────────────────────────────────────────
+  try {
+    renderInterviewList(document.getElementById('interviews-list'), ri, 20);
+    console.log('[dashboard] interviews tab rendered');
+  } catch (e) { console.error('[dashboard] interviews tab render error:', e); }
 
-  // Candidates tab visibility
-  if (isVerified) {
-    document.getElementById('candidates-content').style.display = 'block';
-    document.getElementById('btn-schedule').style.display = '';
-  } else {
-    document.getElementById('candidates-gated').style.display = 'block';
-  }
+  // ── Candidates tab visibility ────────────────────────────────────────────────
+  try {
+    if (isVerified) {
+      document.getElementById('candidates-content').style.display = 'block';
+      document.getElementById('btn-schedule').style.display = '';
+    } else {
+      document.getElementById('candidates-gated').style.display = 'block';
+    }
+    console.log('[dashboard] candidates tab rendered');
+  } catch (e) { console.error('[dashboard] candidates tab render error:', e); }
 
-  // Team tab: show only for verified employers who are admins (or standalone = not a team member)
-  if (isVerified && !data.is_team_member) {
-    const teamTabBtn = document.getElementById('tab-team');
-    if (teamTabBtn) teamTabBtn.style.display = '';
-  }
+  // ── Team tab visibility ──────────────────────────────────────────────────────
+  try {
+    if (isVerified && !DATA.is_team_member) {
+      const teamTabBtn = document.getElementById('tab-team');
+      if (teamTabBtn) teamTabBtn.style.display = '';
+    }
+    console.log('[dashboard] team tab rendered');
+  } catch (e) { console.error('[dashboard] team tab render error:', e); }
 }
 
 // ── Interview list renderer ──────────────────────────────────────────────────
