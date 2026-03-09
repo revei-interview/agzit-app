@@ -405,11 +405,15 @@ router.post('/send-magic-link', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Please enter a valid email address.' });
     }
 
+    console.log('[magic-link] looking up:', email);
+
     // 1. Check Render-native agzit_users first
     let [[user]] = await db.query(
       'SELECT id FROM agzit_users WHERE email = ? LIMIT 1',
       [email]
     );
+    let source = 'agzit_users';
+    console.log('[magic-link] agzit_users:', user ? 'found id=' + user.id : 'not found');
 
     // 2. Fallback: check wp_users and auto-create agzit_users row
     if (!user) {
@@ -417,6 +421,8 @@ router.post('/send-magic-link', async (req, res) => {
         'SELECT ID, display_name FROM wp_users WHERE user_email = ? LIMIT 1',
         [email]
       );
+      console.log('[magic-link] wp_users:', wpUser ? 'found id=' + wpUser.ID : 'not found');
+
       if (wpUser) {
         const [[capRow]] = await db.query(
           "SELECT meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'wp_capabilities' LIMIT 1",
@@ -435,12 +441,16 @@ router.post('/send-magic-link', async (req, res) => {
           );
           const newId = ins.insertId || null;
           const [[fetched]] = await db.query('SELECT id FROM agzit_users WHERE email = ? LIMIT 1', [email]);
-          user = fetched || (newId ? { id: newId } : null);
+          user   = fetched || (newId ? { id: newId } : null);
+          source = 'wp_users';
+          console.log('[magic-link] wp_user migrated to agzit_users, id:', user?.id, 'role:', role);
         } catch (migErr) {
           console.error('[magic-link] wp_user migration failed:', migErr.message);
         }
       }
     }
+
+    console.log('[magic-link] resolved user:', user ? 'id=' + user.id + ' source=' + source : 'null — skipping');
 
     if (user) {
       const token     = crypto.randomBytes(32).toString('hex');
@@ -452,8 +462,10 @@ router.post('/send-magic-link', async (req, res) => {
          ON DUPLICATE KEY UPDATE token=VALUES(token), expires_at=VALUES(expires_at), used_at=NULL`,
         [token, user.id, expiresAt]
       );
+      console.log('[magic-link] token created:', token.substring(0, 8) + '…');
 
-      const magicUrl = `https://app.agzit.com/login?ml=${token}`;
+      const appUrl   = process.env.APP_URL || 'https://app.agzit.com';
+      const magicUrl = `${appUrl}/login?ml=${token}`;
       try {
         await sendBrevoEmail({
           to:      email,
@@ -468,9 +480,9 @@ router.post('/send-magic-link', async (req, res) => {
             <p style="color:#B0B5CC;font-size:13px;line-height:1.7;">If you did not request this, you can safely ignore this email.</p>
           </div>`,
         });
-        console.log('[magic-link] sent to:', email);
+        console.log('[magic-link] Brevo sent to:', email);
       } catch (emailErr) {
-        console.error('[magic-link] Brevo error:', emailErr);
+        console.error('[magic-link] Brevo FAILED:', emailErr.message, JSON.stringify(emailErr.response?.body || emailErr.response?.data || {}));
       }
     }
 

@@ -184,12 +184,14 @@ async function initDB() {
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS agzit_magic_links (
       id         INT AUTO_INCREMENT PRIMARY KEY,
-      user_id    INT NOT NULL,
       token      VARCHAR(128) NOT NULL UNIQUE,
-      token_type ENUM('team_invite','login') DEFAULT 'login',
+      user_id    INT NOT NULL,
+      purpose    VARCHAR(32) NOT NULL DEFAULT 'login',
       expires_at DATETIME NOT NULL,
-      used       TINYINT DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      used_at    DATETIME DEFAULT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_token  (token),
+      INDEX idx_user   (user_id)
     )
   `);
   await pool.execute(`
@@ -207,19 +209,64 @@ async function initDB() {
   console.log('[init] DB tables ensured');
 }
 
-// ── One-time: reset astraluxgroup@gmail.com password ────────────────────────
+// ── One-time: ensure astraluxgroup@gmail.com can log in ─────────────────────
 async function fixCandidatePassword() {
+  const TARGET = 'astraluxgroup@gmail.com';
   try {
     const bcrypt = require('bcryptjs');
     const pool   = require('./config/db');
     const hash   = await bcrypt.hash('Welcome@123', 12);
-    const [r]    = await pool.execute(
-      "UPDATE agzit_users SET password_hash = ? WHERE email = 'astraluxgroup@gmail.com'",
-      [hash]
+
+    // 1. Check if already in agzit_users
+    const [[existing]] = await pool.execute(
+      'SELECT id FROM agzit_users WHERE email = ? LIMIT 1', [TARGET]
     );
-    if (r.affectedRows > 0) console.log('[startup] astraluxgroup@gmail.com password reset to Welcome@123');
+
+    if (existing) {
+      // UPDATE existing row
+      const [r] = await pool.execute(
+        'UPDATE agzit_users SET password_hash = ? WHERE email = ?', [hash, TARGET]
+      );
+      console.log('[init] candidate password fixed, rows affected:', r.affectedRows);
+      return;
+    }
+
+    // 2. Not in agzit_users — look up in wp_users and INSERT
+    const [[wpUser]] = await pool.execute(
+      'SELECT ID, display_name FROM wp_users WHERE user_email = ? LIMIT 1', [TARGET]
+    );
+    if (!wpUser) {
+      console.log('[init] candidate not found in agzit_users or wp_users — skipping');
+      return;
+    }
+
+    // Get WP role
+    const [[capRow]] = await pool.execute(
+      "SELECT meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'wp_capabilities' LIMIT 1",
+      [wpUser.ID]
+    );
+    let role = 'dpr_candidate';
+    if (capRow?.meta_value) {
+      if (capRow.meta_value.includes('"verified_employer"')) role = 'verified_employer';
+      else if (capRow.meta_value.includes('"dpr_employer"'))  role = 'dpr_employer';
+    }
+
+    // Get dpr_profile_post_id if present
+    const [[profileMeta]] = await pool.execute(
+      "SELECT meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'dpr_profile_post_id' LIMIT 1",
+      [wpUser.ID]
+    ).catch(() => [[null]]);
+    const dprProfileId = profileMeta?.meta_value ? parseInt(profileMeta.meta_value) : null;
+
+    const firstName = (wpUser.display_name || '').split(' ')[0] || '';
+    const [r] = await pool.execute(
+      `INSERT INTO agzit_users (email, password_hash, role, first_name, wp_user_id, dpr_profile_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [TARGET, hash, role, firstName, wpUser.ID, dprProfileId]
+    );
+    console.log('[init] candidate inserted into agzit_users, id:', r.insertId, 'role:', role);
   } catch (e) {
-    console.error('[startup] password reset failed:', e.message);
+    console.error('[init] candidate password fix failed:', e.message);
   }
 }
 
