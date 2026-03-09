@@ -335,6 +335,8 @@ button { font-family: inherit; cursor: pointer; }
   padding: 5px 12px; transition: background .15s;
 }
 .iv-join:hover { background: #EFF6FF; text-decoration: none; }
+.iv-join.iv-join-report { color: var(--green); border-color: #6EE7B7; }
+.iv-join.iv-join-report:hover { background: var(--green-lt); }
 
 /* ── Candidate cards ────────────────────────────────────────────────────── */
 .filter-bar {
@@ -1190,8 +1192,11 @@ function renderInterviewList(container, list, max) {
     const band      = iv.overall_score != null ? computeBand(iv.overall_score) : null;
     const bandPart  = band
       ? `<span class="iv-band iv-band-${band}">${bandLabel(band)}</span>` : '';
-    const joinPart  = iv.join_url && status !== 'cancelled'
-      ? `<a class="iv-join" href="${esc(iv.join_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Join Room</a>` : '';
+    const joinPart  = status === 'completed'
+      ? `<a class="iv-join iv-join-report" href="/employer-scorecard?id=${iv.id}" onclick="event.stopPropagation()">View Report</a>`
+      : (iv.join_url && status !== 'cancelled'
+          ? `<a class="iv-join" href="${esc(iv.join_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Join Room</a>`
+          : '');
     const scheduledPart = iv.scheduled_at ? `Scheduled: ${formatDate(iv.scheduled_at)}` : (iv.post_date ? formatDate(iv.post_date) : '');
 
     // Three-dot action menu — only for active (scheduled/started) interviews
@@ -1502,7 +1507,8 @@ function fmtDate(ms) {
 
 function formatDate(str) {
   if (!str) return 'Not scheduled';
-  const d = new Date(str.includes('T') ? str : str.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
+  // Normalise MySQL 'YYYY-MM-DD HH:MM:SS' → 'YYYY-MM-DDTHH:MM:SS' (no Z = local-time parse, consistent cross-browser)
+  const d = new Date(str.includes('T') ? str : str.replace(' ', 'T'));
   if (isNaN(d)) return str;
   return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
     + ', ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
