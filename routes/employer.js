@@ -192,6 +192,7 @@ router.get('/dashboard', ...guardAny, async (req, res) => {
     const ymd = ym + String(now.getUTCDate()).padStart(2, '0');
 
     const EMPLOYER_META_KEYS = [
+      'dpr_employer_first_name',
       'dpr_company_name',
       'dpr_designation',
       'dpr_department',
@@ -221,6 +222,7 @@ router.get('/dashboard', ...guardAny, async (req, res) => {
         created_at: user.created_at,
       },
       employer_profile: {
+        first_name:          meta.dpr_employer_first_name             || null,
         company_name:        meta.dpr_company_name                    || null,
         designation:         meta.dpr_designation                     || null,
         department:          meta.dpr_department                      || null,
@@ -776,8 +778,16 @@ router.get('/interviews', ...guardAny, async (req, res) => {
       'SELECT wp_user_id FROM agzit_users WHERE id = ?',
       [req.user.user_id]
     );
-    const interviews = await fetchEmployerInterviews(user?.wp_user_id, 1000);
-    res.json({ ok: true, count: interviews.length, interviews });
+    const wpId = user?.wp_user_id;
+    const interviews = await fetchEmployerInterviews(wpId, 1000);
+    let interview_credits = 0;
+    let credits_used      = 0;
+    if (wpId) {
+      const cm = await fetchUserMeta(wpId, ['employer_interview_credits', 'employer_credits_used']);
+      interview_credits = parseInt(cm.employer_interview_credits) || 0;
+      credits_used      = parseInt(cm.employer_credits_used)      || 0;
+    }
+    res.json({ ok: true, count: interviews.length, interviews, interview_credits, credits_used });
   } catch (err) {
     console.error('[employer/interviews]', err);
     res.status(500).json({ ok: false, error: 'Server error' });
@@ -1254,6 +1264,17 @@ router.post('/schedule-interview', ...guardVerified, async (req, res) => {
     const wpUserId = user.wp_user_id;
     if (!wpUserId) return res.status(400).json({ ok: false, error: 'No WP user linked to this account' });
 
+    // Credit check — admin tops up manually via DB; no purchase flow
+    const creditMeta     = await fetchUserMeta(wpUserId, ['employer_interview_credits', 'employer_credits_used']);
+    const currentCredits = parseInt(creditMeta.employer_interview_credits) || 0;
+    const currentUsed    = parseInt(creditMeta.employer_credits_used)      || 0;
+    if (currentCredits <= 0) {
+      return res.status(402).json({
+        ok: false, error: 'no_credits',
+        message: 'No interview credits remaining. Contact us to purchase.',
+      });
+    }
+
     const candidateName  = String(req.body.candidate_name         || '').trim();
     const candidateEmail = String(req.body.candidate_email        || '').trim().toLowerCase();
     const interviewRole  = String(req.body.interview_role         || '').trim();
@@ -1313,6 +1334,10 @@ router.post('/schedule-interview', ...guardVerified, async (req, res) => {
         [postId, key, val]
       );
     }
+
+    // Deduct credit
+    await upsertUserMeta(wpUserId, 'employer_interview_credits', String(currentCredits - 1));
+    await upsertUserMeta(wpUserId, 'employer_credits_used',      String(currentUsed + 1));
 
     // Send candidate email — awaited so errors surface; schedule still succeeds if email fails
     let emailSent  = true;

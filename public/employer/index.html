@@ -642,6 +642,23 @@ button { font-family: inherit; cursor: pointer; }
 .toast-success { background: #F0FDF4; border: 1px solid #86EFAC; color: #166534; }
 .toast-error   { background: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; }
 
+/* ── Credits bar ─────────────────────────────────────────────────────────── */
+.credits-bar {
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.credits-bar-ok   { background: #F0FDF4; border: 1px solid #BBF7D0; color: #166534; }
+.credits-bar-warn { background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; }
+.credits-bar a { font-weight: 700; color: inherit; text-decoration: underline; }
+
 /* ── Confirm overlay ─────────────────────────────────────────────────────── */
 .confirm-overlay {
   position: fixed; inset: 0; background: rgba(9,16,31,0.45);
@@ -750,7 +767,7 @@ button { font-family: inherit; cursor: pointer; }
             <div class="quick-links">
               <button class="ql-btn ql-btn-primary" onclick="switchTab('candidates')">View Candidates</button>
               <button class="ql-btn" onclick="switchTab('profile')">Edit Profile</button>
-              <a class="ql-btn" href="https://agzit.com" target="_blank" rel="noopener">agzit.com</a>
+              <a class="ql-btn" href="https://agzit.com/contact/" target="_blank" rel="noopener">Contact Sales</a>
             </div>
           </div>
 
@@ -900,6 +917,7 @@ button { font-family: inherit; cursor: pointer; }
 
     <!-- ── Interviews Tab ───────────────────────────────────────────── -->
     <div class="tab-panel" id="panel-interviews">
+      <div id="iv-credits-bar" style="display:none"></div>
       <div class="section-hdr">
         <div class="section-title">Your Scheduled Interviews</div>
         <button id="btn-schedule" class="ql-btn ql-btn-primary" onclick="openScheduleModal()" style="display:none">+ Schedule AI Interview</button>
@@ -1037,6 +1055,7 @@ let candidatesLoaded = false;
 let interviewsFullLoaded = false;
 let candidatePage = 1;
 let allInterviewsList = [];    // full list for client-side email filter
+let _ivCredits = null;         // { interview_credits, credits_used }
 const WP_URL = 'https://agzit.com';
 const ivCache = {};            // id -> interview object (for edit/cancel pre-fill)
 
@@ -1070,10 +1089,8 @@ function render() {
   const us   = DATA.unlock_stats || { used_today: 0, used_this_month: 0, limit_daily: 5, limit_monthly: 50, remaining_today: 5, remaining_monthly: 50 };
   const ri   = DATA.recent_interviews || [];
 
-  // Hero
-  const heroDisplay = (user.first_name && !user.first_name.includes('@'))
-    ? user.first_name
-    : ((user.email || '').split('@')[0] || 'there');
+  // Hero — prefer dpr_employer_first_name (real name) over agzit_users.first_name (may be email)
+  const heroDisplay = ep.first_name || ((user.email || '').split('@')[0] || 'there');
   document.getElementById('hero-name').textContent = 'Welcome back, ' + heroDisplay;
   document.getElementById('hero-company').textContent = ep.company_name || 'Company not set';
 
@@ -1175,7 +1192,7 @@ function renderInterviewList(container, list, max) {
       ? `<span class="iv-band iv-band-${band}">${bandLabel(band)}</span>` : '';
     const joinPart  = iv.join_url && status !== 'cancelled'
       ? `<a class="iv-join" href="${esc(iv.join_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Join Room</a>` : '';
-    const scheduledPart = iv.scheduled_at ? `Scheduled: ${iv.scheduled_at}` : (iv.post_date ? fmtDate(iv.post_date) : '');
+    const scheduledPart = iv.scheduled_at ? `Scheduled: ${formatDate(iv.scheduled_at)}` : (iv.post_date ? formatDate(iv.post_date) : '');
 
     // Three-dot action menu — only for active (scheduled/started) interviews
     const isEditable = status === 'scheduled' || status === 'started';
@@ -1328,7 +1345,7 @@ async function saveEditProfile() {
     await loadProfile();
     // Update hero first_name if changed
     if (payload.first_name) {
-      DATA.user.first_name = payload.first_name;
+      DATA.employer_profile.first_name = payload.first_name;
       document.getElementById('hero-name').textContent = 'Welcome back, ' + payload.first_name;
     }
   } catch (e) {
@@ -1483,6 +1500,14 @@ function fmtDate(ms) {
   catch { return '—'; }
 }
 
+function formatDate(str) {
+  if (!str) return 'Not scheduled';
+  const d = new Date(str.includes('T') ? str : str.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
+  if (isNaN(d)) return str;
+  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
+    + ', ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
+}
+
 function statusLabel(s) {
   return { scheduled:'Scheduled', started:'Started', completed:'Completed', cancelled:'Cancelled' }[s] || s;
 }
@@ -1539,6 +1564,8 @@ async function loadInterviewsFull() {
     loadingEl.style.display = 'none';
     if (!data.ok) throw new Error(data.error);
     allInterviewsList = data.interviews || [];
+    _ivCredits = { interview_credits: data.interview_credits ?? 0, credits_used: data.credits_used ?? 0 };
+    renderCreditsBanner(_ivCredits.interview_credits, _ivCredits.credits_used);
     if (allInterviewsList.length) document.getElementById('iv-search-wrap').style.display = 'block';
     renderInterviewList(listEl, allInterviewsList, 1000);
     interviewsFullLoaded = true;
@@ -1547,6 +1574,20 @@ async function loadInterviewsFull() {
     loadingEl.style.display = 'none';
     listEl.innerHTML = `<div class="notice notice-amber">${esc(e.message || 'Failed to load interviews.')}</div>`;
   }
+}
+
+function renderCreditsBanner(credits, used) {
+  const barEl  = document.getElementById('iv-credits-bar');
+  const schedBtn = document.getElementById('btn-schedule');
+  if (!barEl) return;
+  if (credits > 0) {
+    barEl.innerHTML = `<div class="credits-bar credits-bar-ok">Interview Credits — <strong>${credits}</strong> remaining &nbsp;(${used} used)</div>`;
+    if (schedBtn) { schedBtn.disabled = false; schedBtn.style.opacity = ''; schedBtn.title = ''; }
+  } else {
+    barEl.innerHTML = `<div class="credits-bar credits-bar-warn">No interview credits remaining. &nbsp;<a href="https://agzit.com/contact/" target="_blank" rel="noopener">Contact Sales &rarr;</a></div>`;
+    if (schedBtn) { schedBtn.disabled = true; schedBtn.style.opacity = '0.45'; schedBtn.title = 'No credits remaining'; }
+  }
+  barEl.style.display = 'block';
 }
 
 function filterInterviews() {
@@ -1621,7 +1662,11 @@ async function submitScheduleInterview() {
       }),
     });
     const data = await res.json();
-    if (!data.ok) { showScheduleError(data.error || 'Failed to schedule interview.'); return; }
+    if (!data.ok) {
+      showScheduleError(data.message || data.error || 'Failed to schedule interview.');
+      if (data.error === 'no_credits') closeScheduleModal();
+      return;
+    }
 
     closeScheduleModal();
     clearScheduleForm();
