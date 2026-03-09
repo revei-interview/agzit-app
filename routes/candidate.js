@@ -11,6 +11,7 @@ const crypto   = require('crypto');
 const https    = require('https');
 const jwt      = require('jsonwebtoken');
 const multer   = require('multer');
+const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
 
 // multer: in-memory storage, 5 MB limit, PDF only
 const upload = multer({
@@ -1219,39 +1220,36 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
   ]
 }`;
 
-    const base64Pdf = req.file.buffer.toString('base64');
-
-    const apiKey = process.env.OPENAI_API_KEY;
-    const oaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        max_tokens: 2048,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `Extract structured profile data from this resume PDF. Return ONLY a valid JSON object matching this schema exactly, no markdown, no extra text:\n\n${schema}`,
-              },
-              {
-                type: 'image_url',
-                image_url: { url: `data:application/pdf;base64,${base64Pdf}` },
-              },
-            ],
-          },
-        ],
-      }),
-    });
-    if (!oaiRes.ok) {
-      const errBody = await oaiRes.text().catch(() => '');
-      console.error('[parse-resume] OpenAI API error:', oaiRes.status, errBody.slice(0, 200));
-      return res.status(502).json({ ok: false, error: 'AI service error. Please try again.' });
+    // Extract text from PDF using pdfjs-dist
+    let pdfText = '';
+    try {
+      const uint8Array  = new Uint8Array(req.file.buffer);
+      const loadingTask = pdfjsLib.getDocument({
+        data: uint8Array,
+        useWorkerFetch:  false,
+        isEvalSupported: false,
+        useSystemFonts:  true,
+      });
+      const pdfDoc = await loadingTask.promise;
+      const pages  = [];
+      for (let i = 1; i <= pdfDoc.numPages; i++) {
+        const page    = await pdfDoc.getPage(i);
+        const content = await page.getTextContent();
+        pages.push(content.items.map(item => item.str).join(' '));
+      }
+      pdfText = pages.join('\n').trim();
+    } catch (e) {
+      console.error('[parse-resume] pdfjs error:', e.message);
+      return res.status(422).json({ ok: false, error: 'Could not read PDF. Please ensure the file is not password-protected.' });
     }
-    const oaiJson = await oaiRes.json();
-    const rawText = oaiJson.choices?.[0]?.message?.content || '';
+
+    if (!pdfText) {
+      return res.status(422).json({ ok: false, error: 'PDF appears to be empty or image-only. Please upload a text-based PDF.' });
+    }
+
+    const systemPrompt = 'Extract structured profile data from the resume text below. Return ONLY valid JSON matching the schema exactly. No markdown fences, no explanation, no trailing commas. For all dates use YYYY-MM format.';
+    const userContent  = `Schema:\n${schema}\n\nResume text:\n${pdfText.slice(0, 40000)}`;
+    const rawText = await callOpenAI(systemPrompt, userContent, 2048);
 
     // Strip markdown code fences if model wrapped JSON
     let jsonText = rawText.trim();
