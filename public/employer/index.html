@@ -676,6 +676,38 @@ button { font-family: inherit; cursor: pointer; }
 .bulk-result-yellow { background:#FFFBEB; border:1px solid #FDE68A; color:#92400E; }
 .bulk-result-orange { background:#FFF7ED; border:1px solid #FED7AA; color:#9A3412; }
 
+/* ── Compare candidates panel ────────────────────────────────────────────── */
+#compare-panel { background:#fff; border:1px solid var(--border); border-radius:14px; padding:24px; margin-bottom:20px; }
+.cmp-inputs { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; margin-bottom:16px; }
+.cmp-input-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin-bottom:5px; }
+.cmp-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.cmp-grid { display:grid; gap:16px; margin-top:24px; }
+.cmp-col { background:var(--surface); border:1.5px solid var(--border); border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:16px; }
+.cmp-col.no-scorecard { opacity:.7; }
+.cmp-name { font-size:15px; font-weight:800; color:var(--ink); }
+.cmp-email { font-size:12px; color:var(--muted); margin-top:2px; }
+.cmp-role  { font-size:12px; color:var(--soft); margin-top:2px; }
+.cmp-score-ring { font-size:40px; font-weight:800; color:var(--ink); text-align:center; line-height:1; }
+.cmp-band-badge { display:inline-block; font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; }
+.band-not-ready   { background:#FEE2E2; color:#991B1B; }
+.band-developing  { background:#FEF3C7; color:#92400E; }
+.band-promising   { background:#EAF0FF; color:#1A44C2; }
+.band-strong      { background:#EAF0FF; color:#1A44C2; }
+.band-exceptional { background:#E4F5EE; color:#0B7A47; }
+.cmp-bars { display:flex; flex-direction:column; gap:6px; }
+.cmp-bar-row { display:flex; align-items:center; gap:8px; border-radius:6px; padding:3px 5px; }
+.cmp-bar-row.best-score { background:#E4F5EE; }
+.cmp-bar-label { font-size:11px; color:var(--muted); flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.cmp-bar-track { flex:0 0 56px; height:6px; background:var(--border); border-radius:99px; overflow:hidden; }
+.cmp-bar-fill  { height:100%; background:var(--blue); border-radius:99px; }
+.cmp-bar-num   { font-size:11px; font-weight:700; color:var(--ink); flex:0 0 16px; text-align:right; }
+.cmp-chips { display:flex; flex-wrap:wrap; gap:5px; }
+.chip-green  { font-size:11px; background:#E4F5EE; color:#0B7A47; border-radius:20px; padding:3px 10px; }
+.chip-orange { font-size:11px; background:#FFF7ED; color:#C2410C; border-radius:20px; padding:3px 10px; }
+.cmp-summary { background:var(--surface); border-radius:10px; padding:12px 18px; margin-top:16px; display:flex; flex-wrap:wrap; gap:10px 28px; font-size:13px; color:var(--soft); }
+.cmp-summary strong { color:var(--ink); }
+@media(max-width:600px){.cmp-grid{grid-template-columns:1fr!important;}}
+
 /* ── Confirm overlay ─────────────────────────────────────────────────────── */
 .confirm-overlay {
   position: fixed; inset: 0; background: rgba(9,16,31,0.45);
@@ -936,23 +968,68 @@ button { font-family: inherit; cursor: pointer; }
       <!-- Candidates content (verified employers only) -->
       <div id="candidates-content" style="display:none">
 
-        <!-- DPR ID search -->
-        <div class="card reveal" style="margin-bottom:20px;">
-          <div class="card-title">Search by DPR ID</div>
-          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
-            <div style="flex:1;min-width:200px;">
-              <span class="filter-label" style="display:block;margin-bottom:6px;">DPR ID</span>
-              <input class="filter-input" id="dpr-id-input" type="text"
-                placeholder="e.g. DPR-20240101-GB-12345-ABC123" style="width:100%;"
-                onkeydown="if(event.key==='Enter')searchByDprId()">
-            </div>
-            <button class="filter-btn" onclick="searchByDprId()">View Profile</button>
-          </div>
-          <div id="dpr-id-error" style="font-size:12.5px;color:#B91C1C;margin-top:8px;display:none;">
-            Please enter a DPR ID (starts with DPR-).
-          </div>
+        <!-- Top action bar -->
+        <div class="section-hdr" style="margin-bottom:20px;">
+          <div></div>
+          <button class="ql-btn" onclick="openComparePanel()">Compare Candidates</button>
         </div>
 
+        <!-- Compare panel (shown when Compare button clicked, replaces search area) -->
+        <div id="compare-panel" style="display:none;margin-bottom:20px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+            <div style="font-size:17px;font-weight:800;color:var(--ink);">Compare Candidates</div>
+            <button class="btn-cancel" onclick="closeComparePanel()" style="font-size:13px;padding:8px 16px;">Close</button>
+          </div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">Enter email addresses of candidates you have interviewed. At least 2 required.</div>
+          <div class="cmp-inputs">
+            <div>
+              <div class="cmp-input-label">Candidate 1 Email</div>
+              <input class="filter-input" id="cmp-email-1" type="email" placeholder="email@example.com" style="width:100%;"
+                onkeydown="if(event.key==='Enter')runComparison()">
+            </div>
+            <div>
+              <div class="cmp-input-label">Candidate 2 Email</div>
+              <input class="filter-input" id="cmp-email-2" type="email" placeholder="email@example.com" style="width:100%;"
+                onkeydown="if(event.key==='Enter')runComparison()">
+            </div>
+            <div>
+              <div class="cmp-input-label">Candidate 3 Email (optional)</div>
+              <input class="filter-input" id="cmp-email-3" type="email" placeholder="email@example.com" style="width:100%;"
+                onkeydown="if(event.key==='Enter')runComparison()">
+            </div>
+            <div>
+              <div class="cmp-input-label">Candidate 4 Email (optional)</div>
+              <input class="filter-input" id="cmp-email-4" type="email" placeholder="email@example.com" style="width:100%;"
+                onkeydown="if(event.key==='Enter')runComparison()">
+            </div>
+          </div>
+          <div id="cmp-error" style="font-size:13px;color:#B91C1C;margin-bottom:12px;display:none;"></div>
+          <div class="cmp-actions">
+            <button class="filter-btn" id="btn-cmp-run" onclick="runComparison()">Compare</button>
+            <button class="filter-btn" style="background:none;color:var(--muted);border:1px solid var(--border);" onclick="clearComparison()">Clear</button>
+          </div>
+          <div id="cmp-loading" class="loading-row" style="display:none;margin-top:16px;"><div class="spinner"></div> Comparing candidates...</div>
+          <div id="cmp-results"></div>
+        </div>
+
+        <!-- DPR ID search (hidden while compare panel is open) -->
+        <div id="candidates-search-area">
+          <div class="card reveal" style="margin-bottom:20px;">
+            <div class="card-title">Search by DPR ID</div>
+            <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+              <div style="flex:1;min-width:200px;">
+                <span class="filter-label" style="display:block;margin-bottom:6px;">DPR ID</span>
+                <input class="filter-input" id="dpr-id-input" type="text"
+                  placeholder="e.g. DPR-20240101-GB-12345-ABC123" style="width:100%;"
+                  onkeydown="if(event.key==='Enter')searchByDprId()">
+              </div>
+              <button class="filter-btn" onclick="searchByDprId()">View Profile</button>
+            </div>
+            <div id="dpr-id-error" style="font-size:12.5px;color:#B91C1C;margin-top:8px;display:none;">
+              Please enter a DPR ID (starts with DPR-).
+            </div>
+          </div>
+        </div>
 
       </div>
     </div>
@@ -2794,6 +2871,219 @@ async function submitBulkSchedule() {
   } finally {
     btn.disabled = false; btn.textContent = 'Send Invitations';
   }
+}
+
+// ── Compare candidates panel ─────────────────────────────────────────────────
+
+const CMP_SCORE_LABELS = {
+  communication:        'Communication',
+  answer_structure:     'Answer Structure',
+  role_knowledge:       'Role Knowledge',
+  domain_application:   'Domain Application',
+  problem_solving:      'Problem Solving',
+  confidence:           'Confidence',
+  question_handling:    'Question Handling',
+  experience_relevance: 'Experience Relevance',
+  resume_alignment:     'Resume Alignment',
+  depth_specificity:    'Depth & Specificity',
+};
+const CMP_SCORE_KEYS = Object.keys(CMP_SCORE_LABELS);
+
+function openComparePanel() {
+  document.getElementById('compare-panel').style.display           = 'block';
+  document.getElementById('candidates-search-area').style.display  = 'none';
+  document.getElementById('cmp-email-1').focus();
+}
+
+function closeComparePanel() {
+  document.getElementById('compare-panel').style.display           = 'none';
+  document.getElementById('candidates-search-area').style.display  = '';
+  clearComparison();
+}
+
+function clearComparison() {
+  ['cmp-email-1','cmp-email-2','cmp-email-3','cmp-email-4'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('cmp-error').style.display   = 'none';
+  document.getElementById('cmp-loading').style.display = 'none';
+  document.getElementById('cmp-results').innerHTML     = '';
+}
+
+async function runComparison() {
+  const errEl   = document.getElementById('cmp-error');
+  const loading = document.getElementById('cmp-loading');
+  const btn     = document.getElementById('btn-cmp-run');
+  errEl.style.display = 'none';
+  document.getElementById('cmp-results').innerHTML = '';
+
+  const emails = ['cmp-email-1','cmp-email-2','cmp-email-3','cmp-email-4']
+    .map(id => document.getElementById(id).value.trim().toLowerCase())
+    .filter(e => e.length > 0);
+
+  if (emails.length < 2) {
+    errEl.textContent = 'Please enter at least 2 candidate email addresses to compare.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Comparing...';
+  loading.style.display = 'flex';
+  try {
+    const res  = await fetch('/api/employer/compare-candidates?emails=' + encodeURIComponent(emails.join(',')), { credentials: 'include' });
+    const data = await res.json();
+    loading.style.display = 'none';
+    if (!res.ok || !data.ok) {
+      errEl.textContent = data.error || 'Failed to compare candidates.';
+      errEl.style.display = 'block';
+      return;
+    }
+    renderComparisonResults(data.candidates);
+  } catch (e) {
+    loading.style.display = 'none';
+    errEl.textContent = 'Network error. Please try again.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Compare';
+  }
+}
+
+function renderComparisonResults(candidates) {
+  const el = document.getElementById('cmp-results');
+  if (!candidates || !candidates.length) {
+    el.innerHTML = '<div class="notice notice-amber" style="margin-top:16px;">No candidates found for the given emails.</div>';
+    return;
+  }
+
+  // Find best score per competency across all candidates
+  const bestScores = {};
+  for (const key of CMP_SCORE_KEYS) {
+    let best = -Infinity;
+    for (const c of candidates) {
+      if (c.scores && c.scores[key] !== null && c.scores[key] > best) best = c.scores[key];
+    }
+    bestScores[key] = best;
+  }
+
+  // Summary: best overall score + most consistent (lowest std dev)
+  let bestOverall = null, bestOverallScore = -Infinity;
+  let mostConsistent = null, lowestStdDev = Infinity;
+  for (const c of candidates) {
+    if (c.overall_score !== null && c.overall_score > bestOverallScore) {
+      bestOverallScore = c.overall_score; bestOverall = c;
+    }
+    if (c.scores) {
+      const vals = CMP_SCORE_KEYS.map(k => c.scores[k]).filter(v => v !== null);
+      if (vals.length > 1) {
+        const mean   = vals.reduce((a, b) => a + b, 0) / vals.length;
+        const stdDev = Math.sqrt(vals.reduce((s, v) => s + (v - mean) ** 2, 0) / vals.length);
+        if (stdDev < lowestStdDev) { lowestStdDev = stdDev; mostConsistent = c; }
+      }
+    }
+  }
+
+  function bandHtml(empBand, readinessBand) {
+    const empMap = {
+      'strong_match': ['band-exceptional', 'Strong Match'],
+      'promising':    ['band-promising',   'Promising'],
+      'developing':   ['band-developing',  'Developing'],
+      'not_ready':    ['band-not-ready',   'Not Ready'],
+    };
+    const readMap = {
+      'Interview Ready':           ['band-exceptional', 'Interview Ready'],
+      'Strong Potential':          ['band-strong',      'Strong Potential'],
+      'Developing Professional':   ['band-developing',  'Developing'],
+      'Needs Structured Practice': ['band-developing',  'Needs Practice'],
+      'Foundation Level':          ['band-not-ready',   'Foundation Level'],
+    };
+    let html = '';
+    if (empBand && empMap[empBand]) {
+      const [cls, lbl] = empMap[empBand];
+      html += `<span class="cmp-band-badge ${cls}">${lbl}</span> `;
+    }
+    if (readinessBand && readMap[readinessBand]) {
+      const [cls, lbl] = readMap[readinessBand];
+      html += `<span class="cmp-band-badge ${cls}">${lbl}</span>`;
+    }
+    return html || '<span style="color:var(--muted);font-size:12px;">No band yet</span>';
+  }
+
+  const cols = candidates.map(c => {
+    const cName  = esc(c.name || c.email);
+    const ivDate = c.interview_date
+      ? new Date(c.interview_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      : null;
+
+    if (!c.has_scorecard) {
+      return `<div class="cmp-col no-scorecard">
+        <div>
+          <div class="cmp-name">${cName}</div>
+          <div class="cmp-email">${esc(c.email)}</div>
+          ${c.role_title ? `<div class="cmp-role">${esc(c.role_title)}</div>` : ''}
+        </div>
+        <div style="text-align:center;padding:28px 0;color:var(--muted);font-size:13px;line-height:1.6;">
+          ${c.found ? 'No completed interview scorecard found.' : 'Candidate not found in AGZIT.'}
+        </div>
+      </div>`;
+    }
+
+    const scoreRows = CMP_SCORE_KEYS.map(key => {
+      const val    = c.scores[key];
+      const isBest = val !== null && val > 0 && val === bestScores[key];
+      const pct    = val !== null ? (val / 10) * 100 : 0;
+      return `<div class="cmp-bar-row${isBest ? ' best-score' : ''}">
+        <span class="cmp-bar-label">${CMP_SCORE_LABELS[key]}</span>
+        <div class="cmp-bar-track"><div class="cmp-bar-fill" style="width:${pct}%"></div></div>
+        <span class="cmp-bar-num">${val !== null ? val : '—'}</span>
+      </div>`;
+    }).join('');
+
+    const strengthsHtml = c.strengths && c.strengths.length
+      ? `<div class="cmp-chips">${c.strengths.map(s => `<span class="chip-green">${esc(s)}</span>`).join('')}</div>`
+      : '<span style="color:var(--muted);font-size:12px;">—</span>';
+
+    const areasHtml = c.areas_to_improve && c.areas_to_improve.length
+      ? `<div class="cmp-chips">${c.areas_to_improve.map(a => `<span class="chip-orange">${esc(a)}</span>`).join('')}</div>`
+      : '<span style="color:var(--muted);font-size:12px;">—</span>';
+
+    return `<div class="cmp-col">
+      <div>
+        <div class="cmp-name">${cName}</div>
+        <div class="cmp-email">${esc(c.email)}</div>
+        ${c.role_title ? `<div class="cmp-role">${esc(c.role_title)}</div>` : ''}
+        ${ivDate ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">Interview: ${ivDate}</div>` : ''}
+      </div>
+      <div style="text-align:center;">
+        <div class="cmp-score-ring">${c.overall_score !== null ? c.overall_score : '—'}</div>
+        <div style="font-size:11px;color:var(--muted);margin:4px 0 10px;">/ 100</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;">${bandHtml(c.emp_readiness_band, c.readiness_band)}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;">Competencies</div>
+        <div class="cmp-bars">${scoreRows}</div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px;">Strengths</div>
+        ${strengthsHtml}
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px;">Areas to Improve</div>
+        ${areasHtml}
+      </div>
+    </div>`;
+  });
+
+  const n        = candidates.length;
+  const gridCols = n <= 2 ? '1fr 1fr' : n === 3 ? '1fr 1fr 1fr' : '1fr 1fr 1fr 1fr';
+
+  const summaryParts = [];
+  if (bestOverall) summaryParts.push(`Best overall: <strong>${esc(bestOverall.name || bestOverall.email)}</strong> (${bestOverall.overall_score}/100)`);
+  if (mostConsistent && mostConsistent !== bestOverall) summaryParts.push(`Most consistent: <strong>${esc(mostConsistent.name || mostConsistent.email)}</strong>`);
+
+  el.innerHTML = `
+    <div class="cmp-grid" style="grid-template-columns:${gridCols};">${cols.join('')}</div>
+    ${summaryParts.length ? `<div class="cmp-summary">${summaryParts.map(p => `<span>${p}</span>`).join('')}</div>` : ''}
+  `;
 }
 </script>
 

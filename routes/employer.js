@@ -2347,6 +2347,155 @@ router.post('/bulk-schedule', ...guardVerified, async (req, res) => {
   }
 });
 
+// ── GET /api/employer/compare-candidates ─────────────────────────────────────
+// Compare up to 4 candidates by email.
+// For each email: looks up agzit_users + DPR profile postmeta + most recent
+// completed employer_interview scorecard belonging to this employer.
+
+function parseTextToArray(text) {
+  if (!text) return [];
+  return text.split('\n')
+    .map(l => l.replace(/^[-•*]\s*/, '').trim())
+    .filter(l => l.length > 0);
+}
+
+const COMPARE_SCORE_KEYS = [
+  'score_communication', 'score_structure', 'score_role_knowledge',
+  'score_domain_application', 'score_problem_solving', 'score_confidence',
+  'score_question_handling', 'score_experience_relevance', 'score_resume_alignment',
+  'depth_specificity',
+];
+const COMPARE_POST_KEYS = [
+  'candidate_name', 'candidate_email', 'interview_role', 'total_work_experience',
+  'emp_readiness_band', 'mock_performance_level', 'mock_strengths', 'mock_improvements',
+  ...COMPARE_SCORE_KEYS,
+];
+
+router.get('/compare-candidates', ...guardVerified, async (req, res) => {
+  try {
+    const rawEmails = typeof req.query.emails === 'string' ? req.query.emails : '';
+    const emails = [...new Set(
+      rawEmails.split(',')
+        .map(e => e.trim().toLowerCase())
+        .filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))
+    )].slice(0, 4);
+
+    if (emails.length < 2) {
+      return res.status(400).json({ ok: false, error: 'At least 2 valid email addresses required' });
+    }
+
+    const [[user]] = await pool.execute(
+      'SELECT wp_user_id FROM agzit_users WHERE id = ?',
+      [req.user.user_id]
+    );
+    const wpId = user?.wp_user_id;
+    if (!wpId) return res.status(400).json({ ok: false, error: 'No WP user linked' });
+
+    // Team members share the admin's interview pool
+    const adminAgzitId = await resolveAdminUserId(req.user.user_id).catch(() => null);
+    let adminWpId = wpId;
+    if (adminAgzitId) {
+      const [[adminUser]] = await pool.execute(
+        'SELECT wp_user_id FROM agzit_users WHERE id = ?',
+        [adminAgzitId]
+      );
+      if (adminUser?.wp_user_id) adminWpId = adminUser.wp_user_id;
+    }
+
+    const int = (v) => (v !== null && v !== undefined && v !== '') ? parseInt(v) : null;
+
+    const candidates = await Promise.all(emails.map(async (email) => {
+      // 1. Find candidate in agzit_users
+      const [[cand]] = await pool.execute(
+        'SELECT id, first_name, last_name, wp_user_id FROM agzit_users WHERE LOWER(email) = ? LIMIT 1',
+        [email]
+      );
+
+      // 2. DPR profile postmeta for role/experience fallback
+      let dprData = {};
+      if (cand?.wp_user_id) {
+        const [[profRow]] = await pool.execute(
+          "SELECT meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'dpr_profile_post_id' LIMIT 1",
+          [cand.wp_user_id]
+        );
+        const profilePostId = profRow?.meta_value ? parseInt(profRow.meta_value) : null;
+        if (profilePostId) {
+          dprData = await fetchPostMeta(profilePostId, ['full_name', 'total_work_experience', 'desired_role', 'compliance_domains']);
+        }
+      }
+
+      // 3. Most recent completed employer interview for this candidate under this employer
+      const [[ivPost]] = await pool.execute(
+        `SELECT p.ID, p.post_date
+         FROM wp_posts p
+         INNER JOIN wp_postmeta em ON em.post_id = p.ID AND em.meta_key = 'employer_user_id' AND em.meta_value = ?
+         INNER JOIN wp_postmeta ce ON ce.post_id = p.ID AND ce.meta_key = 'candidate_email' AND LOWER(ce.meta_value) = ?
+         INNER JOIN wp_postmeta st ON st.post_id = p.ID AND st.meta_key = 'interview_status' AND st.meta_value = 'completed'
+         WHERE p.post_type = 'employer_interview' AND p.post_status = 'publish'
+         ORDER BY p.post_date DESC
+         LIMIT 1`,
+        [String(adminWpId), email]
+      );
+
+      if (!ivPost) {
+        return {
+          email,
+          name:                  cand ? `${cand.first_name || ''} ${cand.last_name || ''}`.trim() || null : null,
+          found:                 !!cand,
+          has_scorecard:         false,
+          role_title:            dprData.desired_role || null,
+          total_work_experience: dprData.total_work_experience || null,
+          overall_score:         null,
+          readiness_band:        null,
+          emp_readiness_band:    null,
+          scores:                null,
+          strengths:             [],
+          areas_to_improve:      [],
+          interview_date:        null,
+        };
+      }
+
+      const m            = await fetchPostMeta(ivPost.ID, COMPARE_POST_KEYS);
+      const parsedScores = COMPARE_SCORE_KEYS.map(k => int(m[k]));
+      const validScores  = parsedScores.filter(s => s !== null);
+      const overall_score = validScores.length > 0 ? validScores.reduce((a, b) => a + b, 0) : null;
+
+      return {
+        email,
+        name:                  m.candidate_name || (cand ? `${cand.first_name || ''} ${cand.last_name || ''}`.trim() : null) || email,
+        found:                 true,
+        has_scorecard:         validScores.length > 0,
+        role_title:            m.interview_role || dprData.desired_role || null,
+        total_work_experience: m.total_work_experience || dprData.total_work_experience || null,
+        overall_score,
+        readiness_band:     m.mock_performance_level || null,
+        emp_readiness_band: m.emp_readiness_band || null,
+        scores: {
+          communication:        int(m.score_communication),
+          answer_structure:     int(m.score_structure),
+          role_knowledge:       int(m.score_role_knowledge),
+          domain_application:   int(m.score_domain_application),
+          problem_solving:      int(m.score_problem_solving),
+          confidence:           int(m.score_confidence),
+          question_handling:    int(m.score_question_handling),
+          experience_relevance: int(m.score_experience_relevance),
+          resume_alignment:     int(m.score_resume_alignment),
+          depth_specificity:    int(m.depth_specificity),
+        },
+        strengths:        parseTextToArray(m.mock_strengths).slice(0, 2),
+        areas_to_improve: parseTextToArray(m.mock_improvements).slice(0, 2),
+        interview_date:   ivPost.post_date,
+      };
+    }));
+
+    console.log('[compare-candidates] user_id=%s count=%d', req.user.user_id, candidates.length);
+    res.json({ ok: true, candidates });
+  } catch (err) {
+    console.error('[employer/compare-candidates]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
 // ── Startup: ensure tables exist + seed employer_team_role for existing employers ──
 
 (async () => {
