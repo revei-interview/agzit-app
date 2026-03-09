@@ -107,12 +107,20 @@ async function upsertUserMeta(wpUserId, metaKey, metaValue) {
 
 // Fetch employer_interview posts for a given WP user ID
 // employer_user_id ACF postmeta = WP user ID (integer stored as string in meta_value)
+const INTERVIEW_SCORE_KEYS = [
+  'score_communication', 'score_structure', 'score_role_knowledge',
+  'score_domain_application', 'score_problem_solving', 'score_confidence',
+  'score_question_handling', 'score_experience_relevance', 'score_resume_alignment',
+  'depth_specificity',
+];
+
 const INTERVIEW_KEYS = [
   'candidate_name', 'candidate_email', 'total_work_experience',
   'interview_role', 'session_type', 'scheduled_at',
   'interview_status', 'join_url', 'join_token', 'session_id',
-  'mock_overall_score', 'emp_readiness_band',
+  'emp_readiness_band',
   'audio_url', 'video_url', 'jd_raw_text',
+  ...INTERVIEW_SCORE_KEYS,
 ];
 
 async function fetchEmployerInterviews(wpUserId, limit) {
@@ -151,7 +159,11 @@ async function fetchEmployerInterviews(wpUserId, limit) {
       join_url:               m.join_url                || null,
       join_token:             m.join_token              || null,
       session_id:             m.session_id              || null,
-      overall_score:          m.mock_overall_score        ? Number(m.mock_overall_score) : null,
+      overall_score:          (() => {
+        const vals = INTERVIEW_SCORE_KEYS.map(k => m[k] !== undefined && m[k] !== null && m[k] !== '' ? parseInt(m[k]) : null);
+        if (vals.every(v => v === null)) return null;
+        return vals.reduce((sum, v) => sum + (v ?? 0), 0);
+      })(),
       emp_readiness_band:     m.emp_readiness_band      || null,
       audio_url:              m.audio_url               || null,
       video_url:              m.video_url               || null,
@@ -311,6 +323,12 @@ const CANDIDATE_KEYS = [
 
 router.get('/candidates', ...guardVerified, async (req, res) => {
   try {
+    // Employers may only look up a specific candidate by DPR ID — bulk browsing is not permitted
+    const dprIdParam = typeof req.query.dpr_id === 'string' ? req.query.dpr_id.trim() : '';
+    if (!dprIdParam) {
+      return res.status(400).json({ ok: false, error: 'dpr_id required' });
+    }
+
     const page       = Math.max(1, parseInt(req.query.page)     || 1);
     const per_page   = Math.min(50, Math.max(1, parseInt(req.query.per_page) || 20));
     const domain     = typeof req.query.domain       === 'string' ? req.query.domain.trim()       : '';

@@ -827,97 +827,6 @@ button { font-family: inherit; cursor: pointer; }
           </div>
         </div>
 
-        <!-- Filter bar -->
-        <div class="filter-bar reveal">
-          <div class="filter-group">
-            <span class="filter-label">Domain</span>
-            <select class="filter-select" id="filter-domain">
-              <option value="">All Domains</option>
-              <option value="Compliance / Regulatory">Compliance / Regulatory</option>
-              <option value="Finance / Treasury">Finance / Treasury</option>
-              <option value="Accounting / Taxation / Audit">Accounting / Taxation / Audit</option>
-              <option value="Banking / Financial Services">Banking / Financial Services</option>
-              <option value="Risk Management">Risk Management</option>
-              <option value="Fraud / Anti-Fraud">Fraud / Anti-Fraud</option>
-              <option value="Audit &amp; Assurance">Audit &amp; Assurance</option>
-              <option value="Legal / Law / Advisory">Legal / Law / Advisory</option>
-              <option value="Insurance / Underwriting / Actuarial">Insurance / Underwriting / Actuarial</option>
-              <option value="Human Resources / People Ops">Human Resources / People Ops</option>
-              <option value="Administration / Office Management">Administration / Office Management</option>
-              <option value="Sales / Business Development">Sales / Business Development</option>
-              <option value="Marketing / Brand / Digital Marketing">Marketing / Brand / Digital Marketing</option>
-              <option value="Product Management">Product Management</option>
-              <option value="Operations / Back Office">Operations / Back Office</option>
-              <option value="Procurement / Purchase / Vendor Management">Procurement / Purchase / Vendor Management</option>
-              <option value="Logistics / Supply Chain">Logistics / Supply Chain</option>
-              <option value="Customer Support / Helpdesk / Telecalling">Customer Support / Helpdesk / Telecalling</option>
-              <option value="Data / Analytics / BI">Data / Analytics / BI</option>
-              <option value="IT / Systems">IT / Systems</option>
-              <option value="Software Development / Engineering">Software Development / Engineering</option>
-              <option value="Cybersecurity / InfoSec">Cybersecurity / InfoSec</option>
-              <option value="Healthcare / Medical / Pharma">Healthcare / Medical / Pharma</option>
-              <option value="Education / Training / Coaching">Education / Training / Coaching</option>
-              <option value="Hospitality / Food &amp; Beverage">Hospitality / Food &amp; Beverage</option>
-              <option value="Real Estate / Property Management">Real Estate / Property Management</option>
-              <option value="Travel / Ticketing / Reservations">Travel / Ticketing / Reservations</option>
-              <option value="Transport / Driving">Transport / Driving</option>
-              <option value="Government / Public Sector">Government / Public Sector</option>
-              <option value="Senior Management / Leadership">Senior Management / Leadership</option>
-              <option value="Fresh Graduates / Trainees / Interns">Fresh Graduates / Trainees / Interns</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-          <div class="filter-group">
-            <span class="filter-label">Career Level</span>
-            <select class="filter-select" id="filter-career">
-              <option value="">All Levels</option>
-              <option value="Intern / Fresher">Intern / Fresher</option>
-              <option value="Junior / Associate">Junior / Associate</option>
-              <option value="Mid-level">Mid-level</option>
-              <option value="Senior">Senior</option>
-              <option value="Lead">Lead</option>
-              <option value="Manager">Manager</option>
-              <option value="Senior Manager">Senior Manager</option>
-              <option value="Director / Head">Director / Head</option>
-            </select>
-          </div>
-          <div class="filter-group">
-            <span class="filter-label">Employment Status</span>
-            <select class="filter-select" id="filter-emp-status">
-              <option value="">Any Status</option>
-              <option value="Employed">Employed</option>
-              <option value="Unemployed">Unemployed</option>
-              <option value="Fresher">Fresher</option>
-              <option value="Freelancer / Consultant">Freelancer / Consultant</option>
-            </select>
-          </div>
-          <div class="filter-group">
-            <span class="filter-label">Work Type</span>
-            <select class="filter-select" id="filter-work-type">
-              <option value="">Any Type</option>
-              <option value="On-site">On-site</option>
-              <option value="Hybrid">Hybrid</option>
-              <option value="Remote">Remote</option>
-              <option value="Flexible / Any">Flexible / Any</option>
-            </select>
-          </div>
-          <div class="filter-group">
-            <span class="filter-label">Country</span>
-            <input class="filter-input" id="filter-country" type="text" placeholder="e.g. United Kingdom" style="height:36px;">
-          </div>
-          <div class="filter-check-wrap">
-            <input type="checkbox" id="filter-open" name="filter-open">
-            <label for="filter-open">Open for Work only</label>
-          </div>
-          <button class="filter-btn" onclick="loadCandidates(1)">Search</button>
-        </div>
-
-        <div id="candidates-count" style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:16px"></div>
-        <div id="candidates-loading" class="loading-row" style="display:none">
-          <div class="spinner"></div> Loading candidates...
-        </div>
-        <div class="cand-grid" id="candidates-grid"></div>
-        <div class="pagination" id="candidates-pagination"></div>
 
       </div>
     </div>
@@ -1215,6 +1124,7 @@ function renderInterviewList(container, list, max) {
       <div>
         <div class="iv-role">${esc(iv.interview_role || 'Interview')}</div>
         <div class="iv-candidate">${esc(iv.candidate_name || 'Candidate')}</div>
+        ${iv.candidate_email ? `<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">${esc(iv.candidate_email)}</div>` : ''}
         <div class="iv-meta">
           ${iv.session_type ? `<span>${esc(iv.session_type)}</span>` : ''}
           ${scheduledPart ? `<span>${esc(scheduledPart)}</span>` : ''}
@@ -1239,8 +1149,7 @@ function switchTab(name) {
   document.getElementById('tab-' + name).classList.add('active');
   document.getElementById('panel-' + name).classList.add('active');
 
-  if (name === 'profile'    && !profileLoaded)    loadProfile();
-  if (name === 'candidates' && USER_ROLE === 'verified_employer' && !candidatesLoaded) loadCandidates(1);
+  if (name === 'profile'    && !profileLoaded)       loadProfile();
   if (name === 'interviews' && !interviewsFullLoaded) loadInterviewsFull();
 }
 
