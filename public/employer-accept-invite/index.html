@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Accept Invitation — AGZIT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --ink:     #09101F;
+  --blue:    #1A44C2;
+  --green:   #0B7A47;
+  --muted:   #7C83A0;
+  --line:    #E4E6EF;
+  --surface: #F5F6FA;
+}
+body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--surface); color: var(--ink); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; -webkit-font-smoothing: antialiased; }
+.box { background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 40px 36px; max-width: 440px; width: 100%; text-align: center; box-shadow: 0 8px 32px rgba(9,16,31,0.08); }
+.logo { font-size: 22px; font-weight: 800; color: var(--ink); margin-bottom: 28px; letter-spacing: -0.5px; }
+.spin { width: 40px; height: 40px; border: 3px solid var(--line); border-top-color: var(--blue); border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto 20px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.title  { font-size: 20px; font-weight: 800; color: var(--ink); margin-bottom: 10px; }
+.sub    { font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 24px; }
+.btn {
+  display: inline-block; background: var(--blue); color: #fff; font-family: inherit;
+  font-size: 15px; font-weight: 700; padding: 13px 32px; border-radius: 10px;
+  border: none; cursor: pointer; text-decoration: none; width: 100%;
+}
+.btn:hover { opacity: .9; }
+.btn-green { background: var(--green); }
+.err { color: #B91C1C; font-size: 14px; line-height: 1.6; background: #FEE2E2; border: 1px solid #FCA5A5; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="logo">AGZIT AI</div>
+
+  <!-- Loading state -->
+  <div id="state-loading">
+    <div class="spin"></div>
+    <div class="sub">Verifying your invitation...</div>
+  </div>
+
+  <!-- Success: account linked -->
+  <div id="state-success" style="display:none;">
+    <div class="title">Invitation Accepted</div>
+    <div class="sub">You now have access to your company's employer dashboard. Redirecting you now...</div>
+  </div>
+
+  <!-- Needs account -->
+  <div id="state-register" style="display:none;">
+    <div class="title">Create your account</div>
+    <div class="sub">You need an AGZIT account to accept this invitation. Use the email address the invitation was sent to.</div>
+    <a id="register-link" href="/register" class="btn" style="margin-bottom:12px;display:block;">Create Account</a>
+    <div class="sub" style="font-size:12px;">After creating your account, return to this invitation link.</div>
+  </div>
+
+  <!-- Error state -->
+  <div id="state-error" style="display:none;">
+    <div class="err" id="err-msg">Something went wrong.</div>
+    <a href="/employer" class="btn" style="text-decoration:none;display:block;">Go to Dashboard</a>
+  </div>
+</div>
+
+<script>
+(async function boot() {
+  const params = new URLSearchParams(location.search);
+  const token  = params.get('token') || '';
+
+  function show(id) {
+    ['state-loading','state-success','state-register','state-error'].forEach(s => {
+      document.getElementById(s).style.display = s === id ? '' : 'none';
+    });
+  }
+
+  if (!token) {
+    document.getElementById('err-msg').textContent = 'No invitation token found. Please check your invitation email.';
+    show('state-error');
+    return;
+  }
+
+  try {
+    const res  = await fetch('/api/employer/team/accept?token=' + encodeURIComponent(token), { credentials: 'include' });
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      document.getElementById('err-msg').textContent = data.error || 'This invitation is invalid or has expired.';
+      show('state-error');
+      return;
+    }
+
+    if (data.needs_account) {
+      // Redirect them to register, preserving token in URL so they can come back
+      const regLink = document.getElementById('register-link');
+      regLink.href = '/register?invite_token=' + encodeURIComponent(token)
+                   + '&email=' + encodeURIComponent(data.email || '');
+      show('state-register');
+      return;
+    }
+
+    // Success — JWT cookie was set by the backend
+    show('state-success');
+    setTimeout(() => { window.location.href = data.redirectTo || '/employer'; }, 1500);
+
+  } catch (err) {
+    document.getElementById('err-msg').textContent = 'Network error. Please try again.';
+    show('state-error');
+  }
+})();
+</script>
+</body>
+</html>

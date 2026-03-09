@@ -39,6 +39,41 @@ CREATE TABLE IF NOT EXISTS agzit_otp_codes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
+-- 3) Employer team members (shared company account)
+--    admin_user_id  = agzit_users.id of the company admin (the one who invited)
+--    member_user_id = agzit_users.id of the team member (null until they accept)
+
+CREATE TABLE IF NOT EXISTS agzit_employer_team (
+  id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  admin_user_id  INT UNSIGNED NOT NULL,
+  member_user_id INT UNSIGNED DEFAULT NULL,
+  member_email   VARCHAR(255) NOT NULL,
+  team_role      ENUM('admin','member') NOT NULL DEFAULT 'member',
+  status         ENUM('invited','active','removed') NOT NULL DEFAULT 'invited',
+  invite_token   VARCHAR(128) DEFAULT NULL,
+  invited_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  joined_at      DATETIME DEFAULT NULL,
+  INDEX idx_admin  (admin_user_id),
+  INDEX idx_member (member_user_id),
+  INDEX idx_email  (member_email),
+  INDEX idx_token  (invite_token)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- 4) Magic links (passwordless login / team invite accept tokens)
+
+CREATE TABLE IF NOT EXISTS agzit_magic_links (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  token      VARCHAR(128) NOT NULL UNIQUE,
+  user_id    INT UNSIGNED NOT NULL,
+  purpose    VARCHAR(32)  NOT NULL DEFAULT 'login',
+  expires_at DATETIME NOT NULL,
+  used_at    DATETIME DEFAULT NULL,
+  INDEX idx_token (token),
+  INDEX idx_user  (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
 -- ============================================================
 -- NOTES:
 -- * agzit_users is INDEPENDENT of wp_users.

@@ -276,6 +276,21 @@ label:first-of-type { margin-top: 0; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* Magic link divider + ghost btn + processing spinner */
+.divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 20px 0; color: var(--muted); font-size: 13px; font-weight: 600;
+}
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.btn-ghost { background: transparent; color: var(--blue); border-color: var(--blue); }
+.btn-ghost:hover { background: var(--blue-lt); }
+.spin-block {
+  width: 36px; height: 36px;
+  border: 3px solid var(--line); border-top-color: var(--blue);
+  border-radius: 50%; animation: spin .7s linear infinite;
+  margin: 0 auto 16px;
+}
+
 @media (max-width: 640px) {
   .wrap { padding: 24px 16px; }
   .auth-card, .hero-card { padding: 28px 22px; }
@@ -335,23 +350,57 @@ label:first-of-type { margin-top: 0; }
 
       <!-- ── LOGIN PANEL ── -->
       <div id="panel-login">
-        <div class="form-title">Login</div>
-        <div class="msg-error" id="login-error"></div>
-        <div>
-          <label>Email</label>
-          <input class="input" type="email" id="login-email" placeholder="you@example.com" autocomplete="email">
-          <label>Password</label>
-          <div class="pw-wrap">
-            <input class="input" type="password" id="login-password" placeholder="Your password" autocomplete="current-password">
-            <button class="pw-eye" type="button" onclick="togglePw('login-password', this)">👁</button>
-          </div>
-          <button class="btn btn-primary" id="login-btn" onclick="doLogin()">
-            Login <span class="spinner" id="login-spinner"></span>
-          </button>
-          <div class="center-link" style="margin-top:14px;">
-            <a href="/forgot-password" class="form-link">Forgot password?</a>
+
+        <!-- Magic link token processing state (shown only when ?ml= is in URL) -->
+        <div id="magic-processing" style="display:none;text-align:center;padding:32px 0 8px;">
+          <div class="spin-block"></div>
+          <p style="font-size:14px;color:var(--muted);">Verifying your login link...</p>
+          <div class="msg-error" id="magic-process-error" style="margin-top:16px;text-align:left;display:none;"></div>
+          <a href="/login" class="form-link" id="magic-process-retry" style="display:none;margin-top:12px;font-size:14px;">Return to login</a>
+        </div>
+
+        <!-- Normal login form -->
+        <div id="login-form-inner">
+          <div class="form-title">Login</div>
+          <div class="msg-error" id="login-error"></div>
+          <div>
+            <label>Email</label>
+            <input class="input" type="email" id="login-email" placeholder="you@example.com" autocomplete="email">
+            <label>Password</label>
+            <div class="pw-wrap">
+              <input class="input" type="password" id="login-password" placeholder="Your password" autocomplete="current-password">
+              <button class="pw-eye" type="button" onclick="togglePw('login-password', this)">👁</button>
+            </div>
+            <button class="btn btn-primary" id="login-btn" onclick="doLogin()">
+              Login <span class="spinner" id="login-spinner"></span>
+            </button>
+            <div class="center-link" style="margin-top:14px;">
+              <a href="/forgot-password" class="form-link">Forgot password?</a>
+            </div>
+
+            <div class="divider">or</div>
+
+            <!-- Magic link panel (toggled by the trigger link below) -->
+            <div id="magic-link-panel" style="display:none;">
+              <div class="msg-success" id="magic-link-success"></div>
+              <div class="msg-error" id="magic-link-error"></div>
+              <label>Email address</label>
+              <input class="input" type="email" id="magic-email" placeholder="you@example.com" autocomplete="email">
+              <button class="btn btn-ghost" id="magic-btn" onclick="sendMagicLink()" style="margin-top:14px;">
+                Send login link <span class="spinner" id="magic-spinner" style="border-color:rgba(26,68,194,0.2);border-top-color:var(--blue);"></span>
+              </button>
+              <div class="center-link" style="margin-top:14px;">
+                <a href="#" class="form-link" onclick="toggleMagicLink(event)">← Use password instead</a>
+              </div>
+            </div>
+
+            <!-- Toggle trigger -->
+            <div id="magic-link-trigger" class="center-link" style="margin-top:16px;">
+              <a href="#" class="form-link" onclick="toggleMagicLink(event)">Log in with a link instead</a>
+            </div>
           </div>
         </div>
+
       </div>
 
       <!-- ── REGISTER PANEL ── -->
@@ -705,19 +754,122 @@ function togglePw(id, btn) {
 document.addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
   const target = e.target;
-  // Don't intercept Enter on textareas or buttons
   if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON') return;
 
   const loginVisible = document.getElementById('panel-login').style.display !== 'none';
+  const magicOpen    = loginVisible && document.getElementById('magic-link-panel').style.display !== 'none';
   const step1Visible = document.getElementById('reg-step1').style.display !== 'none';
   const step2Visible = document.getElementById('reg-step2').style.display !== 'none';
   const step3Visible = document.getElementById('reg-step3').style.display !== 'none';
 
-  if (loginVisible)  { e.preventDefault(); doLogin(); }
+  if (magicOpen)         { e.preventDefault(); sendMagicLink(); }
+  else if (loginVisible) { e.preventDefault(); doLogin(); }
   else if (step1Visible) { e.preventDefault(); sendOTP(); }
   else if (step2Visible) { e.preventDefault(); verifyOTPStep(); }
   else if (step3Visible) { e.preventDefault(); completeRegistration(); }
 });
+
+// ── Magic link boot (handles ?ml= token in URL) ─────────────────────────────
+(async function handleMagicLinkBoot() {
+  const params = new URLSearchParams(location.search);
+  const ml     = params.get('ml');
+  const email  = params.get('email');
+
+  // Pre-fill email fields from ?email= param (e.g. from accept-invite page)
+  if (email) {
+    const decoded = decodeURIComponent(email);
+    const loginEl = document.getElementById('login-email');
+    const magicEl = document.getElementById('magic-email');
+    if (loginEl) loginEl.value = decoded;
+    if (magicEl) magicEl.value = decoded;
+  }
+
+  if (!ml) return;
+
+  // Show processing state, hide normal form
+  document.getElementById('magic-processing').style.display = 'block';
+  document.getElementById('login-form-inner').style.display = 'none';
+
+  try {
+    const res  = await fetch('/api/auth/magic-login?token=' + encodeURIComponent(ml), { credentials: 'include' });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      showMagicProcessError(data.error || 'This login link is invalid or has expired.');
+      return;
+    }
+    window.location.href = data.redirectTo || '/employer';
+  } catch (err) {
+    showMagicProcessError('Network error. Please try again.');
+  }
+})();
+
+function showMagicProcessError(msg) {
+  const spin = document.querySelector('#magic-processing .spin-block');
+  const p    = document.querySelector('#magic-processing p');
+  const el   = document.getElementById('magic-process-error');
+  const link = document.getElementById('magic-process-retry');
+  if (spin) spin.style.display = 'none';
+  if (p)    p.style.display    = 'none';
+  el.textContent = msg;
+  el.style.display = 'block';
+  if (link) link.style.display = 'block';
+}
+
+// ── Toggle magic link panel ─────────────────────────────────────────────────
+function toggleMagicLink(e) {
+  e.preventDefault();
+  const panel   = document.getElementById('magic-link-panel');
+  const trigger = document.getElementById('magic-link-trigger');
+  const showing = panel.style.display !== 'none';
+
+  panel.style.display   = showing ? 'none' : 'block';
+  trigger.style.display = showing ? ''     : 'none';
+
+  if (!showing) {
+    // Pre-fill magic email from the login email if available
+    const loginEmail = document.getElementById('login-email').value.trim();
+    if (loginEmail) document.getElementById('magic-email').value = loginEmail;
+    document.getElementById('magic-link-success').classList.remove('show');
+    document.getElementById('magic-link-error').classList.remove('show');
+  }
+}
+
+// ── Send magic login link ───────────────────────────────────────────────────
+async function sendMagicLink() {
+  const email   = document.getElementById('magic-email').value.trim();
+  const errEl   = document.getElementById('magic-link-error');
+  const sucEl   = document.getElementById('magic-link-success');
+  const btn     = document.getElementById('magic-btn');
+  const spinner = document.getElementById('magic-spinner');
+
+  errEl.classList.remove('show');
+  sucEl.classList.remove('show');
+
+  if (!email) return showError(errEl, 'Please enter your email address.');
+
+  btn.disabled = true;
+  spinner.style.display = 'inline-block';
+
+  try {
+    const res  = await fetch('/api/auth/send-magic-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      showError(errEl, data.error || 'Failed to send link. Please try again.');
+    } else {
+      sucEl.textContent = data.message || 'Login link sent! Check your email.';
+      sucEl.classList.add('show');
+    }
+  } catch (err) {
+    showError(errEl, 'Network error. Please try again.');
+  } finally {
+    btn.disabled = false;
+    spinner.style.display = 'none';
+  }
+}
 </script>
 </body>
 </html>

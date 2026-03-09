@@ -734,6 +734,7 @@ button { font-family: inherit; cursor: pointer; }
       <button class="tab-btn"        onclick="switchTab('profile')"    id="tab-profile">Company Profile</button>
       <button class="tab-btn"        onclick="switchTab('candidates')" id="tab-candidates">Candidates</button>
       <button class="tab-btn"        onclick="switchTab('interviews')" id="tab-interviews">Interviews</button>
+      <button class="tab-btn"        onclick="switchTab('team')"       id="tab-team" style="display:none">Team</button>
     </nav>
 
     <!-- ── Overview Tab ─────────────────────────────────────────────── -->
@@ -967,8 +968,40 @@ button { font-family: inherit; cursor: pointer; }
       <div id="interviews-list"></div>
     </div>
 
+    <!-- ── Team Tab ─────────────────────────────────────────────────── -->
+    <div class="tab-panel" id="panel-team">
+      <div class="section-hdr">
+        <div class="section-title">Company Team</div>
+        <button class="ql-btn ql-btn-primary" onclick="openInviteModal()">+ Invite Member</button>
+      </div>
+      <div class="notice notice-blue" style="margin-bottom:20px;">
+        <strong>Shared credits pool.</strong>
+        Team members can schedule AI interviews using your company's credit balance.
+      </div>
+      <div id="team-loading" class="loading-row" style="display:none"><div class="spinner"></div> Loading team...</div>
+      <div id="team-list"></div>
+    </div>
+
   </div><!-- /.main-wrap -->
 </div><!-- /#app -->
+
+<!-- ── Invite Member Modal ──────────────────────────────────────────────────── -->
+<div id="invite-modal" style="display:none" class="modal-overlay" onclick="if(event.target===this)closeInviteModal()">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-title">Invite Team Member</div>
+    <div class="modal-sub">They will receive an email invitation to join your company dashboard.</div>
+    <div id="invite-modal-error" style="display:none;font-size:13px;color:#B91C1C;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:12px;"></div>
+    <div id="invite-modal-success" style="display:none;font-size:13px;color:#166534;background:#F0FDF4;border:1px solid #86EFAC;border-radius:8px;padding:10px 14px;margin-bottom:12px;"></div>
+    <div class="form-group">
+      <label class="form-label" for="invite-email">Email Address</label>
+      <input class="form-input" id="invite-email" type="email" placeholder="colleague@company.com">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeInviteModal()">Cancel</button>
+      <button class="btn-submit" id="btn-invite-submit" onclick="submitInvite()">Send Invitation</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── Schedule Interview Modal ──────────────────────────────────────────── -->
 <div id="schedule-modal" style="display:none" class="modal-overlay" onclick="if(event.target===this)closeScheduleModal()">
@@ -1083,7 +1116,8 @@ let candidatesLoaded = false;
 let interviewsFullLoaded = false;
 let candidatePage = 1;
 let allInterviewsList = [];    // full list for client-side email filter
-let _ivCredits = null;         // { interview_credits, credits_used }
+let _ivCredits  = null;        // { interview_credits, credits_used }
+let IS_TEAM_ADMIN = false;     // true if user is a company admin with team members
 const WP_URL = 'https://agzit.com';
 const ivCache = {};            // id -> interview object (for edit/cancel pre-fill)
 
@@ -1099,7 +1133,8 @@ const ivCache = {};            // id -> interview object (for edit/cancel pre-fi
     if (!data.ok) { showError(data.error || 'Failed to load dashboard.'); return; }
 
     DATA = data;
-    USER_ROLE = data.user.role;
+    USER_ROLE     = data.user.role;
+    IS_TEAM_ADMIN = !!data.is_team_admin;
 
     render();
     document.getElementById('loading-overlay').style.display = 'none';
@@ -1202,6 +1237,12 @@ function render() {
   } else {
     document.getElementById('candidates-gated').style.display = 'block';
   }
+
+  // Team tab: show only for verified employers who are admins (or standalone = not a team member)
+  if (isVerified && !data.is_team_member) {
+    const teamTabBtn = document.getElementById('tab-team');
+    if (teamTabBtn) teamTabBtn.style.display = '';
+  }
 }
 
 // ── Interview list renderer ──────────────────────────────────────────────────
@@ -1274,6 +1315,7 @@ function switchTab(name) {
 
   if (name === 'profile'    && !profileLoaded)       loadProfile();
   if (name === 'interviews' && !interviewsFullLoaded) loadInterviewsFull();
+  if (name === 'team'       && !teamLoaded)           loadTeam();
 }
 
 // ── Profile tab ──────────────────────────────────────────────────────────────
@@ -1716,6 +1758,126 @@ function clearIvSearch() {
   if (sortEl)   sortEl.value   = 'recent';
   renderInterviewList(document.getElementById('interviews-list'), allInterviewsList, 1000);
   initReveal();
+}
+
+// ── Team tab ──────────────────────────────────────────────────────────────────
+let teamLoaded = false;
+
+async function loadTeam() {
+  if (teamLoaded) return;
+  const listEl = document.getElementById('team-list');
+  const loadEl = document.getElementById('team-loading');
+  if (loadEl) loadEl.style.display = 'flex';
+  try {
+    const res  = await fetch('/api/employer/team', { credentials: 'include' });
+    const data = await res.json();
+    if (loadEl) loadEl.style.display = 'none';
+    if (!data.ok) { listEl.innerHTML = `<div class="notice notice-amber">${esc(data.error || 'Failed to load team.')}</div>`; return; }
+    renderTeamList(data.members || []);
+    teamLoaded = true;
+    initReveal();
+  } catch (e) {
+    if (loadEl) loadEl.style.display = 'none';
+    listEl.innerHTML = `<div class="notice notice-amber">${esc(e.message || 'Failed to load team.')}</div>`;
+  }
+}
+
+function renderTeamList(members) {
+  const listEl = document.getElementById('team-list');
+  if (!members.length) {
+    listEl.innerHTML = `<div class="empty-state"><div class="empty-state-title">No team members yet</div><div class="empty-state-sub">Invite colleagues to share your employer dashboard and credit pool.</div></div>`;
+    return;
+  }
+  listEl.innerHTML = members.map(m => {
+    const statusBadge = m.status === 'active'
+      ? '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:#F0FDF4;color:#15803D;">Active</span>'
+      : '<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:#FEF3C7;color:#B45309;">Invited</span>';
+    const joinedText = m.joined_at
+      ? 'Joined ' + fmtDateShort(m.joined_at)
+      : 'Invited ' + fmtDateShort(m.invited_at);
+    return `<div class="iv-card reveal" style="cursor:default;">
+      <div>
+        <div class="iv-role" style="font-size:14px;">${esc(m.member_email)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;">${esc(joinedText)}</div>
+      </div>
+      <div class="iv-right">
+        ${statusBadge}
+        <button onclick="removeTeamMember(${m.id})" style="font-size:12px;font-weight:600;color:#B91C1C;background:none;border:1px solid #FCA5A5;border-radius:8px;padding:4px 12px;cursor:pointer;margin-top:4px;">Remove</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function fmtDateShort(s) {
+  if (!s) return '';
+  const d = new Date(typeof s === 'string' && !s.includes('T') ? s.replace(' ', 'T') : s);
+  if (isNaN(d)) return s;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+async function removeTeamMember(id) {
+  if (!confirm('Remove this team member? They will lose access to the employer dashboard.')) return;
+  try {
+    const res  = await fetch(`/api/employer/team/${id}`, { method: 'DELETE', credentials: 'include' });
+    const data = await res.json();
+    if (!data.ok) { showToast(data.error || 'Failed to remove member.', 'error'); return; }
+    showToast('Team member removed.', 'success');
+    teamLoaded = false;
+    loadTeam();
+  } catch (e) {
+    showToast('Network error.', 'error');
+  }
+}
+
+function openInviteModal() {
+  document.getElementById('invite-modal').style.display = 'flex';
+  document.getElementById('invite-modal-error').style.display   = 'none';
+  document.getElementById('invite-modal-success').style.display = 'none';
+  document.getElementById('invite-email').value = '';
+}
+
+function closeInviteModal() {
+  document.getElementById('invite-modal').style.display = 'none';
+}
+
+async function submitInvite() {
+  const errEl  = document.getElementById('invite-modal-error');
+  const okEl   = document.getElementById('invite-modal-success');
+  errEl.style.display = 'none';
+  okEl.style.display  = 'none';
+
+  const email = (document.getElementById('invite-email').value || '').trim();
+  if (!email || !email.includes('@')) {
+    errEl.textContent = 'Please enter a valid email address.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('btn-invite-submit');
+  btn.disabled = true; btn.textContent = 'Sending...';
+  try {
+    const res  = await fetch('/api/employer/team/invite', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      errEl.textContent = data.error || 'Failed to send invitation.';
+      errEl.style.display = 'block';
+      return;
+    }
+    okEl.textContent    = data.message || `Invitation sent to ${email}.`;
+    okEl.style.display  = 'block';
+    document.getElementById('invite-email').value = '';
+    teamLoaded = false; // refresh list next time tab is shown
+    setTimeout(closeInviteModal, 2000);
+  } catch (e) {
+    errEl.textContent = 'Network error. Please try again.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Send Invitation';
+  }
 }
 
 // ── Schedule Interview Modal ──────────────────────────────────────────────────

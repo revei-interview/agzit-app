@@ -134,6 +134,11 @@ app.get('/profile', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/profile/index.html'));
 });
 
+// Employer team invite accept — no auth required (token in URL)
+app.get('/employer-accept-invite', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/employer-accept-invite/index.html'));
+});
+
 // Branded error page — serves with 200 so ?code= param works correctly
 app.get('/error', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/error/index.html'));

@@ -394,6 +394,98 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// ── POST /api/auth/send-magic-link ─────────────────────────────────────────
+// Send a passwordless login link to any registered employer email.
+// Body: { email }
+
+router.post('/send-magic-link', async (req, res) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ ok: false, error: 'Please enter a valid email address.' });
+    }
+
+    // Only respond after DB check to prevent user enumeration — always return ok
+    const [[user]] = await db.query(
+      'SELECT id, role FROM agzit_users WHERE email = ? LIMIT 1',
+      [email]
+    );
+
+    if (user && (user.role === 'verified_employer' || user.role === 'dpr_employer')) {
+      const token     = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+      await db.query(
+        `INSERT INTO agzit_magic_links (token, user_id, purpose, expires_at)
+         VALUES (?, ?, 'login', ?)
+         ON DUPLICATE KEY UPDATE token=VALUES(token), expires_at=VALUES(expires_at), used_at=NULL`,
+        [token, user.id, expiresAt]
+      );
+
+      const magicUrl = `https://app.agzit.com/login?ml=${token}`;
+      await sendBrevoEmail({
+        to:      email,
+        subject: 'Your AGZIT login link',
+        html: `<div style="font-family:'Plus Jakarta Sans',system-ui,sans-serif;max-width:480px;margin:0 auto;padding:40px 24px;">
+          <div style="font-size:24px;font-weight:800;color:#09101F;margin-bottom:8px;">AGZIT AI</div>
+          <h2 style="font-size:20px;font-weight:800;color:#09101F;margin:0 0 16px;">Your magic login link</h2>
+          <p style="color:#7C83A0;font-size:15px;line-height:1.7;margin:0 0 24px;">Click the button below to log in instantly. This link expires in <strong>15 minutes</strong> and can only be used once.</p>
+          <div style="text-align:center;margin-bottom:24px;">
+            <a href="${magicUrl}" style="display:inline-block;background:#1A44C2;color:#fff;text-decoration:none;padding:14px 36px;border-radius:10px;font-size:15px;font-weight:700;">Log in to AGZIT</a>
+          </div>
+          <p style="color:#B0B5CC;font-size:13px;line-height:1.7;">If you did not request this, you can safely ignore this email.</p>
+        </div>`,
+      });
+    }
+    // Always return ok to prevent user enumeration
+    res.json({ ok: true, message: 'If this email is registered, a login link has been sent.' });
+  } catch (err) {
+    console.error('send-magic-link error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to send login link. Please try again.' });
+  }
+});
+
+// ── GET /api/auth/magic-login ──────────────────────────────────────────────
+// Exchange a magic link token for a JWT cookie.
+// Query: ?token=...
+
+router.get('/magic-login', async (req, res) => {
+  try {
+    const token = String(req.query.token || '').trim();
+    if (!token) return res.status(400).json({ ok: false, error: 'Invalid token.' });
+
+    const [[link]] = await db.query(
+      'SELECT * FROM agzit_magic_links WHERE token = ? LIMIT 1',
+      [token]
+    );
+
+    if (!link)          return res.status(404).json({ ok: false, error: 'Login link not found or already used.' });
+    if (link.used_at)   return res.status(410).json({ ok: false, error: 'This login link has already been used.' });
+    if (new Date() > new Date(link.expires_at)) {
+      return res.status(410).json({ ok: false, error: 'This login link has expired. Please request a new one.' });
+    }
+
+    // Mark as used
+    await db.query('UPDATE agzit_magic_links SET used_at=NOW() WHERE id=?', [link.id]);
+
+    // Fetch user
+    const [[user]] = await db.query('SELECT * FROM agzit_users WHERE id=? LIMIT 1', [link.user_id]);
+    if (!user) return res.status(404).json({ ok: false, error: 'Account not found.' });
+
+    const jwtToken = issueToken(user);
+    setCookie(res, jwtToken);
+
+    let redirectTo = '/employer';
+    if (user.role === 'dpr_candidate')  redirectTo = '/dashboard';
+    if (user.role === 'dpr_employer')   redirectTo = '/employer-review';
+
+    res.json({ ok: true, role: user.role, redirectTo });
+  } catch (err) {
+    console.error('magic-login error:', err);
+    res.status(500).json({ ok: false, error: 'Login failed. Please try again.' });
+  }
+});
+
 // ── POST /api/auth/logout ──────────────────────────────────────────────────
 router.post('/logout', (req, res) => {
   res.clearCookie('agzit_token');

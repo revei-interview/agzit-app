@@ -211,6 +211,18 @@ router.get('/dashboard', ...guardAny, async (req, res) => {
 
     const recentInterviews = await fetchEmployerInterviews(wpId, 5);
 
+    // Team status — is this user a team admin or a member?
+    const [[teamAdminRow]] = await pool.execute(
+      "SELECT id FROM agzit_employer_team WHERE admin_user_id = ? AND status != 'removed' LIMIT 1",
+      [user.id]
+    );
+    const [[teamMemberRow]] = await pool.execute(
+      "SELECT admin_user_id FROM agzit_employer_team WHERE member_user_id = ? AND status = 'active' LIMIT 1",
+      [user.id]
+    );
+    const is_team_admin  = !!teamAdminRow;
+    const is_team_member = !!teamMemberRow;
+
     res.json({
       ok: true,
       user: {
@@ -240,6 +252,8 @@ router.get('/dashboard', ...guardAny, async (req, res) => {
         remaining_monthly:   Math.max(0, 50 - usedMonth),
       },
       recent_interviews: recentInterviews,
+      is_team_admin,
+      is_team_member,
     });
   } catch (err) {
     console.error('[employer/dashboard]', err);
@@ -1289,8 +1303,15 @@ router.post('/schedule-interview', ...guardVerified, async (req, res) => {
     );
     if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
 
-    const wpUserId = user.wp_user_id;
+    let wpUserId = user.wp_user_id;
     if (!wpUserId) return res.status(400).json({ ok: false, error: 'No WP user linked to this account' });
+
+    // If this user is a team member, use the admin's credit pool
+    const adminUserId = await resolveAdminUserId(user.id);
+    if (adminUserId) {
+      const [[adminUser]] = await pool.execute('SELECT wp_user_id FROM agzit_users WHERE id=? LIMIT 1', [adminUserId]);
+      if (adminUser?.wp_user_id) wpUserId = adminUser.wp_user_id;
+    }
 
     // Credit check — admin tops up manually via DB; no purchase flow
     const creditMeta     = await fetchUserMeta(wpUserId, ['employer_interview_credits', 'employer_credits_used']);
@@ -1642,5 +1663,227 @@ router.post('/interviews/:id/resend-invite', ...guardVerified, async (req, res) 
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });
+
+// ── Team helpers ──────────────────────────────────────────────────────────────
+
+// Return the admin_user_id if this user is a team member, else null
+async function resolveAdminUserId(userId) {
+  const [[row]] = await pool.execute(
+    "SELECT admin_user_id FROM agzit_employer_team WHERE member_user_id = ? AND status = 'active' LIMIT 1",
+    [userId]
+  );
+  return row ? row.admin_user_id : null;
+}
+
+// ── GET /api/employer/team ─────────────────────────────────────────────────────
+// List all team members for this employer (admin only).
+// If the user is a team member, they are not shown the team tab in the frontend.
+
+router.get('/team', ...guardVerified, async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+
+    // Only admins can list the team.  A member calling this gets 403.
+    const memberCheck = await resolveAdminUserId(userId);
+    if (memberCheck) return res.status(403).json({ ok: false, error: 'Team management is only available to the company admin.' });
+
+    const [rows] = await pool.execute(
+      `SELECT id, member_email, team_role, status, invited_at, joined_at,
+              member_user_id
+       FROM agzit_employer_team
+       WHERE admin_user_id = ? AND status != 'removed'
+       ORDER BY invited_at DESC`,
+      [userId]
+    );
+    res.json({ ok: true, members: rows });
+  } catch (err) {
+    console.error('[employer/team GET]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── POST /api/employer/team/invite ─────────────────────────────────────────────
+// Invite a new team member by email.
+// Body: { email }
+
+router.post('/team/invite', ...guardVerified, async (req, res) => {
+  try {
+    const userId     = req.user.user_id;
+    const adminEmail = req.user.email;
+
+    // Members cannot invite
+    const memberCheck = await resolveAdminUserId(userId);
+    if (memberCheck) return res.status(403).json({ ok: false, error: 'Only the company admin can invite members.' });
+
+    const email = String(req.body.email || '').trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ ok: false, error: 'Valid email address is required.' });
+    }
+    if (email === adminEmail) {
+      return res.status(400).json({ ok: false, error: 'You cannot invite yourself.' });
+    }
+
+    // Check if already in team
+    const [[existing]] = await pool.execute(
+      "SELECT id, status FROM agzit_employer_team WHERE admin_user_id = ? AND member_email = ? LIMIT 1",
+      [userId, email]
+    );
+    if (existing && existing.status === 'active') {
+      return res.status(409).json({ ok: false, error: 'This person is already an active team member.' });
+    }
+
+    const inviteToken = require('crypto').randomBytes(32).toString('hex');
+
+    if (existing) {
+      // Re-invite (previously removed or expired invite)
+      await pool.execute(
+        "UPDATE agzit_employer_team SET status='invited', invite_token=?, invited_at=NOW(), joined_at=NULL WHERE id=?",
+        [inviteToken, existing.id]
+      );
+    } else {
+      await pool.execute(
+        "INSERT INTO agzit_employer_team (admin_user_id, member_email, invite_token) VALUES (?, ?, ?)",
+        [userId, email, inviteToken]
+      );
+    }
+
+    // Get admin company name for the email
+    const [[adminUser]] = await pool.execute(
+      'SELECT wp_user_id FROM agzit_users WHERE id = ?', [userId]
+    );
+    const adminMeta = adminUser?.wp_user_id
+      ? await fetchUserMeta(adminUser.wp_user_id, ['dpr_company_name'])
+      : {};
+    const company = adminMeta.dpr_company_name || adminEmail.split('@')[1] || 'AGZIT';
+
+    const inviteUrl = `https://app.agzit.com/employer-accept-invite?token=${inviteToken}`;
+
+    await makeBrevoClient().transactionalEmails.sendTransacEmail({
+      sender:      { name: 'AGZIT AI', email: 'no-reply@mail.agzit.com' },
+      to:          [{ email }],
+      subject:     `You've been invited to join ${company} on AGZIT`,
+      htmlContent: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#F1F5F9;font-family:Inter,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:40px 16px;">
+<tr><td align="center"><table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+  <tr><td style="background:linear-gradient(135deg,#0A1A3A 0%,#162848 100%);border-radius:16px 16px 0 0;padding:32px;text-align:center;">
+    <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#C9A24D;margin-bottom:12px;">AGZIT &middot; AI Career Intelligence</div>
+    <div style="font-size:24px;font-weight:800;color:#fff;margin-bottom:6px;">You're Invited</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.55);">Join your company on AGZIT</div>
+  </td></tr>
+  <tr><td style="background:#fff;padding:36px 32px;">
+    <p style="margin:0 0 18px;font-size:15px;color:#1E293B;line-height:1.75;"><strong>${company}</strong> has invited you to join their employer account on AGZIT.</p>
+    <p style="margin:0 0 28px;font-size:14px;color:#374151;line-height:1.75;">Click the button below to accept the invitation and access your shared employer dashboard.</p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+      <tr><td align="center">
+        <a href="${inviteUrl}" style="display:inline-block;background:#0A1A3A;color:#fff;text-decoration:none;padding:15px 40px;border-radius:10px;font-size:15px;font-weight:700;">Accept Invitation</a>
+      </td></tr>
+    </table>
+    <p style="margin:0;font-size:12px;color:#94A3B8;line-height:1.7;">If the button does not work, copy and paste: <span style="color:#0A1A3A;word-break:break-all;">${inviteUrl}</span></p>
+    <p style="margin:16px 0 0;font-size:12px;color:#94A3B8;">This invitation expires in 7 days.</p>
+  </td></tr>
+  <tr><td style="background:#F8FAFC;border-top:1px solid #E2E8F0;border-radius:0 0 16px 16px;padding:20px 32px;text-align:center;">
+    <div style="font-size:11px;font-weight:700;color:#0A1A3A;letter-spacing:2px;text-transform:uppercase;">AGZIT</div>
+    <div style="font-size:12px;color:#94A3B8;margin-top:6px;">AI Career Intelligence System &nbsp;&bull;&nbsp; <a href="https://agzit.com" style="color:#C9A24D;text-decoration:none;">agzit.com</a></div>
+  </td></tr>
+</table></td></tr></table></body></html>`,
+    });
+
+    res.json({ ok: true, message: `Invitation sent to ${email}.` });
+  } catch (err) {
+    console.error('[employer/team/invite]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── DELETE /api/employer/team/:id ──────────────────────────────────────────────
+// Remove a team member.
+
+router.delete('/team/:id', ...guardVerified, async (req, res) => {
+  try {
+    const userId   = req.user.user_id;
+    const memberId = parseInt(req.params.id);
+    if (!memberId) return res.status(400).json({ ok: false, error: 'Invalid team member ID' });
+
+    const memberCheck = await resolveAdminUserId(userId);
+    if (memberCheck) return res.status(403).json({ ok: false, error: 'Only the company admin can remove members.' });
+
+    const [[row]] = await pool.execute(
+      "SELECT id FROM agzit_employer_team WHERE id = ? AND admin_user_id = ? LIMIT 1",
+      [memberId, userId]
+    );
+    if (!row) return res.status(404).json({ ok: false, error: 'Team member not found' });
+
+    await pool.execute(
+      "UPDATE agzit_employer_team SET status='removed' WHERE id=?",
+      [memberId]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[employer/team DELETE]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── GET /api/employer/team/accept ──────────────────────────────────────────────
+// Accept a team invite. No auth required.
+// Query: ?token=...
+
+router.get('/team/accept', async (req, res) => {
+  try {
+    const token = String(req.query.token || '').trim();
+    if (!token) return res.status(400).json({ ok: false, error: 'Invalid invitation token.' });
+
+    const [[invite]] = await pool.execute(
+      "SELECT * FROM agzit_employer_team WHERE invite_token = ? AND status = 'invited' LIMIT 1",
+      [token]
+    );
+    if (!invite) return res.status(404).json({ ok: false, error: 'Invitation not found or already accepted.' });
+
+    // Check 7-day expiry
+    const invitedAt = new Date(invite.invited_at);
+    if (Date.now() - invitedAt.getTime() > 7 * 24 * 3600 * 1000) {
+      return res.status(410).json({ ok: false, error: 'This invitation has expired. Please ask the admin to re-invite you.' });
+    }
+
+    // Find existing user by email
+    const [[user]] = await pool.execute(
+      'SELECT id, role FROM agzit_users WHERE email = ? LIMIT 1',
+      [invite.member_email]
+    );
+
+    if (!user) {
+      // No account yet — return info so the page can redirect to register
+      return res.json({ ok: true, needs_account: true, email: invite.member_email, token });
+    }
+
+    // Link the member
+    await pool.execute(
+      "UPDATE agzit_employer_team SET status='active', member_user_id=?, joined_at=NOW(), invite_token=NULL WHERE id=?",
+      [user.id, invite.id]
+    );
+
+    // Upgrade role to verified_employer if needed
+    if (user.role !== 'verified_employer') {
+      await pool.execute('UPDATE agzit_users SET role=? WHERE id=?', ['verified_employer', user.id]);
+    }
+
+    // Issue JWT and set cookie so they're logged in
+    const jwt = require('jsonwebtoken');
+    const [[freshUser]] = await pool.execute('SELECT * FROM agzit_users WHERE id=? LIMIT 1', [user.id]);
+    const tokenPayload = { user_id: freshUser.id, email: freshUser.email, role: 'verified_employer', wp_user_id: freshUser.wp_user_id || null, first_name: freshUser.first_name || '' };
+    const jwtToken = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
+    res.cookie('agzit_token', jwtToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
+
+    res.json({ ok: true, needs_account: false, redirectTo: '/employer' });
+  } catch (err) {
+    console.error('[employer/team/accept]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── Updated schedule-interview: shared credits pool ───────────────────────────
+// (Middleware patched: if the user is a team member, use admin's wp_user_id for credit deduction)
+// This is handled inside schedule-interview by resolving the effective wp_user_id.
 
 module.exports = router;
