@@ -1122,31 +1122,36 @@ const WP_URL = 'https://agzit.com';
 const ivCache = {};            // id -> interview object (for edit/cancel pre-fill)
 
 // ── Boot ────────────────────────────────────────────────────────────────────
-(async function init() {
-  try {
-    const res = await fetch('/api/employer/dashboard', { credentials: 'include' });
-    if (res.status === 401 || res.status === 403) {
-      window.location.href = '/login?next=/employer';
-      return;
+async function loadDashboard() {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch('/api/employer/dashboard', { credentials: 'include' });
+      if (res.status === 401 || res.status === 403) {
+        window.location.href = '/login?next=/employer';
+        return;
+      }
+      const data = await res.json();
+      if (!data.ok) { showError(data.error || 'Failed to load dashboard.'); return; }
+
+      DATA = data;
+      USER_ROLE     = data.user.role;
+      IS_TEAM_ADMIN = !!data.is_team_admin;
+
+      render();
+      document.getElementById('loading-overlay').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      initReveal();
+
+      // Prefetch interview list so overview stats + interviews tab are ready immediately
+      loadInterviewsFull();
+      return; // success
+    } catch (e) {
+      if (attempt === 1) await new Promise(r => setTimeout(r, 2000)); // wait 2s then retry
     }
-    const data = await res.json();
-    if (!data.ok) { showError(data.error || 'Failed to load dashboard.'); return; }
-
-    DATA = data;
-    USER_ROLE     = data.user.role;
-    IS_TEAM_ADMIN = !!data.is_team_admin;
-
-    render();
-    document.getElementById('loading-overlay').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    initReveal();
-
-    // Prefetch interview list so overview stats + interviews tab are ready immediately
-    loadInterviewsFull();
-  } catch (e) {
-    showError('Network error. Please refresh the page.');
   }
-})();
+  showError('Please refresh the page.');
+}
+loadDashboard();
 
 // ── Render dashboard ────────────────────────────────────────────────────────
 function render() {
@@ -1960,9 +1965,9 @@ function clearScheduleForm() {
 function showError(msg) {
   document.getElementById('loading-overlay').innerHTML =
     `<div style="text-align:center;padding:40px;font-family:'Plus Jakarta Sans',sans-serif">
-       <div style="font-size:18px;font-weight:700;color:#09101F;margin-bottom:8px">Unable to load dashboard</div>
+       <div style="font-size:18px;font-weight:700;color:#09101F;margin-bottom:8px">Something went wrong loading your dashboard.</div>
        <div style="color:#7C83A0;font-size:14px;margin-bottom:24px">${esc(msg)}</div>
-       <a href="/login" style="background:#1A44C2;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px">Back to Login</a>
+       <button onclick="loadDashboard()" style="background:#1A44C2;color:#fff;padding:12px 24px;border-radius:10px;border:none;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit">Retry</button>
      </div>`;
 }
 
