@@ -647,32 +647,5 @@ router.post('/save-employer-recording-urls', requireAppToken, async (req, res) =
   }
 });
 
-// ── POST /api/internal/seed-employer-credits ──────────────────────────────────
-// ONE-TIME route — delete after first use.
-// Seeds employer_interview_credits and employer_credits_used for a given email.
-// Body: { email, credits, credits_used }
-
-router.post('/seed-employer-credits', requireAppToken, async (req, res) => {
-  try {
-    const { email, credits = 3, credits_used = 0 } = req.body;
-    if (!email) return res.status(400).json({ ok: false, error: 'Missing email' });
-
-    const [[row]] = await pool.execute(
-      'SELECT ID FROM wp_users WHERE user_email = ? LIMIT 1',
-      [email]
-    );
-    if (!row) return res.status(404).json({ ok: false, error: 'User not found', email });
-
-    const uid = row.ID;
-    await upsertUserMeta(uid, 'employer_interview_credits', String(parseInt(credits) || 0));
-    await upsertUserMeta(uid, 'employer_credits_used',      String(parseInt(credits_used) || 0));
-
-    res.json({ ok: true, user_id: uid, credits_set: parseInt(credits) || 0 });
-  } catch (err) {
-    console.error('[internal/seed-employer-credits]', err);
-    res.status(500).json({ ok: false, error: 'Server error' });
-  }
-});
-
 module.exports = router;
 
