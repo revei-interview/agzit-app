@@ -787,7 +787,35 @@ router.get('/interviews', ...guardAny, async (req, res) => {
       interview_credits = parseInt(cm.employer_interview_credits) || 0;
       credits_used      = parseInt(cm.employer_credits_used)      || 0;
     }
-    res.json({ ok: true, count: interviews.length, interviews, interview_credits, credits_used });
+    // Compute summary stats from the full interview list
+    const completed  = interviews.filter(i => i.interview_status === 'completed');
+    const scored     = completed.filter(i => i.overall_score !== null);
+    const avg_score  = scored.length ? Math.round(scored.reduce((s, i) => s + i.overall_score, 0) / scored.length) : null;
+
+    function computeBand(score) {
+      if (score === null || score === undefined) return null;
+      if (score >= 81) return 'exceptional';
+      if (score >= 71) return 'strong';
+      if (score >= 61) return 'promising';
+      if (score >= 51) return 'developing';
+      return 'not_ready';
+    }
+    const bandCounts = {};
+    for (const i of scored) {
+      const b = computeBand(i.overall_score);
+      if (b) bandCounts[b] = (bandCounts[b] || 0) + 1;
+    }
+    const bandEntries = Object.entries(bandCounts);
+    const top_band = bandEntries.length ? bandEntries.sort((a, b) => b[1] - a[1])[0][0] : null;
+
+    const stats = {
+      total_interviews: interviews.length,
+      completed_count:  completed.length,
+      avg_score,
+      top_band,
+    };
+
+    res.json({ ok: true, count: interviews.length, interviews, interview_credits, credits_used, stats });
   } catch (err) {
     console.error('[employer/interviews]', err);
     res.status(500).json({ ok: false, error: 'Server error' });

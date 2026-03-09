@@ -758,7 +758,28 @@ button { font-family: inherit; cursor: pointer; }
             </div>
           </div>
 
-          <!-- Recent interviews -->
+          <!-- Interview stats mini-row -->
+          <div id="iv-stats-row" style="display:none;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;">
+            <div class="stat-card" style="padding:14px 16px;">
+              <div class="stat-label" style="font-size:10px;margin-bottom:6px;">Total Interviews</div>
+              <div class="stat-value" id="ivs-total" style="font-size:22px;">—</div>
+            </div>
+            <div class="stat-card" style="padding:14px 16px;">
+              <div class="stat-label" style="font-size:10px;margin-bottom:6px;">Completed</div>
+              <div class="stat-value" id="ivs-completed" style="font-size:22px;color:var(--green);">—</div>
+            </div>
+            <div class="stat-card" style="padding:14px 16px;">
+              <div class="stat-label" style="font-size:10px;margin-bottom:6px;">Avg Score</div>
+              <div class="stat-value" id="ivs-avg" style="font-size:22px;">—</div>
+              <div class="stat-sub" style="font-size:10px;">/100</div>
+            </div>
+            <div class="stat-card" style="padding:14px 16px;">
+              <div class="stat-label" style="font-size:10px;margin-bottom:6px;">Top Band</div>
+              <div id="ivs-band" style="font-size:13px;font-weight:700;color:var(--ink);margin-top:4px;">—</div>
+            </div>
+          </div>
+
+          <!-- Recent completed interviews -->
           <div class="section-hdr">
             <div class="section-title">Recent Interviews</div>
             <button class="ql-btn" onclick="switchTab('interviews')" style="padding:7px 14px;font-size:12px">View All</button>
@@ -1069,6 +1090,9 @@ const ivCache = {};            // id -> interview object (for edit/cancel pre-fi
     document.getElementById('loading-overlay').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     initReveal();
+
+    // Prefetch interview list so overview stats + interviews tab are ready immediately
+    loadInterviewsFull();
   } catch (e) {
     showError('Network error. Please refresh the page.');
   }
@@ -1566,6 +1590,9 @@ async function loadInterviewsFull() {
     renderCreditsBanner(_ivCredits.interview_credits, _ivCredits.credits_used);
     if (allInterviewsList.length) document.getElementById('iv-search-wrap').style.display = 'block';
     renderInterviewList(listEl, allInterviewsList, 1000);
+    renderInterviewStats(data.stats || {});
+    // Refresh overview recent interviews with full list (better than the dashboard 5)
+    renderInterviewList(document.getElementById('overview-interviews'), allInterviewsList, 5);
     interviewsFullLoaded = true;
     initReveal();
   } catch (e) {
@@ -1596,6 +1623,34 @@ function renderCreditsBanner(credits, used) {
     if (schedBtn)  { schedBtn.disabled = true; schedBtn.style.opacity = '0.45'; schedBtn.title = 'No credits remaining'; }
   }
   barEl.style.display = 'block';
+}
+
+const BAND_LABELS_SHORT = { exceptional:'Exceptional', strong:'Strong', promising:'Promising', developing:'Developing', not_ready:'Not Ready' };
+const BAND_COLORS = { exceptional:'#15803D', strong:'#065F46', promising:'#1D4ED8', developing:'#B45309', not_ready:'#B91C1C' };
+
+function renderInterviewStats(stats) {
+  const row = document.getElementById('iv-stats-row');
+  if (!row) return;
+  const total     = stats.total_interviews ?? 0;
+  const completed = stats.completed_count  ?? 0;
+  if (!total) return; // hide if no interviews yet
+  row.style.display = 'grid';
+  const tEl = document.getElementById('ivs-total');
+  const cEl = document.getElementById('ivs-completed');
+  const aEl = document.getElementById('ivs-avg');
+  const bEl = document.getElementById('ivs-band');
+  if (tEl) tEl.textContent = total;
+  if (cEl) cEl.textContent = completed;
+  if (aEl) aEl.textContent = stats.avg_score !== null && stats.avg_score !== undefined ? stats.avg_score : '—';
+  if (bEl) {
+    const band = stats.top_band;
+    if (band) {
+      const color = BAND_COLORS[band] || 'var(--ink)';
+      bEl.innerHTML = `<span style="color:${color};">${esc(BAND_LABELS_SHORT[band] || band)}</span>`;
+    } else {
+      bEl.textContent = '—';
+    }
+  }
 }
 
 function filterInterviews() {
