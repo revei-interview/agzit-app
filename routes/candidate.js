@@ -1259,6 +1259,7 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
         body: JSON.stringify({
           model: 'gpt-4o',
           max_tokens: 2048,
+          response_format: { type: 'json_object' },
           messages: [{
             role: 'user',
             content: [
@@ -1292,7 +1293,7 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
     try {
       parsed = JSON.parse(jsonText);
     } catch (e) {
-      console.error('[parse-resume] JSON parse failed:', e.message, rawText.slice(0, 300));
+      console.error('[parse-resume] JSON parse failed:', e.message, '| raw:', rawText?.slice(0, 500));
       return res.status(502).json({ ok: false, error: 'AI returned invalid data. Please fill the form manually.' });
     }
 
