@@ -11,6 +11,11 @@ const router  = express.Router();
 const pool    = require('../config/db');
 const crypto  = require('crypto');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { BrevoClient, BrevoEnvironment } = require('@getbrevo/brevo');
+
+function makeBrevoClient() {
+  return new BrevoClient({ apiKey: process.env.BREVO_API_KEY, environment: BrevoEnvironment.Production });
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -88,6 +93,84 @@ function buildContextPack(m) {
   if (m.resume_text)     parts.push('RESUME:\n' + String(m.resume_text).slice(0, 40000));
   else if (m.resume_file) parts.push('RESUME FILE: ' + m.resume_file);
   return parts.join('\n\n---\n\n');
+}
+
+// ── Completion email helper ──────────────────────────────────────────────────
+// M3 — Sends a branded email to the employer when an interview is marked completed.
+// Fire-and-forget; called after status is written and response sent.
+
+async function sendCompletionEmail(postId) {
+  if (!process.env.BREVO_API_KEY) return;
+
+  const m = await fetchMeta(postId, [
+    'candidate_name', 'interview_role', 'session_type',
+    'employer_user_id', 'overall_score', 'audio_url', 'video_url',
+    'emp_readiness_band',
+  ]);
+  if (!m.employer_user_id) return;
+
+  // Fetch employer email from agzit_users via wp_user_id
+  const [[empUser]] = await pool.execute(
+    'SELECT email, first_name FROM agzit_users WHERE wp_user_id = ? LIMIT 1',
+    [m.employer_user_id]
+  );
+  if (!empUser?.email) return;
+
+  const candidateName  = m.candidate_name   || 'Candidate';
+  const interviewRole  = m.interview_role   || 'Interview';
+  const scorecardUrl   = `https://app.agzit.com/employer-scorecard?id=${postId}`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Interview Completed</title></head>
+<body style="margin:0;padding:0;background:#F5F6FA;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F5F6FA;padding:32px 0;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #E4E6EF;">
+      <tr><td style="background:#09101F;padding:22px 32px;">
+        <span style="font-size:20px;font-weight:800;color:#fff;letter-spacing:-0.5px;">AGZIT AI</span>
+      </td></tr>
+      <tr><td style="padding:32px;">
+        <p style="font-size:15px;color:#09101F;font-weight:700;margin:0 0 6px;">Interview Completed</p>
+        <p style="font-size:24px;font-weight:800;color:#09101F;margin:0 0 20px;">${candidateName}</p>
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F5F6FA;border-radius:10px;padding:16px 20px;margin-bottom:24px;">
+          <tr>
+            <td style="font-size:13px;color:#7C83A0;font-weight:600;padding-bottom:4px;">Role</td>
+            <td style="font-size:13px;color:#09101F;font-weight:700;text-align:right;">${interviewRole}</td>
+          </tr>
+          ${m.session_type ? `<tr>
+            <td style="font-size:13px;color:#7C83A0;font-weight:600;padding-bottom:4px;">Session</td>
+            <td style="font-size:13px;color:#09101F;font-weight:700;text-align:right;">${m.session_type}</td>
+          </tr>` : ''}
+          ${m.emp_readiness_band ? `<tr>
+            <td style="font-size:13px;color:#7C83A0;font-weight:600;">Readiness Band</td>
+            <td style="font-size:13px;color:#09101F;font-weight:700;text-align:right;">${m.emp_readiness_band}</td>
+          </tr>` : ''}
+        </table>
+        <p style="font-size:13.5px;color:#3A4163;line-height:1.7;margin:0 0 24px;">
+          The AI interview has been completed. View the full scorecard including competency scores,
+          strengths, gaps and employer intelligence.
+        </p>
+        <a href="${scorecardUrl}" style="display:inline-block;background:#1A44C2;color:#fff;font-size:14px;font-weight:800;padding:13px 28px;border-radius:10px;text-decoration:none;">
+          View Full Scorecard
+        </a>
+      </td></tr>
+      <tr><td style="padding:16px 32px 24px;border-top:1px solid #E4E6EF;">
+        <p style="font-size:12px;color:#7C83A0;margin:0;">AGZIT AI &middot; app.agzit.com &middot; This is an automated notification.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+
+  await makeBrevoClient().transactionalEmails.sendTransacEmail({
+    sender:      { name: 'AGZIT AI', email: 'no-reply@mail.agzit.com' },
+    to:          [{ email: empUser.email, name: empUser.first_name || undefined }],
+    subject:     `Interview completed — ${candidateName} for ${interviewRole}`,
+    htmlContent: html,
+  });
+
+  console.log('[employer-interview] completion email sent to:', empUser.email);
 }
 
 // ── GET /api/employer-interview/room?token= ───────────────────────────────────
@@ -169,6 +252,13 @@ router.post('/status', async (req, res) => {
 
     await upsertMeta(postId, 'interview_status', status);
     res.json({ ok: true, post_id: postId, status });
+
+    // M3 — fire-and-forget completion email to employer when interview finishes
+    if (status === 'completed') {
+      sendCompletionEmail(postId).catch(err =>
+        console.error('[employer-interview/status] completion email failed (non-fatal):', err.message)
+      );
+    }
   } catch (err) {
     console.error('[employer-interview/status]', err);
     res.status(500).json({ ok: false, error: 'Server error' });

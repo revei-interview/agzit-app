@@ -8,8 +8,66 @@ const pool    = require('../config/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const crypto  = require('crypto');
 const https   = require('https');
+const jwt     = require('jsonwebtoken');
+const multer  = require('multer');
+
+// multer: in-memory storage, 5 MB limit, PDF only
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits:  { fileSize: 5 * 1024 * 1024 },
+});
 
 const guard = [requireAuth, requireRole('dpr_candidate')];
+
+// ── Unlock helpers (used by /resume/download for employer access checks) ─────
+
+function parseUnlockedMap(raw) {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return typeof parsed === 'object' && parsed !== null ? parsed : {};
+  } catch { return {}; }
+}
+
+function isProfileUnlocked(unlockedMap, dprId) {
+  if (!dprId) return false;
+  const entry = unlockedMap[dprId];
+  if (!entry) return false;
+  const expires = parseInt(entry.expires) || 0;
+  if (expires > 0 && Math.floor(Date.now() / 1000) > expires) return false;
+  return true;
+}
+
+// ── Anthropic API helper ─────────────────────────────────────────────────────
+
+async function callClaude(systemPrompt, messages, maxTokens = 1500, extraHeaders = {}) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method:  'POST',
+    headers: {
+      'Content-Type':    'application/json',
+      'x-api-key':       apiKey,
+      'anthropic-version': '2023-06-01',
+      ...extraHeaders,
+    },
+    body: JSON.stringify({
+      model:      'claude-sonnet-4-6',
+      max_tokens: maxTokens,
+      system:     systemPrompt,
+      messages,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Claude API ${res.status}: ${errText.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  return data?.content?.[0]?.text?.trim() || '';
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -789,6 +847,28 @@ router.put('/profile', ...guard, async (req, res) => {
       await writeRepeater(profileId, 'language_proficiency', rows);
     }
 
+    // ── Resume upload attachment ID (L1: also rename WP attachment title) ─────
+    if (b.resume_upload !== undefined) {
+      const rawId = String(b.resume_upload || '').trim();
+      if (/^\d+$/.test(rawId)) {
+        const attachId = parseInt(rawId);
+        await upsertPostMeta(profileId, 'resume_upload', rawId);
+
+        // Fetch dpr_id to build the "{DPR_ID}_resume" title
+        const [[dprRow]] = await pool.execute(
+          "SELECT meta_value FROM wp_postmeta WHERE post_id = ? AND meta_key = 'dpr_id' LIMIT 1",
+          [profileId]
+        );
+        const dprId = dprRow?.meta_value || '';
+        if (dprId && attachId) {
+          await pool.execute(
+            `UPDATE wp_posts SET post_title = ?, post_name = ? WHERE ID = ? AND post_type = 'attachment'`,
+            [`${dprId}_resume`, `${dprId.toLowerCase()}_resume`, attachId]
+          );
+        }
+      }
+    }
+
     // ── Timestamp ─────────────────────────────────────────────────────────────
     const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
     await upsertPostMeta(profileId, 'profile_last_updated', now);
@@ -926,6 +1006,280 @@ router.get('/vapi-context', ...guard, async (req, res) => {
     res.status(result.status === 200 ? 200 : (result.status || 502)).json(result.body);
   } catch (err) {
     console.error('[candidate/vapi-context]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── POST /api/candidate/parse-resume ─────────────────────────────────────────
+// H1 — AI extracts structured profile data from a PDF resume upload.
+// Accepts multipart/form-data with field name "resume" (PDF, max 5 MB).
+// Auth: requireAuth only (no role restriction — usable pre-registration too).
+
+router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ ok: false, error: 'No file uploaded. Use field name "resume".' });
+    }
+    if (req.file.mimetype !== 'application/pdf') {
+      return res.status(400).json({ ok: false, error: 'File must be a PDF.' });
+    }
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(503).json({ ok: false, error: 'Resume parsing not available. Please fill the form manually.' });
+    }
+
+    const pdfBase64 = req.file.buffer.toString('base64');
+
+    const schema = `{
+  "full_name": "string",
+  "email": "string",
+  "phone": "string",
+  "location": "string (city, country)",
+  "current_job_title": "string",
+  "total_experience_years": "number",
+  "summary": "string (professional bio)",
+  "skills": ["array of skill strings"],
+  "work_experience": [
+    {
+      "company": "string",
+      "title": "string",
+      "start_date": "string (YYYY-MM or Month YYYY)",
+      "end_date": "string or null",
+      "currently_working": "boolean",
+      "description": "string (key responsibilities)"
+    }
+  ],
+  "education": [
+    {
+      "institution": "string",
+      "degree": "string",
+      "field": "string",
+      "start_year": "number or null",
+      "end_year": "number or null"
+    }
+  ],
+  "certifications": [
+    {
+      "name": "string",
+      "issuer": "string or null",
+      "year": "number or null"
+    }
+  ]
+}`;
+
+    const systemPrompt = 'Extract structured profile data from this resume PDF. Return ONLY valid JSON matching the schema. No markdown, no explanation, no trailing commas.';
+
+    const rawText = await callClaude(
+      systemPrompt,
+      [{
+        role: 'user',
+        content: [
+          {
+            type: 'document',
+            source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 },
+          },
+          {
+            type: 'text',
+            text: `Extract all profile information and return JSON exactly matching this schema:\n${schema}`,
+          },
+        ],
+      }],
+      2048,
+      { 'anthropic-beta': 'pdfs-2024-09-25' }
+    );
+
+    // Strip markdown code fences if model wrapped JSON
+    let jsonText = rawText.trim();
+    if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch (e) {
+      console.error('[parse-resume] JSON parse failed:', e.message, rawText.slice(0, 300));
+      return res.status(502).json({ ok: false, error: 'AI returned invalid data. Please fill the form manually.' });
+    }
+
+    return res.json({ ok: true, data: parsed });
+  } catch (err) {
+    console.error('[parse-resume]', err.message);
+    if (err.message?.startsWith('ANTHROPIC_API_KEY')) {
+      return res.status(503).json({ ok: false, error: 'Resume parsing not configured.' });
+    }
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── POST /api/candidate/resume/ai-rewrite ────────────────────────────────────
+// H2 — AI rewrites a resume section (summary / experience / skills).
+// Body: { section: 'summary'|'experience'|'skills', content, job_title?, target_role? }
+// Auth: guard (dpr_candidate)
+
+router.post('/resume/ai-rewrite', ...guard, async (req, res) => {
+  try {
+    const section    = typeof req.body.section     === 'string' ? req.body.section.trim()     : '';
+    const content    = typeof req.body.content     === 'string' ? req.body.content.trim()     : '';
+    const jobTitle   = typeof req.body.job_title   === 'string' ? req.body.job_title.trim()   : '';
+    const targetRole = typeof req.body.target_role === 'string' ? req.body.target_role.trim() : '';
+
+    if (!['summary', 'experience', 'skills'].includes(section)) {
+      return res.status(400).json({ ok: false, error: 'section must be summary, experience, or skills' });
+    }
+    if (!content) {
+      return res.status(400).json({ ok: false, error: 'content is required' });
+    }
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(503).json({ ok: false, error: 'AI rewrite not configured.' });
+    }
+
+    const contextLines = [
+      `Section: ${section}`,
+      targetRole ? `Target Role: ${targetRole}` : null,
+      jobTitle   ? `Current Job Title: ${jobTitle}` : null,
+      '',
+      'Content to rewrite:',
+      content,
+    ].filter(l => l !== null).join('\n');
+
+    const rewritten = await callClaude(
+      'You are a professional resume writer. Rewrite the provided content to be concise, impactful and ATS-optimised for the target role. Return ONLY the rewritten text, no explanation, no preamble.',
+      [{ role: 'user', content: contextLines }],
+      800
+    );
+
+    if (!rewritten) {
+      return res.status(502).json({ ok: false, error: 'AI returned empty response. Please try again.' });
+    }
+
+    return res.json({ ok: true, rewritten });
+  } catch (err) {
+    console.error('[resume/ai-rewrite]', err.message);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── GET /api/candidate/resume/download ───────────────────────────────────────
+// H3 — Protected resume download proxy.
+// Query param: dpr_id — whose resume to download.
+// Auth: optional — enforces resume_visibility rules:
+//   re_public             → anyone can download
+//   re_verified_only      → verified_employer + unlocked profile required
+//   re_private            → always 403
+// Proxies file through Render so the WP attachment URL is never exposed.
+
+router.get('/resume/download', async (req, res) => {
+  try {
+    const dprId = typeof req.query.dpr_id === 'string' ? req.query.dpr_id.trim().toUpperCase() : '';
+    if (!dprId) return res.status(400).json({ ok: false, error: 'dpr_id required' });
+
+    // Find the dpr_profile post
+    const [[profileRow]] = await pool.execute(
+      `SELECT p.ID, p.post_status
+       FROM wp_posts p
+       INNER JOIN wp_postmeta pm ON pm.post_id = p.ID AND pm.meta_key = 'dpr_id' AND pm.meta_value = ?
+       WHERE p.post_type = 'dpr_profile'
+       LIMIT 1`,
+      [dprId]
+    );
+    if (!profileRow || profileRow.post_status !== 'publish') {
+      return res.status(404).json({ ok: false, error: 'Profile not found' });
+    }
+    const profileId = profileRow.ID;
+
+    // Fetch needed meta in one query
+    const [metaRows] = await pool.execute(
+      `SELECT meta_key, meta_value FROM wp_postmeta
+       WHERE post_id = ? AND meta_key IN ('profile_visibility','resume_visibility','resume_upload')`,
+      [profileId]
+    );
+    const meta = {};
+    for (const r of metaRows) meta[r.meta_key] = r.meta_value;
+
+    if ((meta.profile_visibility || 'public') === 'private') {
+      return res.status(403).json({ ok: false, error: 'Profile is private' });
+    }
+
+    const resumeVis = (meta.resume_visibility || 're_verified_only').trim();
+    if (resumeVis === 're_private') {
+      return res.status(403).json({ ok: false, error: 'Resume is private' });
+    }
+
+    // Determine download permission
+    let canDownload = (resumeVis === 're_public');
+
+    if (!canDownload) {
+      // Need verified_employer + unlocked profile
+      try {
+        const token = req.cookies?.agzit_token;
+        if (token) {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          if (decoded.role === 'verified_employer' && decoded.wp_user_id) {
+            // Check verification expiry
+            const [[vRow]] = await pool.execute(
+              "SELECT meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'dpr_verified_until' LIMIT 1",
+              [decoded.wp_user_id]
+            );
+            const verifiedUntil = parseInt(vRow?.meta_value) || 0;
+            const nowTs = Math.floor(Date.now() / 1000);
+            if (verifiedUntil > 0 && nowTs > verifiedUntil) {
+              return res.status(403).json({ ok: false, error: 'Employer verification has expired' });
+            }
+            // Check unlock
+            const [[ulRow]] = await pool.execute(
+              "SELECT meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'unlocked_profiles' LIMIT 1",
+              [decoded.wp_user_id]
+            );
+            if (isProfileUnlocked(parseUnlockedMap(ulRow?.meta_value), dprId)) {
+              canDownload = true;
+            }
+          }
+        }
+      } catch (_) { /* invalid/expired JWT — treat as public visitor */ }
+
+      if (!canDownload) {
+        return res.status(403).json({ ok: false, error: 'Access denied. Verified employer unlock required.' });
+      }
+    }
+
+    // Resolve attachment ID from resume_upload (stored as integer or JSON array)
+    const rawUpload = String(meta.resume_upload || '').trim();
+    if (!rawUpload) return res.status(404).json({ ok: false, error: 'No resume uploaded' });
+
+    let attachId = null;
+    if (/^\d+$/.test(rawUpload)) {
+      attachId = parseInt(rawUpload);
+    } else {
+      try {
+        const parsed = JSON.parse(rawUpload);
+        attachId = parsed?.ID ? parseInt(parsed.ID) : null;
+      } catch (_) {}
+    }
+    if (!attachId) return res.status(404).json({ ok: false, error: 'Invalid resume reference' });
+
+    // Fetch WP attachment URL
+    const [[attachPost]] = await pool.execute(
+      'SELECT guid FROM wp_posts WHERE ID = ? AND post_type = "attachment" LIMIT 1',
+      [attachId]
+    );
+    if (!attachPost?.guid) return res.status(404).json({ ok: false, error: 'Resume file not found' });
+
+    // Proxy the file through Render so the WP attachment URL is never exposed to the browser
+    const fileRes = await fetch(attachPost.guid);
+    if (!fileRes.ok) {
+      console.error('[resume/download] upstream fetch failed:', fileRes.status, attachPost.guid);
+      return res.status(502).json({ ok: false, error: 'Could not retrieve resume file' });
+    }
+
+    const buffer = Buffer.from(await fileRes.arrayBuffer());
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${dprId}_resume.pdf"`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Length', buffer.length);
+    return res.send(buffer);
+
+  } catch (err) {
+    console.error('[resume/download]', err);
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });

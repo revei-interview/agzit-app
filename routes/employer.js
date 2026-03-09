@@ -661,16 +661,33 @@ router.post('/unlock', ...guardVerified, async (req, res) => {
     await upsertUserMeta(wpUserId, `dpr_unlock_used_${ym}`,     String(usedMonth + 1));
 
     // Append to unlock log on the profile post (capped at 200 entries)
+    // Log format matches WP dpr-unlock-engine snippet: { ts, user_id, email, dpr_id, expires, scope, company }
     try {
+      // Fetch employer email + company for audit trail
+      const [[empUser]] = await pool.execute(
+        'SELECT email FROM agzit_users WHERE wp_user_id = ? LIMIT 1',
+        [wpUserId]
+      );
+      const empMeta = await fetchUserMeta(wpUserId, ['dpr_company_name', 'company_name']);
+      const empEmail   = empUser?.email   || '';
+      const empCompany = empMeta.dpr_company_name || empMeta.company_name || '';
+
       const [[logRow]] = await pool.execute(
         "SELECT meta_id, meta_value FROM wp_postmeta WHERE post_id = ? AND meta_key = '_dpr_unlock_logs' LIMIT 1",
         [profilePostId]
       );
-      const existing = logRow?.meta_value;
       let logs = [];
-      try { logs = JSON.parse(existing || '[]'); } catch { logs = []; }
+      try { logs = JSON.parse(logRow?.meta_value || '[]'); } catch { logs = []; }
       if (!Array.isArray(logs)) logs = [];
-      logs.push({ employer_user_id: wpUserId, unlocked_at: nowTs });
+      logs.push({
+        ts:      nowTs,
+        user_id: wpUserId,
+        email:   empEmail,
+        dpr_id:  dprId,
+        expires: expiresTs,
+        scope:   'free_limits_5_day_50_month',
+        company: empCompany,
+      });
       if (logs.length > 200) logs = logs.slice(-200);
       if (logRow) {
         await pool.execute('UPDATE wp_postmeta SET meta_value = ? WHERE meta_id = ?', [JSON.stringify(logs), logRow.meta_id]);
