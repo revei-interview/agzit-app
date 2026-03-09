@@ -3,6 +3,7 @@
   position: relative;
   display: inline-block;
   width: 100%;
+  min-width: 0;
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-size: 14px;
   vertical-align: top;
@@ -40,6 +41,7 @@
   text-overflow: ellipsis;
   color: #09101F;
   font-size: 14px;
+  pointer-events: none;
 }
 
 .ss-selected-text.ss-placeholder {
@@ -54,6 +56,7 @@
   transition: transform 0.18s;
   display: flex;
   align-items: center;
+  pointer-events: none;
 }
 
 .ss-wrapper.ss-active .ss-arrow {
@@ -68,11 +71,7 @@
   box-shadow: 0 8px 28px rgba(9, 16, 31, 0.14);
   z-index: 99999;
   overflow: hidden;
-  display: none;
-}
-
-.ss-wrapper.ss-active .ss-dropdown {
-  display: block;
+  display: none; /* visibility toggled via JS — dropdown lives on document.body */
 }
 
 .ss-search {

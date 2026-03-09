@@ -12,7 +12,10 @@
     /* Wrapper */
     const wrapper = document.createElement('div');
     wrapper.className = 'ss-wrapper';
-    if (dataWidth) wrapper.style.width = parseInt(dataWidth, 10) + 'px';
+    if (dataWidth) {
+      wrapper.style.width      = parseInt(dataWidth, 10) + 'px';
+      wrapper.style.flexShrink = '0';
+    }
 
     /* Display button */
     const display = document.createElement('div');
@@ -76,7 +79,7 @@
     }
 
     function positionDropdown() {
-      const rect = wrapper.getBoundingClientRect();
+      const rect = display.getBoundingClientRect();
       dropdown.style.top   = (rect.bottom + 4) + 'px';
       dropdown.style.left  = rect.left + 'px';
       dropdown.style.width = rect.width + 'px';
@@ -125,10 +128,15 @@
       document.querySelectorAll('.ss-wrapper.ss-active').forEach(function (w) {
         if (w !== wrapper) w.classList.remove('ss-active');
       });
+      /* Close body-appended dropdowns that are still visible */
+      document.querySelectorAll('.ss-dropdown').forEach(function (d) {
+        if (d !== dropdown) d.style.display = 'none';
+      });
 
       wrapper.classList.add('ss-active');
       display.setAttribute('aria-expanded', 'true');
       positionDropdown();
+      dropdown.style.display = 'block';
       search.value = '';
       renderOptions('');
       search.focus();
@@ -137,6 +145,7 @@
     function close() {
       wrapper.classList.remove('ss-active');
       display.setAttribute('aria-expanded', 'false');
+      dropdown.style.display = 'none';
     }
 
     /* ── Event listeners ─────────────────────────────────────────────────── */
