@@ -498,6 +498,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 .step-done .step-title { color: var(--green); }
 .step-sub { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
 </style>
+<link rel="stylesheet" href="/shared/searchable-select.css">
 <script src="/assets/layout.js" defer></script>
 </head>
 <body>
@@ -725,7 +726,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
                   <div class="vis-form-label">Profile Visibility</div>
                   <div class="vis-form-desc">Who can find and view your profile</div>
                 </div>
-                <select class="vis-select" id="sel-profile">
+                <select class="vis-select agzit-select" id="sel-profile">
                   <option value="public">Public</option>
                   <option value="private">Private</option>
                 </select>
@@ -735,7 +736,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
                   <div class="vis-form-label">Contact Visibility</div>
                   <div class="vis-form-desc">Who can see your email and phone number</div>
                 </div>
-                <select class="vis-select" id="sel-contact">
+                <select class="vis-select agzit-select" id="sel-contact">
                   <option value="co_public">Public</option>
                   <option value="co_verified_only">Verified Employers Only</option>
                   <option value="co_private">Private</option>
@@ -746,7 +747,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
                   <div class="vis-form-label">Resume Visibility</div>
                   <div class="vis-form-desc">Who can download your resume</div>
                 </div>
-                <select class="vis-select" id="sel-resume">
+                <select class="vis-select agzit-select" id="sel-resume">
                   <option value="re_public">Public</option>
                   <option value="re_verified_only">Verified Employers Only</option>
                   <option value="re_private">Private</option>
@@ -1644,5 +1645,6 @@ init();
 
 }());
 </script>
+<script src="/shared/searchable-select.js"></script>
 </body>
 </html>

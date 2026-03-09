@@ -58,6 +58,7 @@ app.use('/api/webhooks', require('./routes/webhooks'));
 
 // ── Static files ───────────────────────────────────────────────────────────
 app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
+app.use('/shared', express.static(path.join(__dirname, 'public/shared')));
 
 // ── API Routes ─────────────────────────────────────────────────────────────
 app.use('/api/auth',      authLimiter,     require('./routes/auth'));

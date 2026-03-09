@@ -154,6 +154,7 @@ textarea.input { resize: vertical; min-height: 100px; }
 .exp-row .input { flex: 1; }
 .exp-unit { font-size: 13.5px; color: var(--muted); font-weight: 600; white-space: nowrap; }
 </style>
+<link rel="stylesheet" href="/shared/searchable-select.css">
 <script src="/assets/layout.js" defer></script>
 </head>
 <body>
@@ -223,7 +224,7 @@ textarea.input { resize: vertical; min-height: 100px; }
         <div class="field">
           <label>Phone Number <span class="req">*</span></label>
           <div class="phone-row">
-            <select class="input phone-code" id="s1-phone-code">
+            <select class="input phone-code agzit-select" id="s1-phone-code" data-width="120">
               <option value="+93">+93 Afghanistan</option>
               <option value="+355">+355 Albania</option>
               <option value="+213">+213 Algeria</option>
@@ -444,7 +445,7 @@ textarea.input { resize: vertical; min-height: 100px; }
         </div>
         <div class="field">
           <label>Industry <span class="req">*</span></label>
-          <select class="input" id="s1-industry">
+          <select class="input agzit-select" id="s1-industry">
             <option value="">Select industry</option>
             <option value="accounting">Accounting / Taxation / Audit</option>
             <option value="administration">Administration / Office Management</option>
@@ -556,7 +557,7 @@ textarea.input { resize: vertical; min-height: 100px; }
       <div class="form-row col2">
         <div class="field">
           <label>Degree / Qualification <span class="req">*</span></label>
-          <select class="input" id="s3-degree">
+          <select class="input agzit-select" id="s3-degree">
             <option value="">Select</option>
             <option>High School</option>
             <option>Diploma</option>
@@ -764,5 +765,6 @@ fetch('/api/auth/me', { credentials: 'include' })
     if (!d.ok) window.location.href = '/login?redirect_to=/register';
   });
 </script>
+<script src="/shared/searchable-select.js"></script>
 </body>
 </html>

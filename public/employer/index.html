@@ -727,6 +727,7 @@ button { font-family: inherit; cursor: pointer; }
 }
 .btn-danger:hover { background: #991B1B; }
 </style>
+<link rel="stylesheet" href="/shared/searchable-select.css">
 <script src="/assets/layout.js" defer></script>
 </head>
 <body>
@@ -1093,14 +1094,14 @@ button { font-family: inherit; cursor: pointer; }
               style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--muted);padding:0;line-height:1;"
               title="Clear">×</button>
           </div>
-          <select id="iv-filter-status" class="filter-input" style="min-width:140px;cursor:pointer;" onchange="filterInterviews()">
+          <select id="iv-filter-status" class="filter-input agzit-select" style="min-width:140px;cursor:pointer;" onchange="filterInterviews()">
             <option value="">All Statuses</option>
             <option value="scheduled">Scheduled</option>
             <option value="started">In Progress</option>
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
           </select>
-          <select id="iv-sort" class="filter-input" style="min-width:160px;cursor:pointer;" onchange="filterInterviews()">
+          <select id="iv-sort" class="filter-input agzit-select" style="min-width:160px;cursor:pointer;" onchange="filterInterviews()">
             <option value="recent">Most Recent</option>
             <option value="oldest">Oldest First</option>
             <option value="score_desc">Highest Score</option>
@@ -1201,7 +1202,7 @@ button { font-family: inherit; cursor: pointer; }
     <div id="schedule-modal-error" style="display:none;font-size:13px;color:#B91C1C;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:12px;"></div>
     <!-- Template picker -->
     <div class="tpl-row">
-      <select class="tpl-select" id="sm-template" onchange="applyScheduleTemplate()">
+      <select class="tpl-select agzit-select" id="sm-template" onchange="applyScheduleTemplate()">
         <option value="">— Load a saved template —</option>
       </select>
       <button type="button" class="btn-save-tpl" onclick="toggleSaveTemplateForm()">+ Save as Template</button>
@@ -1239,7 +1240,7 @@ button { font-family: inherit; cursor: pointer; }
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div class="form-group">
         <label class="form-label" for="sm-session-type">Session Duration</label>
-        <select class="form-select" id="sm-session-type">
+        <select class="form-select agzit-select" id="sm-session-type">
           <option value="20-min">20 Minutes</option>
           <option value="30-min">30 Minutes</option>
         </select>
@@ -1271,7 +1272,7 @@ button { font-family: inherit; cursor: pointer; }
     <!-- Form -->
     <div id="bulk-form">
       <div class="tpl-row">
-        <select class="tpl-select" id="bulk-template" onchange="applyBulkTemplate()">
+        <select class="tpl-select agzit-select" id="bulk-template" onchange="applyBulkTemplate()">
           <option value="">— Load a saved template —</option>
         </select>
       </div>
@@ -1285,7 +1286,7 @@ button { font-family: inherit; cursor: pointer; }
       </div>
       <div class="form-group">
         <label class="form-label" for="bulk-session-type">Session Duration</label>
-        <select class="form-select" id="bulk-session-type">
+        <select class="form-select agzit-select" id="bulk-session-type">
           <option value="20-min">20 Minutes</option>
           <option value="30-min">30 Minutes</option>
         </select>
@@ -1320,7 +1321,7 @@ button { font-family: inherit; cursor: pointer; }
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div class="form-group">
         <label class="form-label" for="em-session-type">Duration</label>
-        <select class="form-select" id="em-session-type">
+        <select class="form-select agzit-select" id="em-session-type">
           <option value="20-min">20 Minutes</option>
           <option value="30-min">30 Minutes</option>
         </select>
@@ -3041,6 +3042,7 @@ function renderComparisonResults(candidates) {
   `;
 }
 </script>
+<script src="/shared/searchable-select.js"></script>
 
 </body>
 </html>
