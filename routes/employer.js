@@ -125,6 +125,59 @@ const INTERVIEW_KEYS = [
   ...INTERVIEW_SCORE_KEYS,
 ];
 
+// Fetch interviews for a team member: scoped to the company (admin wpId) AND
+// filtered to only interviews scheduled by this specific member (memberAgzitId).
+// Older interviews without scheduled_by_agzit_id postmeta are excluded (treated as admin-only).
+async function fetchMemberInterviews(adminWpId, memberAgzitId, limit) {
+  if (!adminWpId || !memberAgzitId) return [];
+  const [posts] = await pool.execute(
+    `SELECT p.ID, p.post_title, p.post_date
+     FROM wp_posts p
+     INNER JOIN wp_postmeta em ON em.post_id = p.ID
+       AND em.meta_key = 'employer_user_id'
+       AND em.meta_value = ?
+     INNER JOIN wp_postmeta pm_by ON pm_by.post_id = p.ID
+       AND pm_by.meta_key = 'scheduled_by_agzit_id'
+       AND pm_by.meta_value = ?
+     WHERE p.post_type = 'employer_interview'
+       AND p.post_status = 'publish'
+     ORDER BY p.post_date DESC
+     LIMIT ?`,
+    [String(adminWpId), String(memberAgzitId), limit]
+  );
+  if (!posts.length) return [];
+  const postIds = posts.map(p => p.ID);
+  const metaMap = await fetchBulkPostMeta(postIds, INTERVIEW_KEYS);
+  return posts.map(post => {
+    const m = metaMap[post.ID] || {};
+    return {
+      id:                     post.ID,
+      post_title:             post.post_title,
+      post_date:              post.post_date,
+      candidate_name:         m.candidate_name          || null,
+      candidate_email:        m.candidate_email         || null,
+      total_work_experience:  m.total_work_experience   || null,
+      interview_role:         m.interview_role          || null,
+      session_type:           m.session_type            || null,
+      scheduled_at:           m.scheduled_at            || null,
+      interview_status:       m.interview_status        || null,
+      join_url:               m.join_url                || null,
+      join_token:             m.join_token              || null,
+      session_id:             m.session_id              || null,
+      overall_score:          (() => {
+        const vals = INTERVIEW_SCORE_KEYS.map(k => m[k] !== undefined && m[k] !== null && m[k] !== '' ? parseInt(m[k]) : null);
+        if (vals.every(v => v === null)) return null;
+        return vals.reduce((sum, v) => sum + (v ?? 0), 0);
+      })(),
+      emp_readiness_band:       m.emp_readiness_band      || null,
+      audio_url:                m.audio_url               || null,
+      video_url:                m.video_url               || null,
+      jd_raw_text:              m.jd_raw_text             || null,
+      scheduled_by_agzit_id:    m.scheduled_by_agzit_id   || null,
+    };
+  });
+}
+
 async function fetchEmployerInterviews(wpUserId, limit) {
   if (!wpUserId) return [];
   const [posts] = await pool.execute(
@@ -236,18 +289,24 @@ router.get('/dashboard', ...guardAny, async (req, res) => {
     ];
     const meta = metaWpId ? await fetchUserMeta(metaWpId, EMPLOYER_META_KEYS) : {};
 
-    // For team members: fetch their own first_name from wp_usermeta (written at invite time)
-    let memberFirstName = user.first_name || '';
+    // For team members: fetch their own first_name, designation, department from own wp_usermeta
+    let memberFirstName   = user.first_name || '';
+    let memberDesignation = null;
+    let memberDepartment  = null;
     if (is_team_member && user.wp_user_id) {
-      const memMeta = await fetchUserMeta(user.wp_user_id, ['first_name']);
-      memberFirstName = memMeta.first_name || user.first_name || '';
+      const memMeta = await fetchUserMeta(user.wp_user_id, ['first_name', 'dpr_designation', 'dpr_department']);
+      memberFirstName   = memMeta.first_name    || user.first_name || '';
+      memberDesignation = memMeta.dpr_designation || null;
+      memberDepartment  = memMeta.dpr_department  || null;
     }
 
     const usedMonth = parseInt(meta[`dpr_unlock_used_${ym}`])  || 0;
     const usedDay   = parseInt(meta[`dpr_unlock_used_${ymd}`]) || 0;
 
-    // Recent interviews from admin's pool (so members see real data)
-    const recentInterviews = await fetchEmployerInterviews(metaWpId || user.wp_user_id, 5);
+    // Recent interviews: members see only their own; admins see all company interviews
+    const recentInterviews = (is_team_member && adminWpId)
+      ? await fetchMemberInterviews(adminWpId, user.id, 5)
+      : await fetchEmployerInterviews(metaWpId || user.wp_user_id, 5);
 
     res.json({
       ok: true,
@@ -263,9 +322,10 @@ router.get('/dashboard', ...guardAny, async (req, res) => {
       employer_profile: {
         // first_name: member's own name; admin's Form 35 name for admin
         first_name:          is_team_member ? memberFirstName : (meta.dpr_employer_first_name || null),
-        company_name:        meta.dpr_company_name                    || null,
-        designation:         meta.dpr_designation                     || null,
-        department:          meta.dpr_department                      || null,
+        company_name:        meta.dpr_company_name                     || null,
+        // designation/department are personal to the member — null until they set their own
+        designation:         is_team_member ? memberDesignation  : (meta.dpr_designation || null),
+        department:          is_team_member ? memberDepartment   : (meta.dpr_department  || null),
         // work_email stat card: member's login email; admin's verified work email
         work_email:          is_team_member ? (user.email || null) : (meta.dpr_verified_work_email || null),
         application_status:  meta.dpr_employer_application_status     || null,
@@ -310,7 +370,7 @@ router.get('/profile', ...guardAny, async (req, res) => {
     let adminEmail     = null;
     try {
       const [[teamMemberRow]] = await pool.execute(
-        "SELECT admin_user_id FROM agzit_employer_team WHERE member_user_id = ? AND status = 'active' LIMIT 1",
+        "SELECT admin_user_id, joined_at FROM agzit_employer_team WHERE member_user_id = ? AND status = 'active' LIMIT 1",
         [user.id]
       );
       if (teamMemberRow) {
@@ -322,6 +382,8 @@ router.get('/profile', ...guardAny, async (req, res) => {
         adminWpId  = adminUser?.wp_user_id || null;
         adminEmail = adminUser?.email      || null;
       }
+      // Store joined_at for member verification section
+      var memberJoinedAt = teamMemberRow?.joined_at || null;
     } catch (e) {
       console.warn('[employer/profile] team check skipped:', e.message);
     }
@@ -346,11 +408,15 @@ router.get('/profile', ...guardAny, async (req, res) => {
 
     const meta = profileWpId ? await fetchUserMeta(profileWpId, PROFILE_KEYS) : {};
 
-    // Member's own display name (written to wp_usermeta at invite time)
-    let memberFirstName = user.first_name || '';
+    // For members: fetch their own first_name, designation, department from their own wp_usermeta
+    let memberFirstName   = user.first_name || '';
+    let memberDesignation = null;
+    let memberDepartment  = null;
     if (is_team_member && user.wp_user_id) {
-      const memMeta = await fetchUserMeta(user.wp_user_id, ['first_name']);
-      memberFirstName = memMeta.first_name || user.first_name || '';
+      const memMeta = await fetchUserMeta(user.wp_user_id, ['first_name', 'dpr_designation', 'dpr_department']);
+      memberFirstName   = memMeta.first_name    || user.first_name || '';
+      memberDesignation = memMeta.dpr_designation || null;
+      memberDepartment  = memMeta.dpr_department  || null;
     }
 
     res.json({
@@ -364,16 +430,18 @@ router.get('/profile', ...guardAny, async (req, res) => {
         linkedin_url:        meta.dpr_verified_linkedin                || null,
         company_name:        meta.dpr_company_name                     || null,
         company_website:     meta.dpr_company_website                  || null,
-        designation:         meta.dpr_designation                      || null,
-        department:          meta.dpr_department                       || null,
+        // designation/department: member's own (editable); admin's for non-members
+        designation:         is_team_member ? memberDesignation : (meta.dpr_designation  || null),
+        department:          is_team_member ? memberDepartment  : (meta.dpr_department   || null),
         designation_proof:   meta.dpr_designation_proof_url            || meta.dpr_designation_proof || null,
         application_status:  meta.dpr_employer_application_status      || null,
         applied_at:          meta.dpr_employer_applied_at              ? parseInt(meta.dpr_employer_applied_at) : null,
         verified_until:      meta.dpr_verified_until                   ? parseInt(meta.dpr_verified_until) : null,
         verified_at:         meta.dpr_verified_at                      ? parseInt(meta.dpr_verified_at) : null,
         // Member-only fields for profile tab display
-        company_admin_email: is_team_member ? adminEmail           : null,
-        member_work_email:   is_team_member ? (user.email || null) : null,
+        company_admin_email: is_team_member ? adminEmail                    : null,
+        member_work_email:   is_team_member ? (user.email || null)          : null,
+        joined_at:           is_team_member ? (memberJoinedAt || null)      : null,
       },
     });
   } catch (err) {
@@ -394,8 +462,12 @@ router.put('/profile', ...guardAny, async (req, res) => {
     );
     if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
 
-    const allowed = ['first_name', 'company_name', 'company_website', 'designation', 'department', 'linkedin_url'];
-    const body    = req.body || {};
+    // Team members may only edit their own designation and department
+    const isMember = !!(await resolveAdminUserId(user.id).catch(() => null));
+    const allowed  = isMember
+      ? ['designation', 'department']
+      : ['first_name', 'company_name', 'company_website', 'designation', 'department', 'linkedin_url'];
+    const body     = req.body || {};
 
     // Map frontend keys → wp_usermeta keys
     const WP_META_MAP = {
@@ -870,7 +942,10 @@ router.get('/interviews', ...guardAny, async (req, res) => {
       if (adminUser?.wp_user_id) wpId = adminUser.wp_user_id;
     }
 
-    const interviews = await fetchEmployerInterviews(wpId, 1000);
+    // Members see only their own interviews; admins see all company interviews
+    const interviews = adminUserId
+      ? await fetchMemberInterviews(wpId, req.user.user_id, 1000)
+      : await fetchEmployerInterviews(wpId, 1000);
 
     // Batch-fetch scheduled_by names from agzit_users
     const agzitIds = [...new Set(interviews.map(iv => iv.scheduled_by_agzit_id).filter(Boolean))];

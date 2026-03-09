@@ -780,12 +780,14 @@ button { font-family: inherit; cursor: pointer; }
             </div>
           </div>
 
-          <!-- Recent completed interviews -->
-          <div class="section-hdr">
-            <div class="section-title">Recent Interviews</div>
-            <button class="ql-btn" onclick="switchTab('interviews')" style="padding:7px 14px;font-size:12px">View All</button>
+          <!-- Recent completed interviews (hidden for team members) -->
+          <div id="overview-recent-block">
+            <div class="section-hdr">
+              <div class="section-title">Recent Interviews</div>
+              <button class="ql-btn" onclick="switchTab('interviews')" style="padding:7px 14px;font-size:12px">View All</button>
+            </div>
+            <div id="overview-interviews"></div>
           </div>
-          <div id="overview-interviews"></div>
         </div>
 
         <!-- Sidebar -->
@@ -855,11 +857,11 @@ button { font-family: inherit; cursor: pointer; }
           <div class="info-grid" id="profile-company-grid"></div>
           <!-- Edit mode (company fields) -->
           <div class="profile-edit-form" id="profile-edit-company">
-            <div class="edit-field-group">
+            <div class="edit-field-group" id="ef-company-name-group">
               <label class="edit-field-label" for="ef-company-name">Company Name</label>
               <input class="edit-field-input" id="ef-company-name" type="text" placeholder="Your company name">
             </div>
-            <div class="edit-field-group">
+            <div class="edit-field-group" id="ef-company-website-group">
               <label class="edit-field-label" for="ef-company-website">Company Website</label>
               <input class="edit-field-input" id="ef-company-website" type="url" placeholder="https://yourcompany.com">
             </div>
@@ -1161,7 +1163,8 @@ let interviewsFullLoaded = false;
 let candidatePage = 1;
 let allInterviewsList = [];    // full list for client-side email filter
 let _ivCredits  = null;        // { interview_credits, credits_used }
-let IS_TEAM_ADMIN = false;     // true if user is a company admin with team members
+let IS_TEAM_ADMIN  = false;    // true if user is a company admin with team members
+let _isTeamMember  = false;    // true if user is a sub-account team member
 const WP_URL = 'https://agzit.com';
 const ivCache = {};            // id -> interview object (for edit/cancel pre-fill)
 
@@ -1301,8 +1304,10 @@ function render() {
     console.log('[dashboard] verification notice rendered');
   } catch (e) { console.error('[dashboard] verification notice render error:', e); }
 
-  // ── Overview recent interviews ───────────────────────────────────────────────
+  // ── Overview recent interviews (hidden for members) ─────────────────────────
   try {
+    const recentBlock = document.getElementById('overview-recent-block');
+    if (recentBlock) recentBlock.style.display = DATA.is_team_member ? 'none' : '';
     renderInterviewList(document.getElementById('overview-interviews'), ri, 5);
     console.log('[dashboard] overview interviews rendered');
   } catch (e) { console.error('[dashboard] overview interviews render error:', e); }
@@ -1417,9 +1422,11 @@ async function loadProfile() {
     if (!data.ok) throw new Error(data.error);
     const p = data.profile;
     _profileSnapshot = p; // store for edit/revert
+    _isTeamMember = !!data.is_team_member;
 
-    // Hide Edit Profile button for team members (they can't edit company data)
-    document.getElementById('btn-edit-profile').style.display = data.is_team_member ? 'none' : '';
+    // Edit button visible for both admins and members
+    // (members can edit their own designation and department)
+    document.getElementById('btn-edit-profile').style.display = '';
 
     const personalRows = data.is_team_member
       ? [
@@ -1444,12 +1451,17 @@ async function loadProfile() {
       ['Proof Document',  p.designation_proof ? `<a href="${esc(p.designation_proof)}" target="_blank" rel="noopener">View Document</a>` : null],
     ].map(([l, v]) => infoItem(l, v)).join('');
 
-    document.getElementById('profile-verification-grid').innerHTML = [
-      ['Application Status', applicationStatusLabel(p.application_status)],
-      ['Applied At',         p.applied_at  ? fmtDate(p.applied_at  * 1000) : null],
-      ['Email Verified At',  p.verified_at ? fmtDate(p.verified_at * 1000) : null],
-      ['Verified Until',     p.verified_until ? fmtDate(p.verified_until * 1000) : null],
-    ].map(([l, v]) => infoItem(l, v)).join('');
+    const verificationRows = _isTeamMember
+      ? [
+          ['Application Status', 'Active Member'],
+          ['Member Since',       p.joined_at ? fmtDate(new Date(p.joined_at.replace(' ', 'T')).getTime()) : null],
+        ]
+      : [
+          ['Application Status', applicationStatusLabel(p.application_status)],
+          ['Applied At',         p.applied_at  ? fmtDate(p.applied_at  * 1000) : null],
+          ['Email Verified At',  p.verified_at ? fmtDate(p.verified_at * 1000) : null],
+        ];
+    document.getElementById('profile-verification-grid').innerHTML = verificationRows.map(([l, v]) => infoItem(l, v)).join('');
 
     profileLoaded = true;
     document.getElementById('profile-loading').style.display  = 'none';
@@ -1468,29 +1480,42 @@ let _profileSnapshot = null; // last-loaded profile data for cancel revert
 function startEditProfile() {
   const p = _profileSnapshot;
   if (!p) return;
-  // Pre-fill personal fields
-  document.getElementById('ef-first-name').value        = p.first_name      || '';
-  document.getElementById('ef-linkedin').value          = p.linkedin_url    || '';
-  // Pre-fill company fields
-  document.getElementById('ef-company-name').value      = p.company_name    || '';
-  document.getElementById('ef-company-website').value   = p.company_website || '';
-  document.getElementById('ef-designation').value       = p.designation     || '';
-  document.getElementById('ef-department').value        = p.department      || '';
 
-  // Toggle display/edit mode
-  document.getElementById('profile-personal-grid').style.display = 'none';
-  document.getElementById('profile-company-grid').style.display  = 'none';
-  document.getElementById('profile-edit-personal').classList.add('active');
-  document.getElementById('profile-edit-company').classList.add('active');
-  document.getElementById('btn-edit-profile').style.display      = 'none';
+  if (_isTeamMember) {
+    // Members: only designation + department are editable
+    document.getElementById('ef-designation').value = p.designation || '';
+    document.getElementById('ef-department').value  = p.department  || '';
+    // Hide admin-only fields in the company edit form
+    document.getElementById('ef-company-name-group').style.display    = 'none';
+    document.getElementById('ef-company-website-group').style.display = 'none';
+    // Open only the company edit form (personal section stays in display mode)
+    document.getElementById('profile-company-grid').style.display     = 'none';
+    document.getElementById('profile-edit-company').classList.add('active');
+  } else {
+    // Admins: edit all fields
+    document.getElementById('ef-first-name').value        = p.first_name      || '';
+    document.getElementById('ef-linkedin').value          = p.linkedin_url    || '';
+    document.getElementById('ef-company-name').value      = p.company_name    || '';
+    document.getElementById('ef-company-website').value   = p.company_website || '';
+    document.getElementById('ef-designation').value       = p.designation     || '';
+    document.getElementById('ef-department').value        = p.department      || '';
+    document.getElementById('profile-personal-grid').style.display = 'none';
+    document.getElementById('profile-company-grid').style.display  = 'none';
+    document.getElementById('profile-edit-personal').classList.add('active');
+    document.getElementById('profile-edit-company').classList.add('active');
+  }
+  document.getElementById('btn-edit-profile').style.display = 'none';
 }
 
 function cancelEditProfile() {
-  document.getElementById('profile-personal-grid').style.display = '';
-  document.getElementById('profile-company-grid').style.display  = '';
+  document.getElementById('profile-personal-grid').style.display    = '';
+  document.getElementById('profile-company-grid').style.display     = '';
   document.getElementById('profile-edit-personal').classList.remove('active');
   document.getElementById('profile-edit-company').classList.remove('active');
-  document.getElementById('btn-edit-profile').style.display      = '';
+  // Restore admin-only fields in company form (hidden during member edit)
+  document.getElementById('ef-company-name-group').style.display    = '';
+  document.getElementById('ef-company-website-group').style.display = '';
+  document.getElementById('btn-edit-profile').style.display         = '';
 }
 
 async function saveEditProfile() {
@@ -1498,14 +1523,19 @@ async function saveEditProfile() {
   btn.disabled = true;
   btn.textContent = 'Saving...';
   try {
-    const payload = {
-      first_name:      document.getElementById('ef-first-name').value.trim(),
-      company_name:    document.getElementById('ef-company-name').value.trim(),
-      company_website: document.getElementById('ef-company-website').value.trim(),
-      designation:     document.getElementById('ef-designation').value.trim(),
-      department:      document.getElementById('ef-department').value.trim(),
-      linkedin_url:    document.getElementById('ef-linkedin').value.trim(),
-    };
+    const payload = _isTeamMember
+      ? {
+          designation: document.getElementById('ef-designation').value.trim(),
+          department:  document.getElementById('ef-department').value.trim(),
+        }
+      : {
+          first_name:      document.getElementById('ef-first-name').value.trim(),
+          company_name:    document.getElementById('ef-company-name').value.trim(),
+          company_website: document.getElementById('ef-company-website').value.trim(),
+          designation:     document.getElementById('ef-designation').value.trim(),
+          department:      document.getElementById('ef-department').value.trim(),
+          linkedin_url:    document.getElementById('ef-linkedin').value.trim(),
+        };
     const res  = await fetch('/api/employer/profile', {
       method: 'PUT',
       credentials: 'include',
