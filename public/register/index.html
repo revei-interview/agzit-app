@@ -75,6 +75,12 @@ body { font-family: var(--f); background: var(--surface); color: var(--ink); -we
   margin-bottom: 20px; padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
 }
+.opt-label {
+  font-size: 10px; font-weight: 500; letter-spacing: .5px;
+  color: var(--muted); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 4px; padding: 2px 6px; margin-left: 8px;
+  text-transform: none; vertical-align: middle;
+}
 
 /* Grid */
 .form-row { display: grid; gap: 16px; grid-template-columns: 1fr; margin-bottom: 16px; }
@@ -135,9 +141,66 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
 .exp-row .input { flex: 1; }
 .exp-unit { font-size: 13.5px; color: var(--muted); font-weight: 600; white-space: nowrap; }
 
+/* ── Step 0: Resume pre-step ──────────────────────────────────────────── */
+.step0-header { margin-bottom: 24px; }
+.step0-title { font-size: 22px; font-weight: 800; color: var(--ink); margin-bottom: 8px; }
+.step0-desc { font-size: 14px; color: var(--muted); line-height: 1.6; }
+.file-drop {
+  border: 2px dashed var(--line); border-radius: 12px;
+  padding: 32px 20px; text-align: center; cursor: pointer;
+  transition: border-color .15s, background .15s; margin-bottom: 16px;
+}
+.file-drop:hover { border-color: var(--blue); background: var(--blue-lt); }
+.file-drop.has-file { border-color: var(--green); background: var(--green-lt); }
+.file-drop-icon { font-size: 32px; margin-bottom: 8px; color: var(--muted); }
+.file-drop-label { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+.file-drop-hint { font-size: 12px; color: var(--muted); }
+.file-name { font-size: 13px; color: var(--green); font-weight: 600; margin-top: 10px; }
+.step0-sep { text-align: center; font-size: 12px; color: var(--muted); margin: 14px 0; }
+.parse-banner {
+  border-radius: 10px; font-size: 14px; font-weight: 600;
+  padding: 12px 16px; display: none; margin-top: 12px;
+}
+.parse-banner.show { display: block; }
+.parse-banner.success { background: var(--green-lt); border: 1px solid var(--green); color: var(--green); }
+.parse-banner.error { background: #FEF2F2; border: 1px solid #FECACA; color: #991B1B; }
+
+/* ── Multi-entry cards ────────────────────────────────────────────────── */
+.entry-card {
+  background: var(--surface); border: 1.5px solid var(--line);
+  border-radius: 12px; padding: 20px 20px 16px; margin-bottom: 12px;
+}
+.entry-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px; min-height: 20px;
+}
+.entry-num { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+.entry-remove {
+  font-size: 12px; color: var(--muted); background: none; border: none;
+  cursor: pointer; padding: 3px 8px; border-radius: 6px; font-family: var(--f);
+}
+.entry-remove:hover { background: #FEF2F2; color: var(--red); }
+.add-entry-btn {
+  width: 100%; height: 44px; border: 1.5px dashed var(--line);
+  border-radius: 10px; background: none; font-size: 14px; font-weight: 600;
+  color: var(--blue); cursor: pointer; font-family: var(--f);
+  transition: all .15s; margin-top: 4px;
+}
+.add-entry-btn:hover { background: var(--blue-lt); border-color: var(--blue); }
+
+/* Month-year pair */
+.month-year-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* Currently working / no expiry checkbox */
+.check-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.check-row input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--blue); flex-shrink: 0; }
+.check-row label { font-size: 13px; color: var(--soft); cursor: pointer; }
+.end-group { transition: opacity .2s; }
+
 @media (max-width: 640px) {
   .main { padding: 16px 12px 60px; }
   .card { padding: 20px 18px; }
+  .entry-card { padding: 16px 14px 12px; }
   .p-label { display: none; }
   .p-line { min-width: 8px; margin: 0 6px; }
 }
@@ -151,8 +214,8 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
   <div class="reg-header-inner">
     <div class="reg-steps">
       <div class="p-step">
-        <div class="p-dot active" id="pd1">1</div>
-        <div class="p-label active" id="pl1">Personal</div>
+        <div class="p-dot" id="pd1">1</div>
+        <div class="p-label" id="pl1">Personal</div>
       </div>
       <div class="p-line" id="pline1"></div>
       <div class="p-step">
@@ -170,7 +233,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
         <div class="p-label" id="pl4">Skills</div>
       </div>
     </div>
-    <span class="reg-step-counter" id="step-counter">Step 1 of 4</span>
+    <span class="reg-step-counter" id="step-counter">Quick Start</span>
   </div>
 </header>
 
@@ -179,8 +242,33 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
   <!-- Error -->
   <div class="msg-error" id="form-error"></div>
 
+  <!-- STEP 0: Resume upload pre-step -->
+  <div id="step0">
+    <div class="card">
+      <div class="step0-header">
+        <div class="step0-title">Upload your resume to auto-fill</div>
+        <p class="step0-desc">Our AI reads your resume and fills in your profile details automatically. You can review and edit everything before submitting.</p>
+      </div>
+      <input type="file" id="resume-file" accept=".pdf" style="display:none">
+      <div class="file-drop" id="file-drop" onclick="document.getElementById('resume-file').click()">
+        <div class="file-drop-icon">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        </div>
+        <div class="file-drop-label">Click to select your PDF resume</div>
+        <div class="file-drop-hint">Max 5 MB · PDF files only</div>
+        <div class="file-name" id="file-name"></div>
+      </div>
+      <button class="btn btn-primary" id="parse-btn" onclick="parseResume()" disabled style="width:100%">
+        Auto-fill from Resume <span class="spinner" id="parse-spinner"></span>
+      </button>
+      <div class="step0-sep">or</div>
+      <button class="btn btn-outline" onclick="goStep(1)" style="width:100%">Skip — fill manually</button>
+      <div class="parse-banner" id="parse-banner"></div>
+    </div>
+  </div>
+
   <!-- STEP 1: Personal Info -->
-  <div id="step1">
+  <div id="step1" style="display:none;">
     <div class="card">
       <div class="card-title">Personal Information</div>
       <div class="form-row col2">
@@ -397,14 +485,22 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
           </div>
         </div>
         <div class="field">
-          <label>Location (City) <span class="req">*</span></label>
+          <label>City <span class="req">*</span></label>
           <input class="input" type="text" id="s1-city" placeholder="Your city">
         </div>
       </div>
       <div class="form-row">
         <div class="field">
+          <label>Country <span class="req">*</span></label>
+          <select class="input agzit-select" id="s1-country">
+            <!-- Populated by JS -->
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
           <label>Professional Headline <span class="req">*</span></label>
-          <input class="input" type="text" id="s1-headline" placeholder="e.g. Senior Product Manager · 8 years experience">
+          <input class="input" type="text" id="s1-headline" placeholder="e.g. Senior Compliance Manager · 8 years experience">
           <div class="hint">This appears at the top of your DPR profile.</div>
         </div>
       </div>
@@ -412,7 +508,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
         <div class="field">
           <label>Total Experience <span class="req">*</span></label>
           <div class="exp-row">
-            <input class="input" type="number" id="s1-exp" min="0" max="50" step="1" placeholder="Years of experience">
+            <input class="input" type="number" id="s1-exp" min="0" max="50" step="1" placeholder="Years">
             <span class="exp-unit">years</span>
           </div>
         </div>
@@ -480,42 +576,18 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
       </div>
     </div>
     <div class="form-nav">
+      <button class="btn btn-outline" onclick="goStep(0)">← Back</button>
       <button class="btn btn-primary" onclick="goStep(2)">Next: Career Info →</button>
     </div>
     <p class="enc-note">Your data is encrypted and never shared.</p>
   </div>
 
-  <!-- STEP 2: Career Info -->
+  <!-- STEP 2: Career (multi-entry) -->
   <div id="step2" style="display:none;">
     <div class="card">
-      <div class="card-title">Current / Most Recent Role</div>
-      <div class="form-row col2">
-        <div class="field">
-          <label>Job Title <span class="req">*</span></label>
-          <input class="input" type="text" id="s2-title" placeholder="e.g. Product Manager">
-        </div>
-        <div class="field">
-          <label>Company <span class="req">*</span></label>
-          <input class="input" type="text" id="s2-company" placeholder="e.g. Infosys">
-        </div>
-      </div>
-      <div class="form-row col2">
-        <div class="field">
-          <label>Start Date <span class="req">*</span></label>
-          <input class="input" type="month" id="s2-start">
-        </div>
-        <div class="field">
-          <label>End Date</label>
-          <input class="input" type="month" id="s2-end" placeholder="Leave blank if current">
-          <div class="hint">Leave blank if this is your current role.</div>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="field">
-          <label>Key Responsibilities</label>
-          <textarea class="input" id="s2-responsibilities" rows="4" placeholder="Describe your main responsibilities and achievements..."></textarea>
-        </div>
-      </div>
+      <div class="card-title">Work Experience</div>
+      <div id="career-entries"></div>
+      <button class="add-entry-btn" type="button" onclick="addCareerEntry()">+ Add another role</button>
     </div>
     <div class="form-nav">
       <button class="btn btn-outline" onclick="goStep(1)">← Back</button>
@@ -523,40 +595,17 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
     </div>
   </div>
 
-  <!-- STEP 3: Education -->
+  <!-- STEP 3: Education + Certifications (multi-entry) -->
   <div id="step3" style="display:none;">
     <div class="card">
-      <div class="card-title">Highest Education</div>
-      <div class="form-row col2">
-        <div class="field">
-          <label>Degree / Qualification <span class="req">*</span></label>
-          <select class="input agzit-select" id="s3-degree">
-            <option value="">Select</option>
-            <option>High School</option>
-            <option>Diploma</option>
-            <option>Bachelor's</option>
-            <option>Master's</option>
-            <option>MBA</option>
-            <option>PhD</option>
-            <option>Professional Certification</option>
-            <option>Other</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Field of Study</label>
-          <input class="input" type="text" id="s3-field" placeholder="e.g. Computer Science">
-        </div>
-      </div>
-      <div class="form-row col2">
-        <div class="field">
-          <label>Institution <span class="req">*</span></label>
-          <input class="input" type="text" id="s3-institution" placeholder="University / College name">
-        </div>
-        <div class="field">
-          <label>Graduation Year</label>
-          <input class="input" type="number" id="s3-year" placeholder="e.g. 2018" min="1980" max="2030">
-        </div>
-      </div>
+      <div class="card-title">Education</div>
+      <div id="edu-entries"></div>
+      <button class="add-entry-btn" type="button" onclick="addEduEntry()">+ Add another degree</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Certifications &amp; Licenses <span class="opt-label">Optional</span></div>
+      <div id="cert-entries"></div>
+      <button class="add-entry-btn" type="button" onclick="addCertEntry()">+ Add another certification</button>
     </div>
     <div class="form-nav">
       <button class="btn btn-outline" onclick="goStep(2)">← Back</button>
@@ -603,19 +652,484 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
 
 </div><!-- /main -->
 
-
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+<script>
+/* ── Constants ──────────────────────────────────────────────────────────── */
 const STEPS = 4;
-let currentStep = 1;
+let currentStep = 0;
 
+const CUR_YEAR = new Date().getFullYear();
+
+/* ── Country list (ISO-2 codes) ─────────────────────────────────────────── */
+const COUNTRY_LIST = [
+  {code:'AF',name:'Afghanistan'},{code:'AL',name:'Albania'},{code:'DZ',name:'Algeria'},
+  {code:'AD',name:'Andorra'},{code:'AO',name:'Angola'},{code:'AG',name:'Antigua and Barbuda'},
+  {code:'AR',name:'Argentina'},{code:'AM',name:'Armenia'},{code:'AU',name:'Australia'},
+  {code:'AT',name:'Austria'},{code:'AZ',name:'Azerbaijan'},{code:'BS',name:'Bahamas'},
+  {code:'BH',name:'Bahrain'},{code:'BD',name:'Bangladesh'},{code:'BB',name:'Barbados'},
+  {code:'BY',name:'Belarus'},{code:'BE',name:'Belgium'},{code:'BZ',name:'Belize'},
+  {code:'BJ',name:'Benin'},{code:'BT',name:'Bhutan'},{code:'BO',name:'Bolivia'},
+  {code:'BA',name:'Bosnia and Herzegovina'},{code:'BW',name:'Botswana'},{code:'BR',name:'Brazil'},
+  {code:'BN',name:'Brunei'},{code:'BG',name:'Bulgaria'},{code:'BF',name:'Burkina Faso'},
+  {code:'BI',name:'Burundi'},{code:'CV',name:'Cabo Verde'},{code:'KH',name:'Cambodia'},
+  {code:'CM',name:'Cameroon'},{code:'CA',name:'Canada'},{code:'CF',name:'Central African Republic'},
+  {code:'TD',name:'Chad'},{code:'CL',name:'Chile'},{code:'CN',name:'China'},
+  {code:'CO',name:'Colombia'},{code:'KM',name:'Comoros'},{code:'CG',name:'Congo'},
+  {code:'CD',name:'Congo (DRC)'},{code:'CR',name:'Costa Rica'},{code:'HR',name:'Croatia'},
+  {code:'CU',name:'Cuba'},{code:'CY',name:'Cyprus'},{code:'CZ',name:'Czech Republic'},
+  {code:'DK',name:'Denmark'},{code:'DJ',name:'Djibouti'},{code:'DM',name:'Dominica'},
+  {code:'DO',name:'Dominican Republic'},{code:'EC',name:'Ecuador'},{code:'EG',name:'Egypt'},
+  {code:'SV',name:'El Salvador'},{code:'GQ',name:'Equatorial Guinea'},{code:'ER',name:'Eritrea'},
+  {code:'EE',name:'Estonia'},{code:'SZ',name:'Eswatini'},{code:'ET',name:'Ethiopia'},
+  {code:'FJ',name:'Fiji'},{code:'FI',name:'Finland'},{code:'FR',name:'France'},
+  {code:'GA',name:'Gabon'},{code:'GM',name:'Gambia'},{code:'GE',name:'Georgia'},
+  {code:'DE',name:'Germany'},{code:'GH',name:'Ghana'},{code:'GR',name:'Greece'},
+  {code:'GD',name:'Grenada'},{code:'GT',name:'Guatemala'},{code:'GN',name:'Guinea'},
+  {code:'GW',name:'Guinea-Bissau'},{code:'GY',name:'Guyana'},{code:'HT',name:'Haiti'},
+  {code:'HN',name:'Honduras'},{code:'HK',name:'Hong Kong'},{code:'HU',name:'Hungary'},
+  {code:'IS',name:'Iceland'},{code:'IN',name:'India'},{code:'ID',name:'Indonesia'},
+  {code:'IR',name:'Iran'},{code:'IQ',name:'Iraq'},{code:'IE',name:'Ireland'},
+  {code:'IL',name:'Israel'},{code:'IT',name:'Italy'},{code:'JM',name:'Jamaica'},
+  {code:'JP',name:'Japan'},{code:'JO',name:'Jordan'},{code:'KZ',name:'Kazakhstan'},
+  {code:'KE',name:'Kenya'},{code:'KI',name:'Kiribati'},{code:'XK',name:'Kosovo'},
+  {code:'KW',name:'Kuwait'},{code:'KG',name:'Kyrgyzstan'},{code:'LA',name:'Laos'},
+  {code:'LV',name:'Latvia'},{code:'LB',name:'Lebanon'},{code:'LS',name:'Lesotho'},
+  {code:'LR',name:'Liberia'},{code:'LY',name:'Libya'},{code:'LI',name:'Liechtenstein'},
+  {code:'LT',name:'Lithuania'},{code:'LU',name:'Luxembourg'},{code:'MG',name:'Madagascar'},
+  {code:'MW',name:'Malawi'},{code:'MY',name:'Malaysia'},{code:'MV',name:'Maldives'},
+  {code:'ML',name:'Mali'},{code:'MT',name:'Malta'},{code:'MH',name:'Marshall Islands'},
+  {code:'MR',name:'Mauritania'},{code:'MU',name:'Mauritius'},{code:'MX',name:'Mexico'},
+  {code:'FM',name:'Micronesia'},{code:'MD',name:'Moldova'},{code:'MC',name:'Monaco'},
+  {code:'MN',name:'Mongolia'},{code:'ME',name:'Montenegro'},{code:'MA',name:'Morocco'},
+  {code:'MZ',name:'Mozambique'},{code:'MM',name:'Myanmar'},{code:'NA',name:'Namibia'},
+  {code:'NR',name:'Nauru'},{code:'NP',name:'Nepal'},{code:'NL',name:'Netherlands'},
+  {code:'NZ',name:'New Zealand'},{code:'NI',name:'Nicaragua'},{code:'NE',name:'Niger'},
+  {code:'NG',name:'Nigeria'},{code:'MK',name:'North Macedonia'},{code:'NO',name:'Norway'},
+  {code:'OM',name:'Oman'},{code:'PK',name:'Pakistan'},{code:'PW',name:'Palau'},
+  {code:'PS',name:'Palestine'},{code:'PA',name:'Panama'},{code:'PG',name:'Papua New Guinea'},
+  {code:'PY',name:'Paraguay'},{code:'PE',name:'Peru'},{code:'PH',name:'Philippines'},
+  {code:'PL',name:'Poland'},{code:'PT',name:'Portugal'},{code:'QA',name:'Qatar'},
+  {code:'RO',name:'Romania'},{code:'RU',name:'Russia'},{code:'RW',name:'Rwanda'},
+  {code:'KN',name:'Saint Kitts and Nevis'},{code:'LC',name:'Saint Lucia'},
+  {code:'VC',name:'Saint Vincent and the Grenadines'},{code:'WS',name:'Samoa'},
+  {code:'SM',name:'San Marino'},{code:'ST',name:'Sao Tome and Principe'},
+  {code:'SA',name:'Saudi Arabia'},{code:'SN',name:'Senegal'},{code:'RS',name:'Serbia'},
+  {code:'SC',name:'Seychelles'},{code:'SL',name:'Sierra Leone'},{code:'SG',name:'Singapore'},
+  {code:'SK',name:'Slovakia'},{code:'SI',name:'Slovenia'},{code:'SB',name:'Solomon Islands'},
+  {code:'SO',name:'Somalia'},{code:'ZA',name:'South Africa'},{code:'SS',name:'South Sudan'},
+  {code:'ES',name:'Spain'},{code:'LK',name:'Sri Lanka'},{code:'SD',name:'Sudan'},
+  {code:'SR',name:'Suriname'},{code:'SE',name:'Sweden'},{code:'CH',name:'Switzerland'},
+  {code:'SY',name:'Syria'},{code:'TW',name:'Taiwan'},{code:'TJ',name:'Tajikistan'},
+  {code:'TZ',name:'Tanzania'},{code:'TH',name:'Thailand'},{code:'TL',name:'Timor-Leste'},
+  {code:'TG',name:'Togo'},{code:'TO',name:'Tonga'},{code:'TT',name:'Trinidad and Tobago'},
+  {code:'TN',name:'Tunisia'},{code:'TR',name:'Turkey'},{code:'TM',name:'Turkmenistan'},
+  {code:'TV',name:'Tuvalu'},{code:'UG',name:'Uganda'},{code:'UA',name:'Ukraine'},
+  {code:'AE',name:'United Arab Emirates'},{code:'GB',name:'United Kingdom'},
+  {code:'US',name:'United States'},{code:'UY',name:'Uruguay'},{code:'UZ',name:'Uzbekistan'},
+  {code:'VU',name:'Vanuatu'},{code:'VE',name:'Venezuela'},{code:'VN',name:'Vietnam'},
+  {code:'YE',name:'Yemen'},{code:'ZM',name:'Zambia'},{code:'ZW',name:'Zimbabwe'},
+];
+
+/* ── Option generators ──────────────────────────────────────────────────── */
+function monthOpts() {
+  const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return '<option value="">Month</option>' +
+    names.map((m, i) => `<option value="${String(i + 1).padStart(2, '0')}">${m}</option>`).join('');
+}
+function yearOpts(from, to) {
+  let h = '<option value="">Year</option>';
+  for (let y = to; y >= from; y--) h += `<option value="${y}">${y}</option>`;
+  return h;
+}
+
+/* ── Populate residential country select ────────────────────────────────── */
+(function populateCountry() {
+  const sel = document.getElementById('s1-country');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Select your country</option>' +
+    COUNTRY_LIST.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
+})();
+
+/* ── Multi-entry: Career ────────────────────────────────────────────────── */
+let careerCount = 0;
+
+function addCareerEntry(prefill) {
+  const idx = careerCount++;
+  const mo  = monthOpts();
+  const yo  = yearOpts(1960, CUR_YEAR);
+
+  const div = document.createElement('div');
+  div.className = 'entry-card career-entry';
+  div.dataset.idx = idx;
+  div.innerHTML = `
+    <div class="entry-hdr">
+      <span class="entry-num"></span>
+      <button class="entry-remove" type="button" onclick="removeEntry(this,'.career-entry','Position')">Remove</button>
+    </div>
+    <div class="form-row col2">
+      <div class="field">
+        <label>Job Title <span class="req">*</span></label>
+        <input class="input entry-title-input" type="text" placeholder="e.g. Compliance Analyst">
+      </div>
+      <div class="field">
+        <label>Company <span class="req">*</span></label>
+        <input class="input entry-company-input" type="text" placeholder="e.g. HSBC">
+      </div>
+    </div>
+    <div class="form-row col2">
+      <div class="field">
+        <label>Start Date <span class="req">*</span></label>
+        <div class="month-year-row">
+          <select class="input entry-start-month">${mo}</select>
+          <select class="input entry-start-year">${yo}</select>
+        </div>
+      </div>
+      <div class="field">
+        <label>End Date</label>
+        <div class="month-year-row end-group" id="end-grp-${idx}">
+          <select class="input entry-end-month">${mo}</select>
+          <select class="input entry-end-year">${yo}</select>
+        </div>
+        <div class="check-row">
+          <input type="checkbox" class="entry-current" id="cur-${idx}" onchange="toggleEndDate(this,${idx})">
+          <label for="cur-${idx}">Currently working here</label>
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label>Key Responsibilities</label>
+        <textarea class="input entry-resp" rows="3" placeholder="Describe your main responsibilities..."></textarea>
+      </div>
+    </div>`;
+  document.getElementById('career-entries').appendChild(div);
+
+  if (prefill) {
+    div.querySelector('.entry-title-input').value   = prefill.title   || '';
+    div.querySelector('.entry-company-input').value = prefill.company || '';
+    div.querySelector('.entry-resp').value          = prefill.responsibilities || '';
+    const sd = splitDate(prefill.start_date);
+    if (sd.month) div.querySelector('.entry-start-month').value = sd.month;
+    if (sd.year)  div.querySelector('.entry-start-year').value  = sd.year;
+    if (prefill.currently_working) {
+      const cb = div.querySelector('.entry-current');
+      cb.checked = true;
+      toggleEndDate(cb, idx);
+    } else {
+      const ed = splitDate(prefill.end_date);
+      if (ed.month) div.querySelector('.entry-end-month').value = ed.month;
+      if (ed.year)  div.querySelector('.entry-end-year').value  = ed.year;
+    }
+  }
+  updateEntryNums('.career-entry', 'Position');
+}
+
+function toggleEndDate(cb, idx) {
+  const grp = document.getElementById('end-grp-' + idx);
+  if (!grp) return;
+  grp.style.opacity = cb.checked ? '0.35' : '1';
+  grp.querySelectorAll('select').forEach(s => { s.disabled = cb.checked; });
+}
+
+/* ── Multi-entry: Education ─────────────────────────────────────────────── */
+let eduCount = 0;
+
+function addEduEntry(prefill) {
+  const idx = eduCount++;
+  const div = document.createElement('div');
+  div.className = 'entry-card edu-entry';
+  div.dataset.idx = idx;
+  div.innerHTML = `
+    <div class="entry-hdr">
+      <span class="entry-num"></span>
+      <button class="entry-remove" type="button" onclick="removeEntry(this,'.edu-entry','Education')">Remove</button>
+    </div>
+    <div class="form-row col2">
+      <div class="field">
+        <label>Degree <span class="req">*</span></label>
+        <select class="input edu-degree">
+          <option value="">Select</option>
+          <option>High School</option>
+          <option>Diploma</option>
+          <option>Bachelor's</option>
+          <option>Master's</option>
+          <option>MBA</option>
+          <option>PhD</option>
+          <option>Professional Certification</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Field of Study</label>
+        <input class="input edu-field" type="text" placeholder="e.g. Finance">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label>Institution <span class="req">*</span></label>
+        <input class="input edu-institution" type="text" placeholder="University or college name">
+      </div>
+    </div>
+    <div class="form-row col2">
+      <div class="field">
+        <label>Start Year</label>
+        <select class="input edu-start-year">${yearOpts(1970, CUR_YEAR)}</select>
+      </div>
+      <div class="field">
+        <label>End Year</label>
+        <select class="input edu-end-year">${yearOpts(1970, CUR_YEAR + 2)}</select>
+      </div>
+    </div>`;
+  document.getElementById('edu-entries').appendChild(div);
+
+  if (prefill) {
+    if (prefill.degree)      div.querySelector('.edu-degree').value      = prefill.degree;
+    if (prefill.field)       div.querySelector('.edu-field').value        = prefill.field || '';
+    if (prefill.institution) div.querySelector('.edu-institution').value  = prefill.institution;
+    if (prefill.start_year)  div.querySelector('.edu-start-year').value   = String(prefill.start_year);
+    if (prefill.end_year)    div.querySelector('.edu-end-year').value     = String(prefill.end_year);
+  }
+  updateEntryNums('.edu-entry', 'Education');
+}
+
+/* ── Multi-entry: Certifications ────────────────────────────────────────── */
+let certCount = 0;
+
+function addCertEntry(prefill) {
+  const idx = certCount++;
+  const mo  = monthOpts();
+  const iyo = yearOpts(1990, CUR_YEAR);
+  const eyo = yearOpts(CUR_YEAR - 5, CUR_YEAR + 15);
+
+  const div = document.createElement('div');
+  div.className = 'entry-card cert-entry';
+  div.dataset.idx = idx;
+  div.innerHTML = `
+    <div class="entry-hdr">
+      <span class="entry-num"></span>
+      <button class="entry-remove" type="button" onclick="removeEntry(this,'.cert-entry','Certification')">Remove</button>
+    </div>
+    <div class="form-row col2">
+      <div class="field">
+        <label>Certification Name</label>
+        <input class="input cert-name" type="text" placeholder="e.g. CAMS">
+      </div>
+      <div class="field">
+        <label>Issuing Organization</label>
+        <input class="input cert-issuer" type="text" placeholder="e.g. ACAMS">
+      </div>
+    </div>
+    <div class="form-row col2">
+      <div class="field">
+        <label>Credential ID</label>
+        <input class="input cert-cred-id" type="text" placeholder="Optional">
+      </div>
+      <div class="field">
+        <label>Issue Date</label>
+        <div class="month-year-row">
+          <select class="input cert-issue-month">${mo}</select>
+          <select class="input cert-issue-year">${iyo}</select>
+        </div>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label>Expiry Date</label>
+        <div class="month-year-row end-group" id="cert-exp-grp-${idx}">
+          <select class="input cert-exp-month">${mo}</select>
+          <select class="input cert-exp-year">${eyo}</select>
+        </div>
+        <div class="check-row">
+          <input type="checkbox" class="cert-no-expiry" id="noexp-${idx}" onchange="toggleCertExpiry(this,${idx})">
+          <label for="noexp-${idx}">No expiry date</label>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('cert-entries').appendChild(div);
+
+  if (prefill) {
+    if (prefill.name)   div.querySelector('.cert-name').value   = prefill.name;
+    if (prefill.issuer) div.querySelector('.cert-issuer').value = prefill.issuer || '';
+    const id = splitDate(prefill.issue_date);
+    if (id.month) div.querySelector('.cert-issue-month').value = id.month;
+    if (id.year)  div.querySelector('.cert-issue-year').value  = id.year;
+    if (!prefill.expiry_date) {
+      const cb = div.querySelector('.cert-no-expiry');
+      cb.checked = true;
+      toggleCertExpiry(cb, idx);
+    } else {
+      const ed = splitDate(prefill.expiry_date);
+      if (ed.month) div.querySelector('.cert-exp-month').value = ed.month;
+      if (ed.year)  div.querySelector('.cert-exp-year').value  = ed.year;
+    }
+  }
+  updateEntryNums('.cert-entry', 'Certification');
+}
+
+function toggleCertExpiry(cb, idx) {
+  const grp = document.getElementById('cert-exp-grp-' + idx);
+  if (!grp) return;
+  grp.style.opacity = cb.checked ? '0.35' : '1';
+  grp.querySelectorAll('select').forEach(s => { s.disabled = cb.checked; });
+}
+
+/* ── Shared entry helpers ───────────────────────────────────────────────── */
+function removeEntry(btn, sel, label) {
+  const all = document.querySelectorAll(sel);
+  if (all.length <= 1) return;
+  btn.closest('.entry-card').remove();
+  updateEntryNums(sel, label);
+}
+function updateEntryNums(sel, label) {
+  const all = document.querySelectorAll(sel);
+  all.forEach((el, i) => {
+    const n = el.querySelector('.entry-num');
+    if (n) n.textContent = all.length > 1 ? `${label} ${i + 1}` : '';
+    const r = el.querySelector('.entry-remove');
+    if (r) r.style.display = all.length > 1 ? '' : 'none';
+  });
+}
+
+/* ── Date splitter (for prefill from parse-resume) ──────────────────────── */
+function splitDate(dateStr) {
+  if (!dateStr) return { month: '', year: '' };
+  const m1 = String(dateStr).match(/^(\d{4})-(\d{2})/);
+  if (m1) return { year: m1[1], month: m1[2] };
+  const MMAP = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+  const m2 = String(dateStr).toLowerCase().match(/([a-z]+)\s+(\d{4})/);
+  if (m2) return { year: m2[2], month: MMAP[m2[1].slice(0, 3)] || '' };
+  const m3 = String(dateStr).match(/^(\d{4})$/);
+  if (m3) return { year: m3[1], month: '' };
+  return { month: '', year: '' };
+}
+
+/* ── Prefill from parse-resume response ─────────────────────────────────── */
+function prefillFromResume(data) {
+  const sv = (id, val) => { const el = document.getElementById(id); if (el && val != null && val !== '') el.value = String(val); };
+  const setSel = (id, val) => {
+    const el = document.getElementById(id);
+    if (el && val) {
+      el.value = val;
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  };
+
+  // Step 1
+  sv('s1-first', data.first_name);
+  sv('s1-last',  data.last_name);
+  if (data.phone) sv('s1-phone-num', data.phone);
+  sv('s1-city', data.city);
+  if (data.country) setSel('s1-country', data.country);
+  sv('s1-headline', data.headline);
+  if (data.years_experience != null) sv('s1-exp', data.years_experience);
+  if (data.industry) setSel('s1-industry', data.industry);
+
+  // Step 4
+  sv('s4-linkedin', data.linkedin);
+  sv('s4-summary',  data.summary);
+  if (Array.isArray(data.skills) && data.skills.length) sv('s4-skills', data.skills.join(', '));
+
+  // Step 2: career entries
+  if (Array.isArray(data.work_experience) && data.work_experience.length) {
+    careerCount = 0;
+    document.getElementById('career-entries').innerHTML = '';
+    data.work_experience.slice(0, 6).forEach(w => addCareerEntry({
+      title:            w.title,
+      company:          w.company,
+      start_date:       w.start_date,
+      end_date:         w.end_date,
+      currently_working: w.currently_working,
+      responsibilities: w.responsibilities,
+    }));
+    updateEntryNums('.career-entry', 'Position');
+  }
+
+  // Step 3: education entries
+  if (Array.isArray(data.education) && data.education.length) {
+    eduCount = 0;
+    document.getElementById('edu-entries').innerHTML = '';
+    data.education.slice(0, 4).forEach(e => addEduEntry({
+      degree:      e.degree,
+      field:       e.field,
+      institution: e.institution,
+      start_year:  e.start_year,
+      end_year:    e.end_year,
+    }));
+    updateEntryNums('.edu-entry', 'Education');
+  }
+
+  // Step 3: certifications
+  if (Array.isArray(data.certifications) && data.certifications.length) {
+    certCount = 0;
+    document.getElementById('cert-entries').innerHTML = '';
+    data.certifications.slice(0, 5).forEach(c => addCertEntry({
+      name:        c.name,
+      issuer:      c.issuer,
+      issue_date:  c.issue_date,
+      expiry_date: c.expiry_date,
+      no_expiry:   !c.expiry_date,
+    }));
+    updateEntryNums('.cert-entry', 'Certification');
+  }
+}
+
+/* ── Step 0: Parse resume ───────────────────────────────────────────────── */
+document.getElementById('resume-file').addEventListener('change', function () {
+  const file = this.files[0];
+  if (file) {
+    document.getElementById('file-name').textContent = file.name;
+    document.getElementById('file-drop').classList.add('has-file');
+    document.getElementById('parse-btn').disabled = false;
+  }
+});
+
+async function parseResume() {
+  const fileInput = document.getElementById('resume-file');
+  if (!fileInput.files[0]) return;
+
+  const btn     = document.getElementById('parse-btn');
+  const spinner = document.getElementById('parse-spinner');
+  const banner  = document.getElementById('parse-banner');
+
+  btn.disabled = true;
+  spinner.style.display = 'inline-block';
+  banner.className = 'parse-banner';
+
+  const fd = new FormData();
+  fd.append('resume', fileInput.files[0]);
+
+  try {
+    const res  = await fetch('/api/candidate/parse-resume', { method: 'POST', credentials: 'include', body: fd });
+    const data = await res.json();
+
+    if (!data.ok) {
+      banner.textContent = data.error || 'Could not parse resume. Please fill in manually.';
+      banner.className = 'parse-banner error show';
+    } else {
+      prefillFromResume(data.data);
+      banner.textContent = 'Resume parsed. Review your details and continue.';
+      banner.className = 'parse-banner success show';
+      setTimeout(() => goStep(1), 1100);
+    }
+  } catch (e) {
+    banner.textContent = 'Network error. Please try again or fill manually.';
+    banner.className = 'parse-banner error show';
+  } finally {
+    btn.disabled = false;
+    spinner.style.display = 'none';
+  }
+}
+
+/* ── Navigation ─────────────────────────────────────────────────────────── */
 function goStep(n) {
-  if (n > currentStep && !validateCurrentStep()) return;
+  // Only validate if moving forward past a numbered step
+  if (n > currentStep && currentStep > 0 && !validateCurrentStep()) return;
   currentStep = n;
-  for (let i = 1; i <= STEPS; i++) {
-    const el = document.getElementById('step'+i);
+  for (let i = 0; i <= STEPS; i++) {
+    const el = document.getElementById('step' + i);
     if (el) el.style.display = i === n ? 'block' : 'none';
   }
-  updateProgress(n);
+  if (n > 0) updateProgress(n);
   window.scrollTo({ top: 0, behavior: 'smooth' });
   document.getElementById('form-error').classList.remove('show');
 }
@@ -624,42 +1138,54 @@ function updateProgress(n) {
   const counter = document.getElementById('step-counter');
   if (counter) counter.textContent = 'Step ' + n + ' of ' + STEPS;
   for (let i = 1; i <= STEPS; i++) {
-    const dot   = document.getElementById('pd'+i);
-    const label = document.getElementById('pl'+i);
-    if (i < n)       { dot.className = 'p-dot done'; dot.textContent = '✓'; label.className = 'p-label done'; }
-    else if (i === n){ dot.className = 'p-dot active'; dot.textContent = i; label.className = 'p-label active'; }
-    else             { dot.className = 'p-dot'; dot.textContent = i; label.className = 'p-label'; }
+    const dot   = document.getElementById('pd' + i);
+    const label = document.getElementById('pl' + i);
+    if (i < n)       { dot.className = 'p-dot done';   dot.textContent = '✓'; label.className = 'p-label done'; }
+    else if (i === n){ dot.className = 'p-dot active'; dot.textContent = i;   label.className = 'p-label active'; }
+    else             { dot.className = 'p-dot';        dot.textContent = i;   label.className = 'p-label'; }
   }
-  for (let i = 1; i <= STEPS-1; i++) {
-    const line = document.getElementById('pline'+i);
+  for (let i = 1; i <= STEPS - 1; i++) {
+    const line = document.getElementById('pline' + i);
     if (line) line.className = 'p-line' + (i < n ? ' done' : '');
   }
 }
 
+/* ── Validation ─────────────────────────────────────────────────────────── */
 function validateCurrentStep() {
   const errEl = document.getElementById('form-error');
   errEl.classList.remove('show');
 
   if (currentStep === 1) {
-    if (!v('s1-first'))     return err(errEl, 'Please enter your first name.');
-    if (!v('s1-last'))      return err(errEl, 'Please enter your last name.');
-    if (!v('s1-phone-num')) return err(errEl, 'Please enter your phone number.');
-    if (!v('s1-city'))      return err(errEl, 'Please enter your city.');
-    if (!v('s1-headline'))  return err(errEl, 'Please enter your professional headline.');
-    if (!v('s1-exp'))       return err(errEl, 'Please enter your years of experience.');
+    if (!v('s1-first'))      return err(errEl, 'Please enter your first name.');
+    if (!v('s1-last'))       return err(errEl, 'Please enter your last name.');
+    if (!v('s1-phone-num'))  return err(errEl, 'Please enter your phone number.');
+    if (!v('s1-city'))       return err(errEl, 'Please enter your city.');
+    if (!v('s1-country'))    return err(errEl, 'Please select your country.');
+    if (!v('s1-headline'))   return err(errEl, 'Please enter your professional headline.');
+    if (!v('s1-exp'))        return err(errEl, 'Please enter your years of experience.');
     const expNum = parseInt(v('s1-exp'));
     if (isNaN(expNum) || expNum < 0 || expNum > 50) return err(errEl, 'Years of experience must be between 0 and 50.');
-    if (!v('s1-industry'))  return err(errEl, 'Please select your industry.');
+    if (!v('s1-industry'))   return err(errEl, 'Please select your industry.');
   }
+
   if (currentStep === 2) {
-    if (!v('s2-title'))   return err(errEl, 'Please enter your job title.');
-    if (!v('s2-company')) return err(errEl, 'Please enter your company name.');
-    if (!v('s2-start'))   return err(errEl, 'Please enter your start date.');
+    const entries = document.querySelectorAll('.career-entry');
+    if (!entries.length) return err(errEl, 'Please add at least one career position.');
+    const first = entries[0];
+    if (!first.querySelector('.entry-title-input').value.trim())  return err(errEl, 'Please enter your job title.');
+    if (!first.querySelector('.entry-company-input').value.trim()) return err(errEl, 'Please enter your company name.');
+    if (!first.querySelector('.entry-start-month').value)         return err(errEl, 'Please select a start month for your most recent role.');
+    if (!first.querySelector('.entry-start-year').value)          return err(errEl, 'Please select a start year for your most recent role.');
   }
+
   if (currentStep === 3) {
-    if (!v('s3-degree'))      return err(errEl, 'Please select your highest qualification.');
-    if (!v('s3-institution')) return err(errEl, 'Please enter your institution name.');
+    const entries = document.querySelectorAll('.edu-entry');
+    if (!entries.length) return err(errEl, 'Please add at least one education entry.');
+    const first = entries[0];
+    if (!first.querySelector('.edu-degree').value)           return err(errEl, 'Please select your highest qualification.');
+    if (!first.querySelector('.edu-institution').value.trim()) return err(errEl, 'Please enter your institution name.');
   }
+
   if (currentStep === 4) {
     if (!v('s4-skills'))  return err(errEl, 'Please enter your key skills.');
     if (!v('s4-summary')) return err(errEl, 'Please write a professional summary.');
@@ -675,6 +1201,42 @@ function err(el, msg) {
   return false;
 }
 
+/* ── Data collectors ────────────────────────────────────────────────────── */
+function getCareerData() {
+  return Array.from(document.querySelectorAll('.career-entry')).map(el => ({
+    title:            el.querySelector('.entry-title-input').value.trim(),
+    company:          el.querySelector('.entry-company-input').value.trim(),
+    start_month:      el.querySelector('.entry-start-month').value,
+    start_year:       el.querySelector('.entry-start-year').value,
+    end_month:        el.querySelector('.entry-end-month').value,
+    end_year:         el.querySelector('.entry-end-year').value,
+    currently_working: el.querySelector('.entry-current').checked,
+    responsibilities:  el.querySelector('.entry-resp').value.trim(),
+  }));
+}
+function getEduData() {
+  return Array.from(document.querySelectorAll('.edu-entry')).map(el => ({
+    degree:      el.querySelector('.edu-degree').value,
+    field:       el.querySelector('.edu-field').value.trim(),
+    institution: el.querySelector('.edu-institution').value.trim(),
+    start_year:  el.querySelector('.edu-start-year').value,
+    end_year:    el.querySelector('.edu-end-year').value,
+  }));
+}
+function getCertData() {
+  return Array.from(document.querySelectorAll('.cert-entry')).map(el => ({
+    name:         el.querySelector('.cert-name').value.trim(),
+    issuer:       el.querySelector('.cert-issuer').value.trim(),
+    credential_id: el.querySelector('.cert-cred-id').value.trim(),
+    issue_month:  el.querySelector('.cert-issue-month').value,
+    issue_year:   el.querySelector('.cert-issue-year').value,
+    no_expiry:    el.querySelector('.cert-no-expiry').checked,
+    expiry_month: el.querySelector('.cert-exp-month').value,
+    expiry_year:  el.querySelector('.cert-exp-year').value,
+  }));
+}
+
+/* ── Submit ─────────────────────────────────────────────────────────────── */
 async function submitDPR() {
   if (!validateCurrentStep()) return;
 
@@ -686,33 +1248,24 @@ async function submitDPR() {
 
   const payload = {
     personal: {
-      first_name:  v('s1-first'),
-      last_name:   v('s1-last'),
-      phone:       (document.getElementById('s1-phone-code').value || '+1') + v('s1-phone-num'),
-      city:        v('s1-city'),
-      headline:    v('s1-headline'),
-      experience:  parseInt(v('s1-exp')) || 0,
-      industry:    v('s1-industry'),
+      first_name: v('s1-first'),
+      last_name:  v('s1-last'),
+      phone:      (document.getElementById('s1-phone-code').value || '+1') + v('s1-phone-num'),
+      city:       v('s1-city'),
+      country:    v('s1-country'),
+      headline:   v('s1-headline'),
+      experience: parseInt(v('s1-exp')) || 0,
+      industry:   v('s1-industry'),
     },
-    career: {
-      title:           v('s2-title'),
-      company:         v('s2-company'),
-      start_date:      v('s2-start'),
-      end_date:        v('s2-end') || null,
-      responsibilities: v('s2-responsibilities'),
-    },
-    education: {
-      degree:      v('s3-degree'),
-      field:       v('s3-field'),
-      institution: v('s3-institution'),
-      grad_year:   v('s3-year'),
-    },
+    career:         getCareerData(),
+    education:      getEduData(),
+    certifications: getCertData(),
     skills: {
       skills_list: v('s4-skills'),
       summary:     v('s4-summary'),
       linkedin:    v('s4-linkedin'),
       portfolio:   v('s4-portfolio'),
-    }
+    },
   };
 
   try {
@@ -725,7 +1278,7 @@ async function submitDPR() {
     const data = await res.json();
     if (!data.ok) { err(errEl, data.error || 'Submission failed. Please try again.'); }
     else          { window.location.href = data.redirectTo || '/dashboard'; }
-  } catch(e) {
+  } catch (e) {
     err(errEl, 'Network error. Please check your connection and try again.');
   } finally {
     btn.disabled = false;
@@ -733,12 +1286,19 @@ async function submitDPR() {
   }
 }
 
-// Check auth on load — DPR registration requires a logged-in account
+/* ── Init ───────────────────────────────────────────────────────────────── */
+// Add initial entries (before searchable-select.js loads, so it sees a populated country select)
+addCareerEntry();
+addEduEntry();
+addCertEntry();
+updateEntryNums('.career-entry', 'Position');
+updateEntryNums('.edu-entry', 'Education');
+updateEntryNums('.cert-entry', 'Certification');
+
+// Auth guard
 fetch('/api/auth/me', { credentials: 'include' })
   .then(r => r.json())
-  .then(d => {
-    if (!d.ok) window.location.href = '/login?redirect_to=/register';
-  });
+  .then(d => { if (!d.ok) window.location.href = '/login?redirect_to=/register'; });
 </script>
 <script src="/shared/searchable-select.js"></script>
 </body>

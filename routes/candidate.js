@@ -1193,29 +1193,32 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
     }
 
     const schema = `{
-  "full_name": "string",
-  "email": "string",
-  "phone": "string",
-  "location": "string (city, country)",
-  "current_job_title": "string",
-  "total_experience_years": "number",
-  "summary": "string (professional bio)",
+  "first_name": "string",
+  "last_name": "string",
+  "phone": "string (include country code if found)",
+  "city": "string",
+  "country": "string (2-letter ISO code, e.g. US, GB, IN, SG, AE)",
+  "headline": "string (e.g. Senior Compliance Manager · 8 years)",
+  "years_experience": "number",
+  "industry": "string (closest match from: accounting, compliance, hr, investment_banking, marketing, sales, software, finance, banking, risk, legal, other)",
+  "linkedin": "string or null (full URL if found)",
+  "summary": "string (professional bio, 3-5 sentences)",
   "skills": ["array of skill strings"],
   "work_experience": [
     {
-      "company": "string",
       "title": "string",
-      "start_date": "string (YYYY-MM or Month YYYY)",
-      "end_date": "string or null",
+      "company": "string",
+      "start_date": "string (YYYY-MM format) or null",
+      "end_date": "string (YYYY-MM format) or null",
       "currently_working": "boolean",
-      "description": "string (key responsibilities)"
+      "responsibilities": "string (key responsibilities)"
     }
   ],
   "education": [
     {
-      "institution": "string",
-      "degree": "string",
+      "degree": "string (e.g. Bachelor's, Master's, MBA, PhD, Diploma, High School)",
       "field": "string",
+      "institution": "string",
       "start_year": "number or null",
       "end_year": "number or null"
     }
@@ -1224,12 +1227,13 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
     {
       "name": "string",
       "issuer": "string or null",
-      "year": "number or null"
+      "issue_date": "string (YYYY-MM format) or null",
+      "expiry_date": "string (YYYY-MM format) or null"
     }
   ]
 }`;
 
-    const systemPrompt = 'Extract structured profile data from the resume text below. Return ONLY valid JSON matching the schema. No markdown fences, no explanation, no trailing commas.';
+    const systemPrompt = 'Extract structured profile data from the resume text below. Return ONLY valid JSON matching the schema exactly. No markdown fences, no explanation, no trailing commas. For all dates use YYYY-MM format.';
     const userContent  = `Schema:\n${schema}\n\nResume text:\n${pdfText.slice(0, 40000)}`;
 
     const rawText = await callOpenAI(systemPrompt, userContent, 2048);
@@ -1428,6 +1432,186 @@ router.get('/resume/download', async (req, res) => {
   } catch (err) {
     console.error('[resume/download]', err);
     res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── POST /api/candidate/dpr ───────────────────────────────────────────────────
+// Creates the candidate's DPR profile for the first time.
+// Auth: requireAuth only (no role restriction — called during onboarding).
+// Body: { personal, career[], education[], certifications[], skills }
+
+router.post('/dpr', requireAuth, async (req, res) => {
+  try {
+    // 1. Guard: reject if profile already exists
+    const existing = await getProfileId(req.user.user_id);
+    if (existing) {
+      return res.status(409).json({ ok: false, error: 'DPR profile already exists.' });
+    }
+
+    const { personal = {}, career = [], education = [], certifications = [], skills = {} } = req.body;
+    const s = v => String(v ?? '').trim();
+
+    if (!s(personal.first_name) || !s(personal.last_name)) {
+      return res.status(400).json({ ok: false, error: 'First name and last name are required.' });
+    }
+
+    const wpUserId = req.user.wp_user_id;
+    const email    = req.user.email || '';
+    const fullName = `${s(personal.first_name)} ${s(personal.last_name)}`;
+    const now      = new Date();
+    const nowStr   = now.toISOString().replace('T', ' ').slice(0, 19);
+
+    // 2. Get user email from DB (fallback if not in JWT)
+    let userEmail = email;
+    if (!userEmail) {
+      const [[uRow]] = await pool.execute('SELECT email FROM agzit_users WHERE id = ? LIMIT 1', [req.user.user_id]);
+      userEmail = uRow?.email || '';
+    }
+
+    // 3. Create wp_posts row (draft)
+    const [postResult] = await pool.execute(
+      `INSERT INTO wp_posts
+         (post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt,
+          post_status, comment_status, ping_status, post_password, post_name,
+          to_ping, pinged, post_modified, post_modified_gmt, post_content_filtered,
+          post_parent, guid, menu_order, post_type, post_mime_type, comment_count)
+       VALUES (?, ?, ?, '', ?, '', 'draft', 'closed', 'closed', '', '',
+               '', '', ?, ?, '', 0, '', 0, 'dpr_profile', '', 0)`,
+      [wpUserId || 1, nowStr, nowStr, fullName, nowStr, nowStr]
+    );
+    const postId = postResult.insertId;
+
+    // 4. Set guid (WP convention: set after insert to include post ID)
+    await pool.execute(
+      'UPDATE wp_posts SET guid = ? WHERE ID = ?',
+      [`https://agzit.com/?post_type=dpr_profile&p=${postId}`, postId]
+    );
+
+    // 5. Generate DPR ID
+    const dateYmd  = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+    const country2 = (s(personal.country).slice(0, 2).toUpperCase()) || 'NA';
+    const hash6    = crypto.createHash('sha256')
+      .update(`DPR|${dateYmd}|${country2}|${postId}`)
+      .digest('hex').slice(0, 6).toUpperCase();
+    const dprId = `DPR-${dateYmd}-${country2}-${postId}-${hash6}`;
+
+    // 6. Write scalar postmeta
+    const scalarMeta = [
+      ['full_name',                fullName],
+      ['email_address',            userEmail],
+      ['phone_number',             s(personal.phone)],
+      ['residential_city',         s(personal.city)],
+      ['residential_country',      s(personal.country)],
+      ['professional_summary_bio', s(skills.summary)],
+      ['total_work_experience',    String(parseInt(personal.experience) || 0)],
+      ['compliance_domains',       JSON.stringify([s(personal.industry)].filter(Boolean))],
+      ['current_career_level',     'mid'],
+      ['work_level',               'mid'],
+      ['soft_skills',              s(skills.skills_list)],
+      ['linkedin_url',             s(skills.linkedin)],
+      ['portfolio_url',            s(skills.portfolio)],
+      ['dpr_id',                   dprId],
+      ['dpr_status',               'approved'],
+      ['profile_visibility',       'public'],
+      ['contact_visibility',       'co_verified_only'],
+      ['resume_visibility',        're_verified_only'],
+      ['public_name_mode',         'initials'],
+      ['open_for_work_badge',      '1'],
+      ['open_to_relocate',         '0'],
+      ['profile_completeness',     '0'],
+      ['profile_last_updated',     nowStr],
+    ];
+    for (const [key, value] of scalarMeta) {
+      await pool.execute(
+        'INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
+        [postId, key, String(value ?? '')]
+      );
+    }
+
+    // 7. Write work_experience repeater
+    const padM = m => String(m || '').padStart(2, '0');
+    const careerRows = (Array.isArray(career) ? career : [])
+      .filter(c => s(c.title) || s(c.company))
+      .map(c => ({
+        job_title:            s(c.title),
+        company_name:         s(c.company),
+        office_country:       '',
+        office_city:          '',
+        start_date:           (c.start_year && c.start_month) ? `${c.start_year}-${padM(c.start_month)}-01` : '',
+        end_date:             c.currently_working ? '' : ((c.end_year && c.end_month) ? `${c.end_year}-${padM(c.end_month)}-01` : ''),
+        Currently_working:    c.currently_working ? '1' : '0',
+        key_responsibilities: s(c.responsibilities),
+        employment_type:      '',
+        key_achievements:     '',
+      }));
+    await pool.execute('INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
+      [postId, 'work_experience', String(careerRows.length)]);
+    for (let i = 0; i < careerRows.length; i++) {
+      for (const [k, v] of Object.entries(careerRows[i])) {
+        await pool.execute('INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
+          [postId, `work_experience_${i}_${k}`, String(v ?? '')]);
+      }
+    }
+
+    // 8. Write education repeater
+    const eduRows = (Array.isArray(education) ? education : [])
+      .filter(e => s(e.institution) || s(e.degree))
+      .map(e => ({
+        degree:           s(e.degree),
+        institution_name: s(e.institution),
+        edu_country:      s(e.country),
+        edu_city:         s(e.city),
+        edu_start_date:   e.start_year ? `${e.start_year}-01-01` : '',
+        edu_end_date:     e.end_year   ? `${e.end_year}-06-01`   : '',
+      }));
+    await pool.execute('INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
+      [postId, 'education', String(eduRows.length)]);
+    for (let i = 0; i < eduRows.length; i++) {
+      for (const [k, v] of Object.entries(eduRows[i])) {
+        await pool.execute('INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
+          [postId, `education_${i}_${k}`, String(v ?? '')]);
+      }
+    }
+
+    // 9. Write certifications repeater
+    const certRows = (Array.isArray(certifications) ? certifications : [])
+      .filter(c => s(c.name))
+      .map(c => ({
+        certification_name:   s(c.name),
+        issuing_organization: s(c.issuer),
+        credential_id:        s(c.credential_id),
+        cert_issue_date:      (c.issue_year && c.issue_month) ? `${c.issue_year}-${padM(c.issue_month)}-01` : '',
+        cert_expiry_date:     c.no_expiry ? '' : ((c.expiry_year && c.expiry_month) ? `${c.expiry_year}-${padM(c.expiry_month)}-01` : ''),
+        certificate_pdf:      '',
+      }));
+    await pool.execute('INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
+      [postId, 'certifications', String(certRows.length)]);
+    for (let i = 0; i < certRows.length; i++) {
+      for (const [k, v] of Object.entries(certRows[i])) {
+        await pool.execute('INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
+          [postId, `certifications_${i}_${k}`, String(v ?? '')]);
+      }
+    }
+
+    // 10. Publish post
+    await pool.execute(
+      `UPDATE wp_posts SET post_status = 'publish', post_modified = ?, post_modified_gmt = ? WHERE ID = ?`,
+      [nowStr, nowStr, postId]
+    );
+
+    // 11. Upsert dpr_profile_post_id in wp_usermeta + update agzit_users
+    if (wpUserId) await upsertUserMeta(wpUserId, 'dpr_profile_post_id', String(postId));
+    await pool.execute(
+      'UPDATE agzit_users SET dpr_profile_id = ? WHERE id = ?',
+      [postId, req.user.user_id]
+    );
+
+    console.log(`[dpr] Created ${dprId} (post ${postId}) for user ${req.user.user_id}`);
+    return res.json({ ok: true, dpr_id: dprId, redirectTo: '/dashboard' });
+
+  } catch (err) {
+    console.error('[dpr/create]', err.message);
+    res.status(500).json({ ok: false, error: 'Server error. Please try again.' });
   }
 });
 
