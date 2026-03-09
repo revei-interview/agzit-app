@@ -486,6 +486,62 @@ router.get('/magic-login', async (req, res) => {
   }
 });
 
+// ── GET /api/auth/accept-invite ────────────────────────────────────────────
+// Accept a team invite via magic link token. Logs the member in directly.
+// Query: ?token=...
+
+router.get('/accept-invite', async (req, res) => {
+  try {
+    const token = String(req.query.token || '').trim();
+    if (!token) return res.status(400).json({ ok: false, error: 'Invalid token.' });
+
+    const [[link]] = await db.query(
+      "SELECT * FROM agzit_magic_links WHERE token = ? AND purpose = 'team_invite' LIMIT 1",
+      [token]
+    );
+
+    if (!link) {
+      return res.status(404).json({ ok: false, error: 'Invitation not found or already used.' });
+    }
+    if (link.used_at) {
+      return res.status(410).json({ ok: false, error: 'This invitation link has already been used. Please ask the admin to re-send the invite.' });
+    }
+    if (new Date() > new Date(link.expires_at)) {
+      return res.status(410).json({ ok: false, error: 'This invitation has expired. Please ask the admin to re-invite you.' });
+    }
+
+    // Mark as used
+    await db.query('UPDATE agzit_magic_links SET used_at = NOW() WHERE id = ?', [link.id]);
+
+    // Fetch member's agzit_users row
+    const [[user]] = await db.query('SELECT * FROM agzit_users WHERE id = ? LIMIT 1', [link.user_id]);
+    if (!user) {
+      return res.status(404).json({ ok: false, error: 'Account not found. Please contact the admin.' });
+    }
+
+    // Activate team membership
+    await db.query(
+      "UPDATE agzit_employer_team SET status = 'active', joined_at = NOW() WHERE member_user_id = ? AND status = 'invited'",
+      [user.id]
+    );
+
+    // Ensure role is verified_employer
+    if (user.role !== 'verified_employer') {
+      await db.query("UPDATE agzit_users SET role = 'verified_employer' WHERE id = ?", [user.id]);
+      user.role = 'verified_employer';
+    }
+
+    // Issue JWT cookie
+    const jwtToken = issueToken({ ...user, role: 'verified_employer' });
+    setCookie(res, jwtToken);
+
+    res.json({ ok: true, redirectTo: '/employer' });
+  } catch (err) {
+    console.error('accept-invite error:', err);
+    res.status(500).json({ ok: false, error: 'Server error. Please try again.' });
+  }
+});
+
 // ── POST /api/auth/logout ──────────────────────────────────────────────────
 router.post('/logout', (req, res) => {
   res.clearCookie('agzit_token');

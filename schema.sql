@@ -8,18 +8,19 @@
 --    wp_user_id links back to WordPress if needed
 
 CREATE TABLE IF NOT EXISTS agzit_users (
-  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  email           VARCHAR(255) NOT NULL UNIQUE,
-  password_hash   VARCHAR(255) NOT NULL,
-  role            ENUM('dpr_candidate','dpr_employer','verified_employer','administrator')
-                  NOT NULL DEFAULT 'dpr_candidate',
-  first_name      VARCHAR(100) DEFAULT '',
-  last_name       VARCHAR(100) DEFAULT '',
-  wp_user_id      INT UNSIGNED DEFAULT NULL,  -- links to wp_users.ID if migrated
-  dpr_profile_id  INT UNSIGNED DEFAULT NULL,  -- links to dpr_profile post
-  is_active       TINYINT(1) NOT NULL DEFAULT 1,
-  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  id                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  email             VARCHAR(255) NOT NULL UNIQUE,
+  password_hash     VARCHAR(255) NOT NULL,
+  role              ENUM('dpr_candidate','dpr_employer','verified_employer','administrator')
+                    NOT NULL DEFAULT 'dpr_candidate',
+  first_name        VARCHAR(100) DEFAULT '',
+  last_name         VARCHAR(100) DEFAULT '',
+  wp_user_id        INT UNSIGNED DEFAULT NULL,  -- links to wp_users.ID if migrated
+  dpr_profile_id    INT UNSIGNED DEFAULT NULL,  -- links to dpr_profile post
+  is_active         TINYINT(1) NOT NULL DEFAULT 1,
+  has_set_password  TINYINT(1) NOT NULL DEFAULT 0,  -- 1 once team member sets/dismisses password prompt
+  created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_email (email),
   INDEX idx_role  (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -48,6 +49,7 @@ CREATE TABLE IF NOT EXISTS agzit_employer_team (
   admin_user_id  INT UNSIGNED NOT NULL,
   member_user_id INT UNSIGNED DEFAULT NULL,
   member_email   VARCHAR(255) NOT NULL,
+  member_name    VARCHAR(255) DEFAULT NULL,
   team_role      ENUM('admin','member') NOT NULL DEFAULT 'member',
   status         ENUM('invited','active','removed') NOT NULL DEFAULT 'invited',
   invite_token   VARCHAR(128) DEFAULT NULL,

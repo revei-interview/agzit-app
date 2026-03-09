@@ -9,6 +9,7 @@ const express    = require('express');
 const router     = express.Router();
 const pool       = require('../config/db');
 const crypto     = require('crypto');
+const bcrypt     = require('bcryptjs');
 const { BrevoClient, BrevoEnvironment } = require('@getbrevo/brevo');
 function makeBrevoClient() {
   return new BrevoClient({ apiKey: process.env.BREVO_API_KEY, environment: BrevoEnvironment.Production });
@@ -178,7 +179,7 @@ async function fetchEmployerInterviews(wpUserId, limit) {
 router.get('/dashboard', ...guardAny, async (req, res) => {
   try {
     const [[user]] = await pool.execute(
-      'SELECT id, email, first_name, last_name, wp_user_id, role, created_at FROM agzit_users WHERE id = ?',
+      'SELECT id, email, first_name, last_name, wp_user_id, role, created_at, has_set_password FROM agzit_users WHERE id = ?',
       [req.user.user_id]
     );
     if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
@@ -240,6 +241,7 @@ router.get('/dashboard', ...guardAny, async (req, res) => {
         role:       user.role,
         created_at: user.created_at,
       },
+      needs_password_setup: is_team_member && !user.has_set_password,
       employer_profile: {
         first_name:          meta.dpr_employer_first_name             || null,
         company_name:        meta.dpr_company_name                    || null,
@@ -1704,7 +1706,7 @@ router.get('/team', ...guardVerified, async (req, res) => {
     if (memberCheck) return res.status(403).json({ ok: false, error: 'Team management is only available to the company admin.' });
 
     const [rows] = await pool.execute(
-      `SELECT id, member_email, team_role, status, invited_at, joined_at,
+      `SELECT id, member_email, member_name, team_role, status, invited_at, joined_at,
               member_user_id
        FROM agzit_employer_team
        WHERE admin_user_id = ? AND status != 'removed'
@@ -1719,8 +1721,8 @@ router.get('/team', ...guardVerified, async (req, res) => {
 });
 
 // ── POST /api/employer/team/invite ─────────────────────────────────────────────
-// Invite a new team member by email.
-// Body: { email }
+// Invite a new team member by email. Creates their account immediately.
+// Body: { first_name, last_name, email }
 
 router.post('/team/invite', ...guardVerified, async (req, res) => {
   try {
@@ -1731,13 +1733,21 @@ router.post('/team/invite', ...guardVerified, async (req, res) => {
     const memberCheck = await resolveAdminUserId(userId);
     if (memberCheck) return res.status(403).json({ ok: false, error: 'Only the company admin can invite members.' });
 
-    const email = String(req.body.email || '').trim().toLowerCase();
+    const email      = String(req.body.email      || '').trim().toLowerCase();
+    const firstName  = String(req.body.first_name || '').trim();
+    const lastName   = String(req.body.last_name  || '').trim();
+
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ ok: false, error: 'Valid email address is required.' });
+    }
+    if (!firstName) {
+      return res.status(400).json({ ok: false, error: 'First name is required.' });
     }
     if (email === adminEmail) {
       return res.status(400).json({ ok: false, error: 'You cannot invite yourself.' });
     }
+
+    const displayName = [firstName, lastName].filter(Boolean).join(' ');
 
     // Check if already in team
     const [[existing]] = await pool.execute(
@@ -1748,22 +1758,84 @@ router.post('/team/invite', ...guardVerified, async (req, res) => {
       return res.status(409).json({ ok: false, error: 'This person is already an active team member.' });
     }
 
-    const inviteToken = require('crypto').randomBytes(32).toString('hex');
+    // ── Ensure member has an agzit_users account (created at invite time) ────
+    let agzitUserId;
+    const [[existingAgzit]] = await pool.execute(
+      'SELECT id FROM agzit_users WHERE email = ? LIMIT 1', [email]
+    );
 
-    if (existing) {
-      // Re-invite (previously removed or expired invite)
+    if (existingAgzit) {
+      agzitUserId = existingAgzit.id;
+      // Ensure role is verified_employer, fill in name if blank
       await pool.execute(
-        "UPDATE agzit_employer_team SET status='invited', invite_token=?, invited_at=NOW(), joined_at=NULL WHERE id=?",
-        [inviteToken, existing.id]
+        `UPDATE agzit_users
+         SET role='verified_employer',
+             first_name = IF(first_name IS NULL OR first_name = '', ?, first_name),
+             last_name  = IF(last_name  IS NULL OR last_name  = '', ?, last_name)
+         WHERE id = ?`,
+        [firstName, lastName, agzitUserId]
+      );
+    } else {
+      // Look for existing wp_users row
+      let wpUserId = null;
+      const [[wpUser]] = await pool.execute(
+        'SELECT ID FROM wp_users WHERE user_email = ? LIMIT 1', [email]
+      );
+      if (wpUser) {
+        wpUserId = wpUser.ID;
+        await pool.execute('UPDATE wp_users SET display_name = ? WHERE ID = ?', [displayName, wpUserId]);
+        await upsertUserMeta(wpUserId, 'first_name', firstName);
+        await upsertUserMeta(wpUserId, 'last_name', lastName);
+      } else {
+        // Create wp_users row (random placeholder password — member will use magic link or set password later)
+        const randomPass = crypto.randomBytes(16).toString('hex');
+        const [wpResult] = await pool.execute(
+          `INSERT INTO wp_users (user_login, user_pass, user_email, user_registered, display_name, user_status)
+           VALUES (?, ?, ?, NOW(), ?, 0)`,
+          [email, randomPass, email, displayName]
+        );
+        wpUserId = wpResult.insertId;
+        await upsertUserMeta(wpUserId, 'first_name', firstName);
+        await upsertUserMeta(wpUserId, 'last_name', lastName);
+      }
+
+      // Create agzit_users (random password hash — they will set a real one after first login)
+      const phash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10);
+      const [agzitResult] = await pool.execute(
+        `INSERT INTO agzit_users (email, password_hash, role, first_name, last_name, wp_user_id)
+         VALUES (?, ?, 'verified_employer', ?, ?, ?)`,
+        [email, phash, firstName, lastName, wpUserId]
+      );
+      agzitUserId = agzitResult.insertId;
+    }
+
+    // ── Create or update agzit_employer_team entry ────────────────────────────
+    if (existing) {
+      await pool.execute(
+        "UPDATE agzit_employer_team SET status='invited', member_user_id=?, member_name=?, invite_token=NULL, invited_at=NOW(), joined_at=NULL WHERE id=?",
+        [agzitUserId, displayName, existing.id]
       );
     } else {
       await pool.execute(
-        "INSERT INTO agzit_employer_team (admin_user_id, member_email, invite_token) VALUES (?, ?, ?)",
-        [userId, email, inviteToken]
+        "INSERT INTO agzit_employer_team (admin_user_id, member_user_id, member_email, member_name) VALUES (?, ?, ?, ?)",
+        [userId, agzitUserId, email, displayName]
       );
     }
 
-    // Get admin company name for the email
+    // ── Create magic link (7-day expiry) ─────────────────────────────────────
+    // Invalidate any prior unused team_invite links for this user
+    await pool.execute(
+      "UPDATE agzit_magic_links SET used_at=NOW() WHERE user_id=? AND purpose='team_invite' AND used_at IS NULL",
+      [agzitUserId]
+    );
+    const magicToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt  = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await pool.execute(
+      "INSERT INTO agzit_magic_links (token, user_id, purpose, expires_at) VALUES (?, ?, 'team_invite', ?)",
+      [magicToken, agzitUserId, expiresAt]
+    );
+
+    // ── Get admin company name ────────────────────────────────────────────────
     const [[adminUser]] = await pool.execute(
       'SELECT wp_user_id FROM agzit_users WHERE id = ?', [userId]
     );
@@ -1772,12 +1844,13 @@ router.post('/team/invite', ...guardVerified, async (req, res) => {
       : {};
     const company = adminMeta.dpr_company_name || adminEmail.split('@')[1] || 'AGZIT';
 
-    const inviteUrl = `https://app.agzit.com/employer-accept-invite?token=${inviteToken}`;
+    // ── Send personalised invite email ────────────────────────────────────────
+    const inviteUrl = `https://app.agzit.com/employer-accept-invite?token=${magicToken}`;
 
     await makeBrevoClient().transactionalEmails.sendTransacEmail({
       sender:      { name: 'AGZIT AI', email: 'no-reply@mail.agzit.com' },
-      to:          [{ email }],
-      subject:     `You've been invited to join ${company} on AGZIT`,
+      to:          [{ email, name: displayName }],
+      subject:     `Hi ${firstName}, you've been invited to join ${company} on AGZIT`,
       htmlContent: `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#F1F5F9;font-family:Inter,Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:40px 16px;">
@@ -1785,18 +1858,19 @@ router.post('/team/invite', ...guardVerified, async (req, res) => {
   <tr><td style="background:linear-gradient(135deg,#0A1A3A 0%,#162848 100%);border-radius:16px 16px 0 0;padding:32px;text-align:center;">
     <div style="font-size:10px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#C9A24D;margin-bottom:12px;">AGZIT &middot; AI Career Intelligence</div>
     <div style="font-size:24px;font-weight:800;color:#fff;margin-bottom:6px;">You're Invited</div>
-    <div style="font-size:13px;color:rgba(255,255,255,0.55);">Join your company on AGZIT</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.55);">Join ${company} on AGZIT</div>
   </td></tr>
   <tr><td style="background:#fff;padding:36px 32px;">
+    <p style="margin:0 0 18px;font-size:15px;color:#1E293B;line-height:1.75;">Hi <strong>${firstName}</strong>,</p>
     <p style="margin:0 0 18px;font-size:15px;color:#1E293B;line-height:1.75;"><strong>${company}</strong> has invited you to join their employer account on AGZIT.</p>
-    <p style="margin:0 0 28px;font-size:14px;color:#374151;line-height:1.75;">Click the button below to accept the invitation and access your shared employer dashboard.</p>
+    <p style="margin:0 0 28px;font-size:14px;color:#374151;line-height:1.75;">Click the button below to accept the invitation and access your shared employer dashboard. Your account has already been created &mdash; no registration required.</p>
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
       <tr><td align="center">
-        <a href="${inviteUrl}" style="display:inline-block;background:#0A1A3A;color:#fff;text-decoration:none;padding:15px 40px;border-radius:10px;font-size:15px;font-weight:700;">Accept Invitation</a>
+        <a href="${inviteUrl}" style="display:inline-block;background:#0A1A3A;color:#fff;text-decoration:none;padding:15px 40px;border-radius:10px;font-size:15px;font-weight:700;">Accept Invitation &amp; Log In</a>
       </td></tr>
     </table>
     <p style="margin:0;font-size:12px;color:#94A3B8;line-height:1.7;">If the button does not work, copy and paste: <span style="color:#0A1A3A;word-break:break-all;">${inviteUrl}</span></p>
-    <p style="margin:16px 0 0;font-size:12px;color:#94A3B8;">This invitation expires in 7 days.</p>
+    <p style="margin:16px 0 0;font-size:12px;color:#94A3B8;">This link expires in 7 days. After logging in, you can set a password to log in normally next time.</p>
   </td></tr>
   <tr><td style="background:#F8FAFC;border-top:1px solid #E2E8F0;border-radius:0 0 16px 16px;padding:20px 32px;text-align:center;">
     <div style="font-size:11px;font-weight:700;color:#0A1A3A;letter-spacing:2px;text-transform:uppercase;">AGZIT</div>
@@ -1841,59 +1915,30 @@ router.delete('/team/:id', ...guardVerified, async (req, res) => {
   }
 });
 
-// ── GET /api/employer/team/accept ──────────────────────────────────────────────
-// Accept a team invite. No auth required.
-// Query: ?token=...
+// ── POST /api/employer/team/set-password ────────────────────────────────────────
+// First-login password setup for team members.
+// Body: { password } OR { dismiss: true }
 
-router.get('/team/accept', async (req, res) => {
+router.post('/team/set-password', ...guardAny, async (req, res) => {
   try {
-    const token = String(req.query.token || '').trim();
-    if (!token) return res.status(400).json({ ok: false, error: 'Invalid invitation token.' });
+    const userId  = req.user.user_id;
+    const dismiss = req.body.dismiss === true;
 
-    const [[invite]] = await pool.execute(
-      "SELECT * FROM agzit_employer_team WHERE invite_token = ? AND status = 'invited' LIMIT 1",
-      [token]
-    );
-    if (!invite) return res.status(404).json({ ok: false, error: 'Invitation not found or already accepted.' });
-
-    // Check 7-day expiry
-    const invitedAt = new Date(invite.invited_at);
-    if (Date.now() - invitedAt.getTime() > 7 * 24 * 3600 * 1000) {
-      return res.status(410).json({ ok: false, error: 'This invitation has expired. Please ask the admin to re-invite you.' });
+    if (!dismiss) {
+      const password = String(req.body.password || '');
+      if (password.length < 8) {
+        return res.status(400).json({ ok: false, error: 'Password must be at least 8 characters.' });
+      }
+      const hashed = await bcrypt.hash(password, 12);
+      await pool.execute('UPDATE agzit_users SET password_hash=? WHERE id=?', [hashed, userId]);
     }
 
-    // Find existing user by email
-    const [[user]] = await pool.execute(
-      'SELECT id, role FROM agzit_users WHERE email = ? LIMIT 1',
-      [invite.member_email]
-    );
+    // Mark password setup complete (or dismissed)
+    await pool.execute('UPDATE agzit_users SET has_set_password=1 WHERE id=?', [userId]);
 
-    if (!user) {
-      // No account yet — return info so the page can redirect to register
-      return res.json({ ok: true, needs_account: true, email: invite.member_email, token });
-    }
-
-    // Link the member
-    await pool.execute(
-      "UPDATE agzit_employer_team SET status='active', member_user_id=?, joined_at=NOW(), invite_token=NULL WHERE id=?",
-      [user.id, invite.id]
-    );
-
-    // Upgrade role to verified_employer if needed
-    if (user.role !== 'verified_employer') {
-      await pool.execute('UPDATE agzit_users SET role=? WHERE id=?', ['verified_employer', user.id]);
-    }
-
-    // Issue JWT and set cookie so they're logged in
-    const jwt = require('jsonwebtoken');
-    const [[freshUser]] = await pool.execute('SELECT * FROM agzit_users WHERE id=? LIMIT 1', [user.id]);
-    const tokenPayload = { user_id: freshUser.id, email: freshUser.email, role: 'verified_employer', wp_user_id: freshUser.wp_user_id || null, first_name: freshUser.first_name || '' };
-    const jwtToken = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
-    res.cookie('agzit_token', jwtToken, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
-
-    res.json({ ok: true, needs_account: false, redirectTo: '/employer' });
+    res.json({ ok: true });
   } catch (err) {
-    console.error('[employer/team/accept]', err);
+    console.error('[employer/team/set-password]', err);
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });
@@ -1909,6 +1954,7 @@ router.get('/team/accept', async (req, res) => {
         admin_user_id   INT UNSIGNED NOT NULL,
         member_user_id  INT UNSIGNED DEFAULT NULL,
         member_email    VARCHAR(255) NOT NULL,
+        member_name     VARCHAR(255) DEFAULT NULL,
         team_role       ENUM('admin','member') NOT NULL DEFAULT 'member',
         status          ENUM('invited','active','removed') NOT NULL DEFAULT 'invited',
         invite_token    VARCHAR(128) DEFAULT NULL,
@@ -1920,6 +1966,16 @@ router.get('/team/accept', async (req, res) => {
         INDEX idx_token  (invite_token)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
+
+    // Migrations — add columns if table already existed without them
+    await pool.execute(
+      `ALTER TABLE agzit_employer_team
+       ADD COLUMN IF NOT EXISTS member_name VARCHAR(255) DEFAULT NULL`
+    ).catch(() => {});  // Ignore if already exists or MySQL < 8.0
+    await pool.execute(
+      `ALTER TABLE agzit_users
+       ADD COLUMN IF NOT EXISTS has_set_password TINYINT(1) NOT NULL DEFAULT 0`
+    ).catch(() => {});
 
     // Ensure agzit_magic_links table exists
     await pool.execute(`

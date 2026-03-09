@@ -987,18 +987,62 @@ button { font-family: inherit; cursor: pointer; }
 
 <!-- ── Invite Member Modal ──────────────────────────────────────────────────── -->
 <div id="invite-modal" style="display:none" class="modal-overlay" onclick="if(event.target===this)closeInviteModal()">
-  <div class="modal-box" style="max-width:420px;">
+  <div class="modal-box" style="max-width:440px;">
     <div class="modal-title">Invite Team Member</div>
-    <div class="modal-sub">They will receive an email invitation to join your company dashboard.</div>
+    <div class="modal-sub">Their account will be created automatically — they just click the link in the email.</div>
     <div id="invite-modal-error" style="display:none;font-size:13px;color:#B91C1C;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:12px;"></div>
     <div id="invite-modal-success" style="display:none;font-size:13px;color:#166534;background:#F0FDF4;border:1px solid #86EFAC;border-radius:8px;padding:10px 14px;margin-bottom:12px;"></div>
-    <div class="form-group">
-      <label class="form-label" for="invite-email">Email Address</label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="form-group">
+        <label class="form-label" for="invite-first-name">First Name <span style="color:#B91C1C">*</span></label>
+        <input class="form-input" id="invite-first-name" type="text" placeholder="Jane">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="invite-last-name">Last Name</label>
+        <input class="form-input" id="invite-last-name" type="text" placeholder="Smith">
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:4px;">
+      <label class="form-label" for="invite-email">Work Email <span style="color:#B91C1C">*</span></label>
       <input class="form-input" id="invite-email" type="email" placeholder="colleague@company.com">
     </div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeInviteModal()">Cancel</button>
       <button class="btn-submit" id="btn-invite-submit" onclick="submitInvite()">Send Invitation</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Set Password Banner (first-login for team members) ─────────────────── -->
+<div id="set-password-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:900;background:#0B7A47;color:#fff;padding:14px 24px;font-family:'Plus Jakarta Sans',sans-serif;box-shadow:0 2px 12px rgba(0,0,0,0.18);">
+  <div style="max-width:900px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div style="font-size:14px;font-weight:600;">
+      Welcome to the team! Set a password so you can log in next time without an email link.
+    </div>
+    <div style="display:flex;gap:10px;flex-shrink:0;">
+      <button onclick="openSetPasswordModal()" style="background:#fff;color:#0B7A47;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Set Password</button>
+      <button onclick="dismissPasswordSetup()" style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit;">I'll use magic link instead</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Set Password Modal ────────────────────────────────────────────────── -->
+<div id="set-password-modal" style="display:none" class="modal-overlay" onclick="if(event.target===this)closeSetPasswordModal()">
+  <div class="modal-box" style="max-width:400px;">
+    <div class="modal-title">Set Your Password</div>
+    <div class="modal-sub">You can log in with your email and password next time. Minimum 8 characters.</div>
+    <div id="sp-error" style="display:none;font-size:13px;color:#B91C1C;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:12px;"></div>
+    <div class="form-group">
+      <label class="form-label" for="sp-password">Password</label>
+      <input class="form-input" id="sp-password" type="password" placeholder="Min. 8 characters" minlength="8">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="sp-confirm">Confirm Password</label>
+      <input class="form-input" id="sp-confirm" type="password" placeholder="Repeat password">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeSetPasswordModal()">Cancel</button>
+      <button class="btn-submit" id="btn-sp-submit" onclick="submitSetPassword()">Save Password</button>
     </div>
   </div>
 </div>
@@ -1155,6 +1199,11 @@ async function loadDashboard() {
 
   document.getElementById('loading-overlay').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+
+  // Show set-password banner for team members who haven't set one yet
+  if (data.needs_password_setup) {
+    document.getElementById('set-password-banner').style.display = 'block';
+  }
 
   try { initReveal(); } catch (e) { console.error('[dashboard] initReveal error:', e); }
 
@@ -1835,10 +1884,12 @@ function renderTeamList(members) {
     const joinedText = m.joined_at
       ? 'Joined ' + fmtDateShort(m.joined_at)
       : 'Invited ' + fmtDateShort(m.invited_at);
+    const nameDisplay = m.member_name || m.member_email;
     return `<div class="iv-card reveal" style="cursor:default;">
       <div>
-        <div class="iv-role" style="font-size:14px;">${esc(m.member_email)}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px;">${esc(joinedText)}</div>
+        <div class="iv-role" style="font-size:14px;">${esc(nameDisplay)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">${esc(m.member_email)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">${esc(joinedText)}</div>
       </div>
       <div class="iv-right">
         ${statusBadge}
@@ -1873,7 +1924,9 @@ function openInviteModal() {
   document.getElementById('invite-modal').style.display = 'flex';
   document.getElementById('invite-modal-error').style.display   = 'none';
   document.getElementById('invite-modal-success').style.display = 'none';
-  document.getElementById('invite-email').value = '';
+  document.getElementById('invite-first-name').value = '';
+  document.getElementById('invite-last-name').value  = '';
+  document.getElementById('invite-email').value      = '';
 }
 
 function closeInviteModal() {
@@ -1881,16 +1934,20 @@ function closeInviteModal() {
 }
 
 async function submitInvite() {
-  const errEl  = document.getElementById('invite-modal-error');
-  const okEl   = document.getElementById('invite-modal-success');
+  const errEl = document.getElementById('invite-modal-error');
+  const okEl  = document.getElementById('invite-modal-success');
   errEl.style.display = 'none';
   okEl.style.display  = 'none';
 
-  const email = (document.getElementById('invite-email').value || '').trim();
+  const firstName = (document.getElementById('invite-first-name').value || '').trim();
+  const lastName  = (document.getElementById('invite-last-name').value  || '').trim();
+  const email     = (document.getElementById('invite-email').value      || '').trim();
+
+  if (!firstName) {
+    errEl.textContent = 'First name is required.'; errEl.style.display = 'block'; return;
+  }
   if (!email || !email.includes('@')) {
-    errEl.textContent = 'Please enter a valid email address.';
-    errEl.style.display = 'block';
-    return;
+    errEl.textContent = 'Please enter a valid email address.'; errEl.style.display = 'block'; return;
   }
 
   const btn = document.getElementById('btn-invite-submit');
@@ -1899,7 +1956,7 @@ async function submitInvite() {
     const res  = await fetch('/api/employer/team/invite', {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ first_name: firstName, last_name: lastName, email }),
     });
     const data = await res.json();
     if (!data.ok) {
@@ -1907,16 +1964,70 @@ async function submitInvite() {
       errEl.style.display = 'block';
       return;
     }
-    okEl.textContent    = data.message || `Invitation sent to ${email}.`;
-    okEl.style.display  = 'block';
-    document.getElementById('invite-email').value = '';
-    teamLoaded = false; // refresh list next time tab is shown
+    okEl.textContent   = data.message || `Invitation sent to ${email}.`;
+    okEl.style.display = 'block';
+    teamLoaded = false;
     setTimeout(closeInviteModal, 2000);
   } catch (e) {
     errEl.textContent = 'Network error. Please try again.';
     errEl.style.display = 'block';
   } finally {
     btn.disabled = false; btn.textContent = 'Send Invitation';
+  }
+}
+
+// ── Set-password flow (team members only) ─────────────────────────────────────
+function openSetPasswordModal() {
+  document.getElementById('set-password-modal').style.display = 'flex';
+  document.getElementById('sp-error').style.display = 'none';
+  document.getElementById('sp-password').value = '';
+  document.getElementById('sp-confirm').value  = '';
+}
+function closeSetPasswordModal() {
+  document.getElementById('set-password-modal').style.display = 'none';
+}
+async function dismissPasswordSetup() {
+  document.getElementById('set-password-banner').style.display = 'none';
+  try {
+    await fetch('/api/employer/team/set-password', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dismiss: true }),
+    });
+  } catch (e) { /* silent — banner already hidden */ }
+}
+async function submitSetPassword() {
+  const errEl    = document.getElementById('sp-error');
+  const password = document.getElementById('sp-password').value;
+  const confirm  = document.getElementById('sp-confirm').value;
+  errEl.style.display = 'none';
+
+  if (password.length < 8) {
+    errEl.textContent = 'Password must be at least 8 characters.'; errEl.style.display = 'block'; return;
+  }
+  if (password !== confirm) {
+    errEl.textContent = 'Passwords do not match.'; errEl.style.display = 'block'; return;
+  }
+
+  const btn = document.getElementById('btn-sp-submit');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const res  = await fetch('/api/employer/team/set-password', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      errEl.textContent = data.error || 'Failed to save password.'; errEl.style.display = 'block'; return;
+    }
+    closeSetPasswordModal();
+    document.getElementById('set-password-banner').style.display = 'none';
+    showToast('Password saved! You can now log in with your email and password.', 'success');
+  } catch (e) {
+    errEl.textContent = 'Network error. Please try again.'; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save Password';
   }
 }
 
