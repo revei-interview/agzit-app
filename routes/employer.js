@@ -2123,13 +2123,12 @@ router.get('/jd-templates', ...guardAny, async (req, res) => {
 });
 
 // ── POST /api/employer/jd-templates ─────────────────────────────────────────
-// Body: { template_name, role_title, jurisdiction?, jd_text }
+// Body: { template_name, role_title, jd_text }
 router.post('/jd-templates', ...guardAny, async (req, res) => {
   try {
     const adminId      = await resolveTemplateAdminId(req.user.user_id);
     const templateName = String(req.body.template_name || '').trim();
     const roleTitle    = String(req.body.role_title    || '').trim();
-    const jurisdiction = String(req.body.jurisdiction  || '').trim();
     const jdText       = String(req.body.jd_text       || '').trim();
 
     if (!templateName) return res.status(400).json({ ok: false, error: 'Template name is required' });
@@ -2137,8 +2136,8 @@ router.post('/jd-templates', ...guardAny, async (req, res) => {
     if (!jdText)       return res.status(400).json({ ok: false, error: 'Job description is required' });
 
     const [ins] = await pool.execute(
-      'INSERT INTO agzit_jd_templates (admin_user_id, template_name, role_title, jurisdiction, jd_text) VALUES (?, ?, ?, ?, ?)',
-      [adminId, templateName, roleTitle, jurisdiction || null, jdText]
+      'INSERT INTO agzit_jd_templates (admin_user_id, template_name, role_title, jd_text) VALUES (?, ?, ?, ?)',
+      [adminId, templateName, roleTitle, jdText]
     );
     res.json({ ok: true, id: ins.insertId });
   } catch (err) {
@@ -2148,14 +2147,13 @@ router.post('/jd-templates', ...guardAny, async (req, res) => {
 });
 
 // ── PUT /api/employer/jd-templates/:id ──────────────────────────────────────
-// Body: { template_name, role_title, jurisdiction?, jd_text }
+// Body: { template_name, role_title, jd_text }
 router.put('/jd-templates/:id', ...guardAny, async (req, res) => {
   try {
     const adminId      = await resolveTemplateAdminId(req.user.user_id);
     const id           = parseInt(req.params.id);
     const templateName = String(req.body.template_name || '').trim();
     const roleTitle    = String(req.body.role_title    || '').trim();
-    const jurisdiction = String(req.body.jurisdiction  || '').trim();
     const jdText       = String(req.body.jd_text       || '').trim();
 
     if (!id)           return res.status(400).json({ ok: false, error: 'Invalid template ID' });
@@ -2164,8 +2162,8 @@ router.put('/jd-templates/:id', ...guardAny, async (req, res) => {
     if (!jdText)       return res.status(400).json({ ok: false, error: 'Job description is required' });
 
     const [result] = await pool.execute(
-      'UPDATE agzit_jd_templates SET template_name=?, role_title=?, jurisdiction=?, jd_text=? WHERE id=? AND admin_user_id=?',
-      [templateName, roleTitle, jurisdiction || null, jdText, id, adminId]
+      'UPDATE agzit_jd_templates SET template_name=?, role_title=?, jd_text=? WHERE id=? AND admin_user_id=?',
+      [templateName, roleTitle, jdText, id, adminId]
     );
     if (result.affectedRows === 0) return res.status(404).json({ ok: false, error: 'Template not found' });
     res.json({ ok: true });
@@ -2196,9 +2194,11 @@ router.delete('/jd-templates/:id', ...guardAny, async (req, res) => {
 
 // ── POST /api/employer/bulk-schedule ────────────────────────────────────────
 // Schedule multiple AI interviews at once — one per candidate email.
+// Candidates do NOT need an existing AGZIT account; an email with a join link
+// is sent to whatever address is provided.
 // Body: { emails: string (newline/comma separated) | string[],
 //         interview_role, session_type, jd_raw_text }
-// Returns: { ok, scheduled: [], not_found: [], already_scheduled: [] }
+// Returns: { ok, scheduled: [], already_scheduled: [] }
 
 router.post('/bulk-schedule', ...guardVerified, async (req, res) => {
   try {
@@ -2248,44 +2248,46 @@ router.post('/bulk-schedule', ...guardVerified, async (req, res) => {
       return res.status(402).json({ ok: false, error: 'no_credits', message: 'No interview credits remaining. Contact us to purchase.' });
     }
 
-    // Look up candidates registered in agzit_users
     const placeholders = emails.map(() => '?').join(',');
+
+    // Look up any candidates who are registered — used for name only (optional)
     const [foundUsers] = await pool.execute(
-      `SELECT email, first_name, last_name FROM agzit_users WHERE email IN (${placeholders})`,
+      `SELECT LOWER(email) AS email, first_name, last_name FROM agzit_users WHERE LOWER(email) IN (${placeholders})`,
       emails
     );
     const foundMap = {};
     for (const u of foundUsers) foundMap[u.email] = u;
 
-    // Find emails that already have a scheduled interview with this employer
+    // Find emails that already have an active scheduled interview with this employer
     const existingScheduled = new Set();
     if (emails.length) {
       const [existRows] = await pool.execute(
-        `SELECT pm_email.meta_value AS email
+        `SELECT LOWER(pm_email.meta_value) AS email
          FROM wp_postmeta pm_email
          INNER JOIN wp_postmeta pm_emp    ON pm_emp.post_id    = pm_email.post_id AND pm_emp.meta_key    = 'employer_user_id' AND pm_emp.meta_value = ?
          INNER JOIN wp_postmeta pm_status ON pm_status.post_id = pm_email.post_id AND pm_status.meta_key = 'interview_status' AND pm_status.meta_value = 'scheduled'
          INNER JOIN wp_posts p            ON p.ID              = pm_email.post_id AND p.post_type = 'employer_interview' AND p.post_status = 'publish'
          WHERE pm_email.meta_key = 'candidate_email'
-           AND pm_email.meta_value IN (${placeholders})`,
+           AND LOWER(pm_email.meta_value) IN (${placeholders})`,
         [String(wpUserId), ...emails]
       );
       for (const r of existRows) existingScheduled.add(r.email);
     }
 
     const scheduled         = [];
-    const not_found         = [];
     const already_scheduled = [];
     let creditsRemaining    = currentCredits;
     let creditsUsedDelta    = 0;
 
     for (const email of emails) {
-      if (!foundMap[email])          { not_found.push(email);         continue; }
       if (existingScheduled.has(email)) { already_scheduled.push(email); continue; }
-      if (creditsRemaining <= 0)     { not_found.push(email);         continue; } // ran out mid-loop
+      if (creditsRemaining <= 0) continue; // ran out mid-loop — silently skip
 
-      const candidate     = foundMap[email];
-      const candidateName = [candidate.first_name, candidate.last_name].filter(Boolean).join(' ') || email;
+      // Use registered name if available, otherwise fall back to email address
+      const knownUser     = foundMap[email];
+      const candidateName = knownUser
+        ? [knownUser.first_name, knownUser.last_name].filter(Boolean).join(' ') || email
+        : email;
       const joinToken     = crypto.randomUUID();
       const joinUrl       = 'https://app.agzit.com/employer-interviews?token=' + joinToken;
       const postTitle     = candidateName + ' \u2013 ' + interviewRole;
@@ -2339,8 +2341,8 @@ router.post('/bulk-schedule', ...guardVerified, async (req, res) => {
       await upsertUserMeta(wpUserId, 'employer_credits_used',      String(currentUsed + creditsUsedDelta));
     }
 
-    console.log('[bulk-schedule] scheduled=%d not_found=%d already_scheduled=%d', scheduled.length, not_found.length, already_scheduled.length);
-    res.json({ ok: true, scheduled, not_found, already_scheduled });
+    console.log('[bulk-schedule] scheduled=%d already_scheduled=%d', scheduled.length, already_scheduled.length);
+    res.json({ ok: true, scheduled, already_scheduled });
   } catch (err) {
     console.error('[employer/bulk-schedule]', err);
     res.status(500).json({ ok: false, error: 'Server error' });

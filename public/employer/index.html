@@ -1070,19 +1070,6 @@ button { font-family: inherit; cursor: pointer; }
             </div>
           </div>
           <div style="margin-bottom:12px;">
-            <label class="form-label" for="tpl-new-jurisdiction">Jurisdiction</label>
-            <select class="form-select" id="tpl-new-jurisdiction" style="max-width:220px;">
-              <option value="">Global / Any</option>
-              <option value="UK">UK</option>
-              <option value="US">US</option>
-              <option value="India">India</option>
-              <option value="Singapore">Singapore</option>
-              <option value="Australia">Australia</option>
-              <option value="Canada">Canada</option>
-              <option value="UAE">UAE</option>
-            </select>
-          </div>
-          <div style="margin-bottom:12px;">
             <label class="form-label" for="tpl-new-jd">Job Description</label>
             <textarea class="form-textarea" id="tpl-new-jd" rows="5" placeholder="Paste the full job description here..."></textarea>
           </div>
@@ -1221,24 +1208,9 @@ button { font-family: inherit; cursor: pointer; }
     </div>
     <!-- Inline save-as-template form -->
     <div class="tpl-save-form" id="sm-save-tpl-form">
-      <div class="tpl-save-row">
-        <div>
-          <label class="form-label" for="sm-tpl-name">Template Name</label>
-          <input class="form-input" id="sm-tpl-name" type="text" placeholder="e.g. KYC Analyst – UK">
-        </div>
-        <div>
-          <label class="form-label" for="sm-tpl-jurisdiction">Jurisdiction</label>
-          <select class="form-select" id="sm-tpl-jurisdiction">
-            <option value="">Global / Any</option>
-            <option value="UK">UK</option>
-            <option value="US">US</option>
-            <option value="India">India</option>
-            <option value="Singapore">Singapore</option>
-            <option value="Australia">Australia</option>
-            <option value="Canada">Canada</option>
-            <option value="UAE">UAE</option>
-          </select>
-        </div>
+      <div style="margin-bottom:10px;">
+        <label class="form-label" for="sm-tpl-name">Template Name</label>
+        <input class="form-input" id="sm-tpl-name" type="text" placeholder="e.g. KYC Analyst – UK">
       </div>
       <div id="sm-tpl-error" style="font-size:12px;color:#B91C1C;margin-bottom:8px;display:none;"></div>
       <div class="tpl-save-actions">
@@ -1292,7 +1264,7 @@ button { font-family: inherit; cursor: pointer; }
 <div id="bulk-modal" style="display:none" class="modal-overlay" onclick="if(event.target===this)closeBulkModal()">
   <div class="modal-box">
     <div class="modal-title">Bulk Schedule Interviews</div>
-    <div class="modal-sub">Candidates must be registered on AGZIT. Each scheduled interview uses one credit.</div>
+    <div class="modal-sub">Each scheduled interview uses one credit. Candidates do not need an existing AGZIT account — they receive a join link by email.</div>
     <div id="bulk-modal-error" style="display:none;font-size:13px;color:#B91C1C;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:12px;"></div>
     <!-- Results (shown after submit) -->
     <div id="bulk-results" style="display:none;margin-bottom:16px;"></div>
@@ -2574,7 +2546,7 @@ async function loadTemplates() {
 function renderTemplatePickers() {
   const opts = '<option value="">— Load a saved template —</option>' +
     _templates.map(t =>
-      `<option value="${t.id}">${esc(t.template_name)}${t.jurisdiction ? ' — ' + esc(t.jurisdiction) : ''}</option>`
+      `<option value="${t.id}">${esc(t.template_name)}</option>`
     ).join('');
   ['sm-template', 'bulk-template'].forEach(id => {
     const el = document.getElementById(id);
@@ -2603,7 +2575,6 @@ function toggleSaveTemplateForm() {
   const isOpen = form.classList.contains('open');
   if (!isOpen) {
     document.getElementById('sm-tpl-name').value = '';
-    document.getElementById('sm-tpl-jurisdiction').value = '';
     document.getElementById('sm-tpl-error').style.display = 'none';
   }
   form.classList.toggle('open');
@@ -2616,10 +2587,9 @@ function closeSaveTemplateForm() {
 
 async function saveTemplate() {
   const errEl        = document.getElementById('sm-tpl-error');
-  const templateName = (document.getElementById('sm-tpl-name').value         || '').trim();
-  const jurisdiction = (document.getElementById('sm-tpl-jurisdiction').value  || '').trim();
-  const roleTitle    = (document.getElementById('sm-role').value              || '').trim();
-  const jdText       = (document.getElementById('sm-jd').value                || '').trim();
+  const templateName = (document.getElementById('sm-tpl-name').value || '').trim();
+  const roleTitle    = (document.getElementById('sm-role').value     || '').trim();
+  const jdText       = (document.getElementById('sm-jd').value       || '').trim();
   errEl.style.display = 'none';
   if (!templateName) { errEl.textContent = 'Template name is required.';             errEl.style.display = 'block'; return; }
   if (!roleTitle)    { errEl.textContent = 'Fill in the Interview Role field first.'; errEl.style.display = 'block'; return; }
@@ -2631,7 +2601,7 @@ async function saveTemplate() {
     const res  = await fetch('/api/employer/jd-templates', {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ template_name: templateName, role_title: roleTitle, jurisdiction, jd_text: jdText }),
+      body: JSON.stringify({ template_name: templateName, role_title: roleTitle, jd_text: jdText }),
     });
     const data = await res.json();
     if (!data.ok) { errEl.textContent = data.error || 'Failed to save template.'; errEl.style.display = 'block'; return; }
@@ -2666,7 +2636,7 @@ function renderTemplateList() {
     <div class="tpl-card" id="tpl-card-${t.id}">
       <div class="tpl-info">
         <div class="tpl-card-name">${esc(t.template_name)}</div>
-        <div class="tpl-card-meta">${esc(t.role_title)}${t.jurisdiction ? ' &bull; ' + esc(t.jurisdiction) : ''}</div>
+        <div class="tpl-card-meta">${esc(t.role_title)}</div>
       </div>
       <div class="tpl-actions">
         <button class="btn-tpl-edit" onclick="openEditTemplate(${t.id})">Edit</button>
@@ -2685,10 +2655,6 @@ function renderTemplateList() {
         </div>
       </div>
       <div style="margin-bottom:12px;">
-        <label class="form-label">Jurisdiction</label>
-        <select class="form-select" id="tpl-en-juris-${t.id}" style="max-width:220px;">${jurisdictionOptions(t.jurisdiction)}</select>
-      </div>
-      <div style="margin-bottom:12px;">
         <label class="form-label">Job Description</label>
         <textarea class="form-textarea" id="tpl-en-jd-${t.id}" rows="5">${esc(t.jd_text)}</textarea>
       </div>
@@ -2700,16 +2666,9 @@ function renderTemplateList() {
   `).join('');
 }
 
-function jurisdictionOptions(selected) {
-  const vals   = ['', 'UK', 'US', 'India', 'Singapore', 'Australia', 'Canada', 'UAE'];
-  const labels = { '': 'Global / Any', UK:'UK', US:'US', India:'India', Singapore:'Singapore', Australia:'Australia', Canada:'Canada', UAE:'UAE' };
-  return vals.map(v => `<option value="${v}"${(selected || '') === v ? ' selected' : ''}>${labels[v]}</option>`).join('');
-}
-
 function openNewTemplateForm() {
   document.getElementById('tpl-new-form').style.display = 'block';
   ['tpl-new-name', 'tpl-new-role', 'tpl-new-jd'].forEach(id => { document.getElementById(id).value = ''; });
-  document.getElementById('tpl-new-jurisdiction').value = '';
   document.getElementById('tpl-new-error').style.display = 'none';
 }
 
@@ -2719,10 +2678,9 @@ function closeNewTemplateForm() {
 
 async function submitNewTemplate() {
   const errEl        = document.getElementById('tpl-new-error');
-  const templateName = (document.getElementById('tpl-new-name').value         || '').trim();
-  const roleTitle    = (document.getElementById('tpl-new-role').value          || '').trim();
-  const jurisdiction = (document.getElementById('tpl-new-jurisdiction').value  || '').trim();
-  const jdText       = (document.getElementById('tpl-new-jd').value            || '').trim();
+  const templateName = (document.getElementById('tpl-new-name').value || '').trim();
+  const roleTitle    = (document.getElementById('tpl-new-role').value  || '').trim();
+  const jdText       = (document.getElementById('tpl-new-jd').value    || '').trim();
   errEl.style.display = 'none';
   if (!templateName) { errEl.textContent = 'Template name is required.'; errEl.style.display = 'block'; return; }
   if (!roleTitle)    { errEl.textContent = 'Role title is required.';    errEl.style.display = 'block'; return; }
@@ -2734,7 +2692,7 @@ async function submitNewTemplate() {
     const res  = await fetch('/api/employer/jd-templates', {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ template_name: templateName, role_title: roleTitle, jurisdiction, jd_text: jdText }),
+      body: JSON.stringify({ template_name: templateName, role_title: roleTitle, jd_text: jdText }),
     });
     const data = await res.json();
     if (!data.ok) { errEl.textContent = data.error || 'Failed to create template.'; errEl.style.display = 'block'; return; }
@@ -2763,10 +2721,9 @@ function closeEditTemplate(id) {
 
 async function submitEditTemplate(id) {
   const btn          = document.getElementById(`btn-tpl-save-${id}`);
-  const templateName = (document.getElementById(`tpl-en-name-${id}`).value  || '').trim();
-  const roleTitle    = (document.getElementById(`tpl-en-role-${id}`).value   || '').trim();
-  const jurisdiction = (document.getElementById(`tpl-en-juris-${id}`).value  || '').trim();
-  const jdText       = (document.getElementById(`tpl-en-jd-${id}`).value     || '').trim();
+  const templateName = (document.getElementById(`tpl-en-name-${id}`).value || '').trim();
+  const roleTitle    = (document.getElementById(`tpl-en-role-${id}`).value  || '').trim();
+  const jdText       = (document.getElementById(`tpl-en-jd-${id}`).value    || '').trim();
   if (!templateName) { showToast('Template name is required.', 'error'); return; }
   if (!roleTitle)    { showToast('Role title is required.', 'error');    return; }
   if (!jdText)       { showToast('Job description is required.', 'error'); return; }
@@ -2776,7 +2733,7 @@ async function submitEditTemplate(id) {
     const res  = await fetch('/api/employer/jd-templates/' + id, {
       method: 'PUT', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ template_name: templateName, role_title: roleTitle, jurisdiction, jd_text: jdText }),
+      body: JSON.stringify({ template_name: templateName, role_title: roleTitle, jd_text: jdText }),
     });
     const data = await res.json();
     if (!data.ok) { showToast(data.error || 'Failed to save.', 'error'); return; }
@@ -2851,12 +2808,10 @@ async function submitBulkSchedule() {
     let html = '';
     if (data.scheduled.length)
       html += `<div class="bulk-result bulk-result-green">${data.scheduled.length} interview${data.scheduled.length !== 1 ? 's' : ''} scheduled successfully.</div>`;
-    if (data.not_found.length)
-      html += `<div class="bulk-result bulk-result-yellow">${data.not_found.length} email${data.not_found.length !== 1 ? 's' : ''} not found in AGZIT:<br>${data.not_found.map(esc).join('<br>')}</div>`;
     if (data.already_scheduled.length)
       html += `<div class="bulk-result bulk-result-orange">${data.already_scheduled.length} already have a scheduled interview:<br>${data.already_scheduled.map(esc).join('<br>')}</div>`;
     if (!html)
-      html = '<div class="bulk-result bulk-result-yellow">No interviews were scheduled. Check that the emails are registered on AGZIT.</div>';
+      html = '<div class="bulk-result bulk-result-yellow">No interviews were scheduled.</div>';
 
     document.getElementById('bulk-results').innerHTML = html;
     document.getElementById('bulk-results').style.display = 'block';
