@@ -1378,6 +1378,7 @@ function renderInterviewList(container, list, max) {
         <div class="iv-role">${esc(iv.interview_role || 'Interview')}</div>
         <div class="iv-candidate">${esc(iv.candidate_name || 'Candidate')}</div>
         ${iv.candidate_email ? `<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">${esc(iv.candidate_email)}</div>` : ''}
+        ${DATA.is_team_admin && iv.scheduled_by ? `<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Scheduled by ${esc(iv.scheduled_by)}</div>` : ''}
         <div class="iv-meta">
           ${iv.session_type ? `<span>${esc(iv.session_type)}</span>` : ''}
           ${scheduledPart ? `<span>${esc(scheduledPart)}</span>` : ''}
@@ -1417,12 +1418,23 @@ async function loadProfile() {
     const p = data.profile;
     _profileSnapshot = p; // store for edit/revert
 
-    document.getElementById('profile-personal-grid').innerHTML = [
-      ['First Name',    p.first_name],
-      ['Account Email', DATA.user.email],
-      ['Work Email',    p.work_email],
-      ['LinkedIn',      p.linkedin_url ? `<a href="${esc(p.linkedin_url)}" target="_blank" rel="noopener">${esc(p.linkedin_url)}</a>` : null],
-    ].map(([l, v]) => infoItem(l, v)).join('');
+    // Hide Edit Profile button for team members (they can't edit company data)
+    document.getElementById('btn-edit-profile').style.display = data.is_team_member ? 'none' : '';
+
+    const personalRows = data.is_team_member
+      ? [
+          ['First Name',            p.first_name],
+          ['Your Work Email',       p.member_work_email || DATA.user.email],
+          ['Company Account Email', p.company_admin_email],
+          ['LinkedIn',              p.linkedin_url ? `<a href="${esc(p.linkedin_url)}" target="_blank" rel="noopener">${esc(p.linkedin_url)}</a>` : null],
+        ]
+      : [
+          ['First Name',    p.first_name],
+          ['Account Email', DATA.user.email],
+          ['Work Email',    p.work_email],
+          ['LinkedIn',      p.linkedin_url ? `<a href="${esc(p.linkedin_url)}" target="_blank" rel="noopener">${esc(p.linkedin_url)}</a>` : null],
+        ];
+    document.getElementById('profile-personal-grid').innerHTML = personalRows.map(([l, v]) => infoItem(l, v)).join('');
 
     document.getElementById('profile-company-grid').innerHTML = [
       ['Company Name',    p.company_name],
