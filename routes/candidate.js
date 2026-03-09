@@ -10,8 +10,9 @@ const bcrypt   = require('bcryptjs');
 const crypto   = require('crypto');
 const https    = require('https');
 const jwt      = require('jsonwebtoken');
-const multer   = require('multer');
-const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.js');
+const multer    = require('multer');
+const FormData  = require('form-data');
+const fetch     = require('node-fetch');
 
 // multer: in-memory storage, 5 MB limit, PDF only
 const upload = multer({
@@ -1220,36 +1221,66 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
   ]
 }`;
 
-    // Extract text from PDF using pdfjs-dist
-    let pdfText = '';
+    // Upload PDF to OpenAI Files API
+    let fileId;
     try {
-      const uint8Array  = new Uint8Array(req.file.buffer);
-      const loadingTask = pdfjsLib.getDocument({
-        data: uint8Array,
-        useWorkerFetch:  false,
-        isEvalSupported: false,
-        useSystemFonts:  true,
+      const form = new FormData();
+      form.append('file', req.file.buffer, {
+        filename: 'resume.pdf',
+        contentType: 'application/pdf',
       });
-      const pdfDoc = await loadingTask.promise;
-      const pages  = [];
-      for (let i = 1; i <= pdfDoc.numPages; i++) {
-        const page    = await pdfDoc.getPage(i);
-        const content = await page.getTextContent();
-        pages.push(content.items.map(item => item.str).join(' '));
-      }
-      pdfText = pages.join('\n').trim();
+      form.append('purpose', 'assistants');
+
+      const uploadRes = await fetch('https://api.openai.com/v1/files', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          ...form.getHeaders(),
+        },
+        body: form,
+      });
+      const uploadData = await uploadRes.json();
+      if (!uploadRes.ok) throw new Error(JSON.stringify(uploadData));
+      fileId = uploadData.id;
     } catch (e) {
-      console.error('[parse-resume] pdfjs error:', e.message);
-      return res.status(422).json({ ok: false, error: 'Could not read PDF. Please ensure the file is not password-protected.' });
+      console.error('[parse-resume] file upload error:', e.message);
+      return res.status(422).json({ ok: false, error: 'Could not process PDF. Please fill the form manually.' });
     }
 
-    if (!pdfText) {
-      return res.status(422).json({ ok: false, error: 'PDF appears to be empty or image-only. Please upload a text-based PDF.' });
+    // Call GPT-4o with the uploaded file
+    let rawText;
+    try {
+      const oaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o',
+          max_tokens: 2048,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: `Extract structured profile data from the attached resume PDF. Return ONLY valid JSON matching this schema, no markdown:\n\n${schema}` },
+              { type: 'file', file: { file_id: fileId } },
+            ],
+          }],
+        }),
+      });
+      const oaiData = await oaiRes.json();
+      if (!oaiRes.ok) {
+        console.error('[parse-resume] OpenAI error:', JSON.stringify(oaiData));
+        throw new Error('OpenAI API error');
+      }
+      rawText = oaiData.choices[0].message.content;
+    } finally {
+      // Clean up the uploaded file
+      fetch(`https://api.openai.com/v1/files/${fileId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+      }).catch(() => {});
     }
-
-    const systemPrompt = 'Extract structured profile data from the resume text below. Return ONLY valid JSON matching the schema exactly. No markdown fences, no explanation, no trailing commas. For all dates use YYYY-MM format.';
-    const userContent  = `Schema:\n${schema}\n\nResume text:\n${pdfText.slice(0, 40000)}`;
-    const rawText = await callOpenAI(systemPrompt, userContent, 2048);
 
     // Strip markdown code fences if model wrapped JSON
     let jsonText = rawText.trim();
