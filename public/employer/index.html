@@ -814,6 +814,7 @@ button { font-family: inherit; cursor: pointer; }
             <div style="display:flex;flex-direction:column;gap:8px">
               <button class="ql-btn" onclick="switchTab('candidates')" style="justify-content:flex-start">Search Candidates</button>
               <button class="ql-btn" onclick="switchTab('interviews')" style="justify-content:flex-start">Scheduled Interviews</button>
+              <button id="ql-set-password" class="ql-btn" onclick="openSetPasswordModal()" style="justify-content:flex-start;display:none">Set Password</button>
               <a class="ql-btn" href="/logout" style="justify-content:flex-start">Logout</a>
             </div>
           </div>
@@ -1337,6 +1338,13 @@ function render() {
     }
     console.log('[dashboard] team tab rendered');
   } catch (e) { console.error('[dashboard] team tab render error:', e); }
+
+  // ── Set Password quick link (team members only) ───────────────────────────────
+  try {
+    console.log('[dashboard] needs_password_setup:', DATA.needs_password_setup);
+    const qlSetPwd = document.getElementById('ql-set-password');
+    if (qlSetPwd) qlSetPwd.style.display = DATA.is_team_member ? '' : 'none';
+  } catch (e) { console.error('[dashboard] set-password ql render error:', e); }
 }
 
 // ── Interview list renderer ──────────────────────────────────────────────────
