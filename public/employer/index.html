@@ -335,8 +335,6 @@ button { font-family: inherit; cursor: pointer; }
   padding: 5px 12px; transition: background .15s;
 }
 .iv-join:hover { background: #EFF6FF; text-decoration: none; }
-.iv-join.iv-join-report { color: var(--green); border-color: #6EE7B7; }
-.iv-join.iv-join-report:hover { background: var(--green-lt); }
 
 /* ── Candidate cards ────────────────────────────────────────────────────── */
 .filter-bar {
@@ -645,16 +643,8 @@ button { font-family: inherit; cursor: pointer; }
 .toast-error   { background: #FEF2F2; border: 1px solid #FCA5A5; color: #991B1B; }
 
 /* ── Credits bar ─────────────────────────────────────────────────────────── */
-.credits-bar {
-  border-radius: 10px;
-  padding: 14px 18px;
-  margin-bottom: 16px;
-  font-size: 13.5px;
-  font-weight: 600;
-}
-.credits-bar-ok   { background: #F0FDF4; border: 1px solid #BBF7D0; color: #166534; }
-.credits-bar-warn { background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; }
-.credits-bar a { font-weight: 700; color: inherit; text-decoration: underline; }
+/* Styles live as inline on the element; only the link colour needs a rule */
+#credits-bar-inner a { font-weight: 600; }
 
 /* ── Confirm overlay ─────────────────────────────────────────────────────── */
 .confirm-overlay {
@@ -914,7 +904,12 @@ button { font-family: inherit; cursor: pointer; }
 
     <!-- ── Interviews Tab ───────────────────────────────────────────── -->
     <div class="tab-panel" id="panel-interviews">
-      <div id="iv-credits-bar" style="display:none"></div>
+      <div id="iv-credits-bar" style="display:none">
+        <div id="credits-bar-inner" style="background:#f0faf5;border:1px solid #c3e6d4;border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:14px;color:#0B7A47;">
+          <strong>Interview Credits</strong> — <span id="credits-count">—</span> remaining (<span id="credits-used-count">—</span> used)
+          <span id="credits-contact" style="display:none;margin-left:12px;"><a href="https://agzit.com/contact/" target="_blank" rel="noopener" style="color:#B45309;">Contact Sales →</a></span>
+        </div>
+      </div>
       <div class="section-hdr">
         <div class="section-title">Your Scheduled Interviews</div>
         <button id="btn-schedule" class="ql-btn ql-btn-primary" onclick="openScheduleModal()" style="display:none">+ Schedule AI Interview</button>
@@ -1188,10 +1183,12 @@ function renderInterviewList(container, list, max) {
     const bandPart  = band
       ? `<span class="iv-band iv-band-${band}">${bandLabel(band)}</span>` : '';
     const joinPart  = status === 'completed'
-      ? `<a class="iv-join iv-join-report" href="/employer-scorecard?id=${iv.id}" onclick="event.stopPropagation()">View Report</a>`
-      : (iv.join_url && status !== 'cancelled'
-          ? `<a class="iv-join" href="${esc(iv.join_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Join Room</a>`
-          : '');
+      ? `<a href="/employer-scorecard?id=${iv.id}" class="btn-view-report" style="background:#0B7A47;color:#fff;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:600;text-decoration:none;display:inline-block;" onclick="event.stopPropagation()">View Report</a>`
+      : status === 'cancelled'
+        ? `<span style="font-size:12px;font-weight:600;color:var(--muted);">Cancelled</span>`
+        : (iv.join_url
+            ? `<a class="iv-join" href="${esc(iv.join_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Join Room</a>`
+            : '');
     const scheduledPart = iv.scheduled_at ? `Scheduled: ${formatDate(iv.scheduled_at)}` : (iv.post_date ? formatDate(iv.post_date) : '');
 
     // Three-dot action menu — only for active (scheduled/started) interviews
@@ -1578,15 +1575,25 @@ async function loadInterviewsFull() {
 }
 
 function renderCreditsBanner(credits, used) {
-  const barEl  = document.getElementById('iv-credits-bar');
-  const schedBtn = document.getElementById('btn-schedule');
+  const barEl     = document.getElementById('iv-credits-bar');
+  const innerEl   = document.getElementById('credits-bar-inner');
+  const countEl   = document.getElementById('credits-count');
+  const usedEl    = document.getElementById('credits-used-count');
+  const contactEl = document.getElementById('credits-contact');
+  const schedBtn  = document.getElementById('btn-schedule');
   if (!barEl) return;
+
+  if (countEl) countEl.textContent = credits;
+  if (usedEl)  usedEl.textContent  = used;
+
   if (credits > 0) {
-    barEl.innerHTML = `<div class="credits-bar credits-bar-ok">Interview Credits — <strong>${credits}</strong> remaining &nbsp;(${used} used)</div>`;
-    if (schedBtn) { schedBtn.disabled = false; schedBtn.style.opacity = ''; schedBtn.title = ''; }
+    if (innerEl) { innerEl.style.background = '#f0faf5'; innerEl.style.borderColor = '#c3e6d4'; innerEl.style.color = '#0B7A47'; }
+    if (contactEl) contactEl.style.display = 'none';
+    if (schedBtn)  { schedBtn.disabled = false; schedBtn.style.opacity = ''; schedBtn.title = ''; }
   } else {
-    barEl.innerHTML = `<div class="credits-bar credits-bar-warn">No interview credits remaining. &nbsp;<a href="https://agzit.com/contact/" target="_blank" rel="noopener">Contact Sales &rarr;</a></div>`;
-    if (schedBtn) { schedBtn.disabled = true; schedBtn.style.opacity = '0.45'; schedBtn.title = 'No credits remaining'; }
+    if (innerEl) { innerEl.style.background = '#FEF3C7'; innerEl.style.borderColor = '#F59E0B'; innerEl.style.color = '#92400E'; }
+    if (contactEl) contactEl.style.display = '';
+    if (schedBtn)  { schedBtn.disabled = true; schedBtn.style.opacity = '0.45'; schedBtn.title = 'No credits remaining'; }
   }
   barEl.style.display = 'block';
 }
