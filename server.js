@@ -43,7 +43,7 @@ const internalLimiter = rateLimit({
 
 // ── Middleware ─────────────────────────────────────────────────────────────
 app.use(cors({
-  origin:      ['https://agzit.com', 'https://www.agzit.com', 'https://app.agzit.com'],
+  origin:      ['https://agzit.com', 'https://www.agzit.com', 'https://app.agzit.com', 'https://agzit-app.onrender.com'],
   credentials: true,
 }));
 // Capture raw body in req.rawBody before JSON parsing (needed for HMAC webhook verification)
