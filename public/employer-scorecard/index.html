@@ -193,6 +193,17 @@ a:hover { text-decoration: underline; }
   .intel-grid      { grid-template-columns: 1fr; }
   #main            { padding: 20px 14px 48px; }
 }
+
+/* ── Print ── */
+@media print {
+  @page { margin: 18mm 14mm; }
+  body { background: #fff !important; }
+  #agzit-nav, #agzit-footer, .back-bar, #loading, #error-state { display: none !important; }
+  #recording-section { display: none !important; }
+  #main { display: block !important; max-width: 100%; padding: 0; }
+  .section-card, .score-card, .readiness-card, .feedback-card, .intel-card { break-inside: avoid; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
 </style>
 <script src="/assets/layout.js" defer></script>
 </head>
@@ -211,10 +222,13 @@ a:hover { text-decoration: underline; }
 </div>
 
 <div id="main" style="display:none">
-  <div class="back-bar">
+  <div class="back-bar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
     <a class="back-btn" href="/employer">
       <span class="back-arrow">←</span> Back to Dashboard
     </a>
+    <button class="back-btn" onclick="window.print()" style="background:var(--blue);color:#fff;border-color:var(--blue);cursor:pointer;">
+      Download PDF
+    </button>
   </div>
 
   <!-- Session header -->
@@ -266,9 +280,10 @@ function esc(s)  { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&l
 
 function fmtDate(s) {
   if (!s) return '';
-  const d = new Date(s);
+  const d = new Date(typeof s === 'string' && !s.includes('T') ? s.replace(' ', 'T') : s);
   if (isNaN(d.getTime())) return String(s);
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    + ', ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
 function titleCase(s) {
@@ -378,7 +393,8 @@ const COMP_TIPS = {
 
 function renderSessionHeader(iv) {
   const statusHtml = statusBadge(iv.interview_status);
-  const date = iv.scheduled_at || (iv.interview_started_at ? fmtDate(iv.interview_started_at * 1000) : '') || (iv.post_date ? fmtDate(iv.post_date) : '');
+  const rawDate = iv.scheduled_at || (iv.interview_started_at ? iv.interview_started_at * 1000 : null) || iv.post_date || null;
+  const date = rawDate !== null ? fmtDate(rawDate) : '';
   el('session-header').innerHTML = `
     <div>
       <div class="session-role">${esc(iv.interview_role || 'Interview')}</div>
