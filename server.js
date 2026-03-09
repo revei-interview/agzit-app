@@ -192,6 +192,18 @@ async function initDB() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_jd_templates (
+      id            INT AUTO_INCREMENT PRIMARY KEY,
+      admin_user_id INT NOT NULL,
+      template_name VARCHAR(255) NOT NULL,
+      role_title    VARCHAR(255) NOT NULL,
+      jurisdiction  VARCHAR(100) DEFAULT NULL,
+      jd_text       TEXT NOT NULL,
+      created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
   console.log('[init] DB tables ensured');
 }
 

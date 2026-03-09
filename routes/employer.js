@@ -1341,7 +1341,7 @@ async function sendInterviewEmail({ candidateName, candidateEmail, interviewRole
 
   const scheduledDisplay = isValidDt
     ? dtStart.toUTCString().replace('GMT', 'UTC')
-    : scheduledAt;
+    : (scheduledAt ? scheduledAt : 'To be confirmed by employer');
 
   // .ics DTSTART/DTEND in UTC format (YYYYMMDDTHHmmssZ)
   const fmtIcs = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
@@ -2094,6 +2094,255 @@ router.post('/team/set-password', ...guardAny, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('[employer/team/set-password]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── JD Template helpers ───────────────────────────────────────────────────────
+
+// Return the agzit_users.id to use as admin_user_id for JD templates.
+// If the caller is a team member, use the admin's id so templates are shared.
+async function resolveTemplateAdminId(userId) {
+  const adminId = await resolveAdminUserId(userId).catch(() => null);
+  return adminId !== null ? adminId : userId;
+}
+
+// ── GET /api/employer/jd-templates ───────────────────────────────────────────
+router.get('/jd-templates', ...guardAny, async (req, res) => {
+  try {
+    const adminId = await resolveTemplateAdminId(req.user.user_id);
+    const [rows] = await pool.execute(
+      'SELECT id, template_name, role_title, jurisdiction, jd_text, created_at FROM agzit_jd_templates WHERE admin_user_id = ? ORDER BY created_at DESC',
+      [adminId]
+    );
+    res.json({ ok: true, templates: rows });
+  } catch (err) {
+    console.error('[employer/jd-templates GET]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── POST /api/employer/jd-templates ─────────────────────────────────────────
+// Body: { template_name, role_title, jurisdiction?, jd_text }
+router.post('/jd-templates', ...guardAny, async (req, res) => {
+  try {
+    const adminId      = await resolveTemplateAdminId(req.user.user_id);
+    const templateName = String(req.body.template_name || '').trim();
+    const roleTitle    = String(req.body.role_title    || '').trim();
+    const jurisdiction = String(req.body.jurisdiction  || '').trim();
+    const jdText       = String(req.body.jd_text       || '').trim();
+
+    if (!templateName) return res.status(400).json({ ok: false, error: 'Template name is required' });
+    if (!roleTitle)    return res.status(400).json({ ok: false, error: 'Role title is required' });
+    if (!jdText)       return res.status(400).json({ ok: false, error: 'Job description is required' });
+
+    const [ins] = await pool.execute(
+      'INSERT INTO agzit_jd_templates (admin_user_id, template_name, role_title, jurisdiction, jd_text) VALUES (?, ?, ?, ?, ?)',
+      [adminId, templateName, roleTitle, jurisdiction || null, jdText]
+    );
+    res.json({ ok: true, id: ins.insertId });
+  } catch (err) {
+    console.error('[employer/jd-templates POST]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── PUT /api/employer/jd-templates/:id ──────────────────────────────────────
+// Body: { template_name, role_title, jurisdiction?, jd_text }
+router.put('/jd-templates/:id', ...guardAny, async (req, res) => {
+  try {
+    const adminId      = await resolveTemplateAdminId(req.user.user_id);
+    const id           = parseInt(req.params.id);
+    const templateName = String(req.body.template_name || '').trim();
+    const roleTitle    = String(req.body.role_title    || '').trim();
+    const jurisdiction = String(req.body.jurisdiction  || '').trim();
+    const jdText       = String(req.body.jd_text       || '').trim();
+
+    if (!id)           return res.status(400).json({ ok: false, error: 'Invalid template ID' });
+    if (!templateName) return res.status(400).json({ ok: false, error: 'Template name is required' });
+    if (!roleTitle)    return res.status(400).json({ ok: false, error: 'Role title is required' });
+    if (!jdText)       return res.status(400).json({ ok: false, error: 'Job description is required' });
+
+    const [result] = await pool.execute(
+      'UPDATE agzit_jd_templates SET template_name=?, role_title=?, jurisdiction=?, jd_text=? WHERE id=? AND admin_user_id=?',
+      [templateName, roleTitle, jurisdiction || null, jdText, id, adminId]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ ok: false, error: 'Template not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[employer/jd-templates PUT]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── DELETE /api/employer/jd-templates/:id ───────────────────────────────────
+router.delete('/jd-templates/:id', ...guardAny, async (req, res) => {
+  try {
+    const adminId = await resolveTemplateAdminId(req.user.user_id);
+    const id      = parseInt(req.params.id);
+    if (!id) return res.status(400).json({ ok: false, error: 'Invalid template ID' });
+
+    const [result] = await pool.execute(
+      'DELETE FROM agzit_jd_templates WHERE id=? AND admin_user_id=?',
+      [id, adminId]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ ok: false, error: 'Template not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[employer/jd-templates DELETE]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── POST /api/employer/bulk-schedule ────────────────────────────────────────
+// Schedule multiple AI interviews at once — one per candidate email.
+// Body: { emails: string (newline/comma separated) | string[],
+//         interview_role, session_type, jd_raw_text }
+// Returns: { ok, scheduled: [], not_found: [], already_scheduled: [] }
+
+router.post('/bulk-schedule', ...guardVerified, async (req, res) => {
+  try {
+    const [[user]] = await pool.execute(
+      'SELECT id, wp_user_id FROM agzit_users WHERE id = ?',
+      [req.user.user_id]
+    );
+    if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
+
+    let wpUserId = user.wp_user_id;
+    if (!wpUserId) return res.status(400).json({ ok: false, error: 'No WP user linked to this account' });
+
+    const adminUserId = await resolveAdminUserId(user.id);
+    if (adminUserId) {
+      const [[adminUser]] = await pool.execute('SELECT wp_user_id FROM agzit_users WHERE id=? LIMIT 1', [adminUserId]);
+      if (adminUser?.wp_user_id) wpUserId = adminUser.wp_user_id;
+    }
+
+    const interviewRole = String(req.body.interview_role || '').trim();
+    const sessionType   = String(req.body.session_type   || '20-min').trim();
+    const jdRawText     = String(req.body.jd_raw_text    || '').trim();
+    const rawEmails     = req.body.emails;
+
+    if (!interviewRole) return res.status(400).json({ ok: false, error: 'Interview role is required' });
+    if (!jdRawText)     return res.status(400).json({ ok: false, error: 'Job description is required' });
+    if (!['20-min', '30-min'].includes(sessionType)) {
+      return res.status(400).json({ ok: false, error: 'session_type must be 20-min or 30-min' });
+    }
+
+    // Parse and deduplicate emails
+    let emails = [];
+    if (Array.isArray(rawEmails)) {
+      emails = rawEmails.map(e => String(e).trim().toLowerCase()).filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+    } else if (typeof rawEmails === 'string') {
+      emails = rawEmails.split(/[\n,]+/).map(e => e.trim().toLowerCase()).filter(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+    }
+    emails = [...new Set(emails)];
+
+    if (!emails.length) return res.status(400).json({ ok: false, error: 'At least one valid email address is required' });
+    if (emails.length > 50) return res.status(400).json({ ok: false, error: 'Maximum 50 emails per bulk schedule' });
+
+    // Credit check
+    const creditMeta     = await fetchUserMeta(wpUserId, ['employer_interview_credits', 'employer_credits_used']);
+    const currentCredits = parseInt(creditMeta.employer_interview_credits) || 0;
+    const currentUsed    = parseInt(creditMeta.employer_credits_used)      || 0;
+    if (currentCredits <= 0) {
+      return res.status(402).json({ ok: false, error: 'no_credits', message: 'No interview credits remaining. Contact us to purchase.' });
+    }
+
+    // Look up candidates registered in agzit_users
+    const placeholders = emails.map(() => '?').join(',');
+    const [foundUsers] = await pool.execute(
+      `SELECT email, first_name, last_name FROM agzit_users WHERE email IN (${placeholders})`,
+      emails
+    );
+    const foundMap = {};
+    for (const u of foundUsers) foundMap[u.email] = u;
+
+    // Find emails that already have a scheduled interview with this employer
+    const existingScheduled = new Set();
+    if (emails.length) {
+      const [existRows] = await pool.execute(
+        `SELECT pm_email.meta_value AS email
+         FROM wp_postmeta pm_email
+         INNER JOIN wp_postmeta pm_emp    ON pm_emp.post_id    = pm_email.post_id AND pm_emp.meta_key    = 'employer_user_id' AND pm_emp.meta_value = ?
+         INNER JOIN wp_postmeta pm_status ON pm_status.post_id = pm_email.post_id AND pm_status.meta_key = 'interview_status' AND pm_status.meta_value = 'scheduled'
+         INNER JOIN wp_posts p            ON p.ID              = pm_email.post_id AND p.post_type = 'employer_interview' AND p.post_status = 'publish'
+         WHERE pm_email.meta_key = 'candidate_email'
+           AND pm_email.meta_value IN (${placeholders})`,
+        [String(wpUserId), ...emails]
+      );
+      for (const r of existRows) existingScheduled.add(r.email);
+    }
+
+    const scheduled         = [];
+    const not_found         = [];
+    const already_scheduled = [];
+    let creditsRemaining    = currentCredits;
+    let creditsUsedDelta    = 0;
+
+    for (const email of emails) {
+      if (!foundMap[email])          { not_found.push(email);         continue; }
+      if (existingScheduled.has(email)) { already_scheduled.push(email); continue; }
+      if (creditsRemaining <= 0)     { not_found.push(email);         continue; } // ran out mid-loop
+
+      const candidate     = foundMap[email];
+      const candidateName = [candidate.first_name, candidate.last_name].filter(Boolean).join(' ') || email;
+      const joinToken     = crypto.randomUUID();
+      const joinUrl       = 'https://app.agzit.com/employer-interviews?token=' + joinToken;
+      const postTitle     = candidateName + ' \u2013 ' + interviewRole;
+
+      const [ins] = await pool.execute(
+        `INSERT INTO wp_posts
+           (post_author, post_date, post_date_gmt, post_content, post_title,
+            post_status, post_type, post_modified, post_modified_gmt,
+            comment_status, ping_status, to_ping, pinged, post_content_filtered,
+            post_excerpt, comment_count, menu_order)
+         VALUES (?, NOW(), UTC_TIMESTAMP(), '', ?, 'publish', 'employer_interview',
+                 NOW(), UTC_TIMESTAMP(), 'closed', 'closed', '', '', '', '', 0, 0)`,
+        [String(wpUserId), postTitle]
+      );
+      const postId = ins.insertId;
+
+      const metaRows = [
+        ['employer_user_id',      String(wpUserId)],
+        ['candidate_name',        candidateName],
+        ['candidate_email',       email],
+        ['interview_role',        interviewRole],
+        ['session_type',          sessionType],
+        ['scheduled_at',          ''],
+        ['jd_raw_text',           jdRawText],
+        ['interview_status',      'scheduled'],
+        ['join_token',            joinToken],
+        ['join_url',              joinUrl],
+        ['scheduled_by_agzit_id', String(req.user.user_id)],
+      ];
+      for (const [key, val] of metaRows) {
+        await pool.execute(
+          'INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
+          [postId, key, val]
+        );
+      }
+
+      // Send email best-effort — failure does not block the response
+      try {
+        await sendInterviewEmail({ candidateName, candidateEmail: email, interviewRole, sessionType, scheduledAt: '', joinUrl, joinToken });
+      } catch (e) {
+        console.error('[bulk-schedule] email failed for', email, ':', e.message);
+      }
+
+      scheduled.push(email);
+      creditsRemaining--;
+      creditsUsedDelta++;
+    }
+
+    if (creditsUsedDelta > 0) {
+      await upsertUserMeta(wpUserId, 'employer_interview_credits', String(creditsRemaining));
+      await upsertUserMeta(wpUserId, 'employer_credits_used',      String(currentUsed + creditsUsedDelta));
+    }
+
+    console.log('[bulk-schedule] scheduled=%d not_found=%d already_scheduled=%d', scheduled.length, not_found.length, already_scheduled.length);
+    res.json({ ok: true, scheduled, not_found, already_scheduled });
+  } catch (err) {
+    console.error('[employer/bulk-schedule]', err);
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });

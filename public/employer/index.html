@@ -646,6 +646,36 @@ button { font-family: inherit; cursor: pointer; }
 /* Styles live as inline on the element; only the link colour needs a rule */
 #credits-bar-inner a { font-weight: 600; }
 
+/* ── JD Template picker ──────────────────────────────────────────────────── */
+.tpl-row { display:flex; gap:8px; align-items:center; margin-bottom:14px; }
+.tpl-select { flex:1; font-family:inherit; font-size:13px; font-weight:500; color:var(--ink); background:var(--surface); border:1.5px solid var(--border); border-radius:8px; padding:9px 12px; outline:none; transition:border-color .15s; }
+.tpl-select:focus { border-color:var(--blue); }
+.btn-save-tpl { font-size:12px; font-weight:700; color:var(--blue); background:#EAF0FF; border:none; border-radius:8px; padding:9px 14px; white-space:nowrap; cursor:pointer; transition:background .15s; flex-shrink:0; }
+.btn-save-tpl:hover { background:#DBEAFE; }
+.tpl-save-form { background:var(--surface); border:1.5px solid var(--border); border-radius:10px; padding:14px; margin-bottom:12px; display:none; }
+.tpl-save-form.open { display:block; }
+.tpl-save-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.tpl-save-actions { display:flex; gap:8px; justify-content:flex-end; }
+
+/* ── JD Templates management panel ──────────────────────────────────────── */
+#templates-panel { display:none; background:#fff; border:1px solid var(--border); border-radius:var(--radius); padding:22px; margin-bottom:20px; }
+.tpl-card { display:flex; align-items:center; gap:12px; padding:12px 16px; background:var(--surface); border-radius:10px; margin-bottom:8px; }
+.tpl-info { flex:1; min-width:0; }
+.tpl-card-name { font-size:14px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tpl-card-meta { font-size:12px; color:var(--muted); margin-top:2px; }
+.tpl-actions { display:flex; gap:6px; flex-shrink:0; }
+.btn-tpl-edit { font-size:12px; font-weight:700; color:var(--blue); background:#EAF0FF; border:none; border-radius:7px; padding:6px 12px; cursor:pointer; transition:background .15s; }
+.btn-tpl-edit:hover { background:#DBEAFE; }
+.btn-tpl-del  { font-size:12px; font-weight:700; color:#B91C1C; background:#FEF2F2; border:none; border-radius:7px; padding:6px 12px; cursor:pointer; transition:background .15s; }
+.btn-tpl-del:hover { background:#FEE2E2; }
+.tpl-edit-form { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:8px; display:none; }
+
+/* ── Bulk schedule results ────────────────────────────────────────────────── */
+.bulk-result { border-radius:8px; padding:10px 14px; font-size:13px; font-weight:600; margin-bottom:8px; line-height:1.55; }
+.bulk-result-green  { background:#F0FDF4; border:1px solid #86EFAC; color:#166534; }
+.bulk-result-yellow { background:#FFFBEB; border:1px solid #FDE68A; color:#92400E; }
+.bulk-result-orange { background:#FFF7ED; border:1px solid #FED7AA; color:#9A3412; }
+
 /* ── Confirm overlay ─────────────────────────────────────────────────────── */
 .confirm-overlay {
   position: fixed; inset: 0; background: rgba(9,16,31,0.45);
@@ -937,7 +967,56 @@ button { font-family: inherit; cursor: pointer; }
       </div>
       <div class="section-hdr">
         <div class="section-title">Your Scheduled Interviews</div>
-        <button id="btn-schedule" class="ql-btn ql-btn-primary" onclick="openScheduleModal()" style="display:none">+ Schedule AI Interview</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <button id="btn-manage-templates" class="ql-btn" onclick="toggleTemplatesPanel()" style="display:none">JD Templates</button>
+          <button id="btn-bulk-schedule"    class="ql-btn" onclick="openBulkModal()"        style="display:none">Bulk Schedule</button>
+          <button id="btn-schedule"         class="ql-btn ql-btn-primary" onclick="openScheduleModal()" style="display:none">+ Schedule AI Interview</button>
+        </div>
+      </div>
+
+      <!-- JD Templates management panel -->
+      <div id="templates-panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap;">
+          <div style="font-size:15px;font-weight:800;color:var(--ink);">JD Templates</div>
+          <button class="ql-btn ql-btn-primary" onclick="openNewTemplateForm()" style="font-size:13px;padding:8px 14px;">+ New Template</button>
+        </div>
+        <!-- New template form -->
+        <div class="tpl-edit-form" id="tpl-new-form">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div>
+              <label class="form-label" for="tpl-new-name">Template Name</label>
+              <input class="form-input" id="tpl-new-name" type="text" placeholder="e.g. KYC Analyst – UK">
+            </div>
+            <div>
+              <label class="form-label" for="tpl-new-role">Role Title</label>
+              <input class="form-input" id="tpl-new-role" type="text" placeholder="e.g. KYC Analyst">
+            </div>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label class="form-label" for="tpl-new-jurisdiction">Jurisdiction</label>
+            <select class="form-select" id="tpl-new-jurisdiction" style="max-width:220px;">
+              <option value="">Global / Any</option>
+              <option value="UK">UK</option>
+              <option value="US">US</option>
+              <option value="India">India</option>
+              <option value="Singapore">Singapore</option>
+              <option value="Australia">Australia</option>
+              <option value="Canada">Canada</option>
+              <option value="UAE">UAE</option>
+            </select>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label class="form-label" for="tpl-new-jd">Job Description</label>
+            <textarea class="form-textarea" id="tpl-new-jd" rows="5" placeholder="Paste the full job description here..."></textarea>
+          </div>
+          <div id="tpl-new-error" style="font-size:12px;color:#B91C1C;margin-bottom:8px;display:none;"></div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <button class="btn-cancel" onclick="closeNewTemplateForm()" style="font-size:13px;padding:8px 16px;">Cancel</button>
+            <button class="btn-submit" id="btn-tpl-new-submit" onclick="submitNewTemplate()" style="font-size:13px;padding:8px 16px;">Create Template</button>
+          </div>
+        </div>
+        <div id="tpl-list-loading" class="loading-row" style="display:none;"><div class="spinner"></div> Loading templates...</div>
+        <div id="tpl-list"></div>
       </div>
       <div id="iv-search-wrap" style="margin-bottom:16px;display:none">
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
@@ -1056,6 +1135,40 @@ button { font-family: inherit; cursor: pointer; }
     <div class="modal-title">Schedule AI Interview</div>
     <div class="modal-sub">The candidate will receive an email invitation with a join link and .ics calendar invite.</div>
     <div id="schedule-modal-error" style="display:none;font-size:13px;color:#B91C1C;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:12px;"></div>
+    <!-- Template picker -->
+    <div class="tpl-row">
+      <select class="tpl-select" id="sm-template" onchange="applyScheduleTemplate()">
+        <option value="">— Load a saved template —</option>
+      </select>
+      <button type="button" class="btn-save-tpl" onclick="toggleSaveTemplateForm()">+ Save as Template</button>
+    </div>
+    <!-- Inline save-as-template form -->
+    <div class="tpl-save-form" id="sm-save-tpl-form">
+      <div class="tpl-save-row">
+        <div>
+          <label class="form-label" for="sm-tpl-name">Template Name</label>
+          <input class="form-input" id="sm-tpl-name" type="text" placeholder="e.g. KYC Analyst – UK">
+        </div>
+        <div>
+          <label class="form-label" for="sm-tpl-jurisdiction">Jurisdiction</label>
+          <select class="form-select" id="sm-tpl-jurisdiction">
+            <option value="">Global / Any</option>
+            <option value="UK">UK</option>
+            <option value="US">US</option>
+            <option value="India">India</option>
+            <option value="Singapore">Singapore</option>
+            <option value="Australia">Australia</option>
+            <option value="Canada">Canada</option>
+            <option value="UAE">UAE</option>
+          </select>
+        </div>
+      </div>
+      <div id="sm-tpl-error" style="font-size:12px;color:#B91C1C;margin-bottom:8px;display:none;"></div>
+      <div class="tpl-save-actions">
+        <button type="button" class="btn-cancel" onclick="closeSaveTemplateForm()" style="font-size:13px;padding:7px 14px;">Cancel</button>
+        <button type="button" class="btn-submit" id="btn-save-tpl-submit" onclick="saveTemplate()" style="font-size:13px;padding:7px 14px;">Save Template</button>
+      </div>
+    </div>
     <div class="form-group">
       <label class="form-label" for="sm-candidate-name">Candidate Full Name</label>
       <input class="form-input" id="sm-candidate-name" type="text" placeholder="e.g. James Wilson" maxlength="100">
@@ -1094,6 +1207,48 @@ button { font-family: inherit; cursor: pointer; }
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeScheduleModal()">Cancel</button>
       <button class="btn-submit" id="btn-schedule-submit" onclick="submitScheduleInterview()">Send Invitation</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Bulk Schedule Modal ───────────────────────────────────────────────── -->
+<div id="bulk-modal" style="display:none" class="modal-overlay" onclick="if(event.target===this)closeBulkModal()">
+  <div class="modal-box">
+    <div class="modal-title">Bulk Schedule Interviews</div>
+    <div class="modal-sub">Candidates must be registered on AGZIT. Each scheduled interview uses one credit.</div>
+    <div id="bulk-modal-error" style="display:none;font-size:13px;color:#B91C1C;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;margin-bottom:12px;"></div>
+    <!-- Results (shown after submit) -->
+    <div id="bulk-results" style="display:none;margin-bottom:16px;"></div>
+    <!-- Form -->
+    <div id="bulk-form">
+      <div class="tpl-row">
+        <select class="tpl-select" id="bulk-template" onchange="applyBulkTemplate()">
+          <option value="">— Load a saved template —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="bulk-emails">Candidate Emails</label>
+        <textarea class="form-textarea" id="bulk-emails" rows="4" placeholder="One per line or comma-separated&#10;alice@example.com&#10;bob@example.com"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="bulk-role">Interview Role</label>
+        <input class="form-input" id="bulk-role" type="text" placeholder="e.g. Compliance Analyst" maxlength="120">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="bulk-session-type">Session Duration</label>
+        <select class="form-select" id="bulk-session-type">
+          <option value="20-min">20 Minutes</option>
+          <option value="30-min">30 Minutes</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="bulk-jd">Job Description <span style="color:var(--muted);font-size:10px;text-transform:none;letter-spacing:0;font-weight:500">(required — used by AI interviewer)</span></label>
+        <textarea class="form-textarea" id="bulk-jd" rows="4" placeholder="Paste the full job description here..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeBulkModal()">Cancel</button>
+        <button class="btn-submit" id="btn-bulk-submit" onclick="submitBulkSchedule()">Send Invitations</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1166,6 +1321,8 @@ let allInterviewsList = [];    // full list for client-side email filter
 let _ivCredits  = null;        // { interview_credits, credits_used }
 let IS_TEAM_ADMIN  = false;    // true if user is a company admin with team members
 let _isTeamMember  = false;    // true if user is a sub-account team member
+let _templates     = [];       // cached JD templates
+let _templatesLoaded = false;  // whether templates have been fetched at least once
 const WP_URL = 'https://agzit.com';
 const ivCache = {};            // id -> interview object (for edit/cancel pre-fill)
 
@@ -1323,7 +1480,9 @@ function render() {
   try {
     if (isVerified) {
       document.getElementById('candidates-content').style.display = 'block';
-      document.getElementById('btn-schedule').style.display = '';
+      document.getElementById('btn-schedule').style.display         = '';
+      document.getElementById('btn-manage-templates').style.display = '';
+      document.getElementById('btn-bulk-schedule').style.display    = '';
     } else {
       document.getElementById('candidates-gated').style.display = 'block';
     }
@@ -2085,6 +2244,8 @@ async function submitSetPassword() {
 function openScheduleModal() {
   document.getElementById('schedule-modal').style.display = 'flex';
   document.getElementById('schedule-modal-error').style.display = 'none';
+  closeSaveTemplateForm();
+  if (!_templatesLoaded) loadTemplates();
 }
 
 function closeScheduleModal() {
@@ -2156,6 +2317,8 @@ function clearScheduleForm() {
   ['sm-candidate-name', 'sm-candidate-email', 'sm-role', 'sm-exp', 'sm-scheduled-at', 'sm-jd']
     .forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('sm-session-type').value = '20-min';
+  document.getElementById('sm-template').value = '';
+  closeSaveTemplateForm();
 }
 
 function showError(msg) {
@@ -2310,6 +2473,327 @@ function showToast(msg, type) {
 function refreshInterviewsAfterAction() {
   interviewsFullLoaded = false;
   loadInterviewsFull();
+}
+
+// ── JD Templates ──────────────────────────────────────────────────────────────
+
+async function loadTemplates() {
+  try {
+    const listLoadEl = document.getElementById('tpl-list-loading');
+    if (listLoadEl) listLoadEl.style.display = 'flex';
+    const res  = await fetch('/api/employer/jd-templates', { credentials: 'include' });
+    const data = await res.json();
+    if (listLoadEl) listLoadEl.style.display = 'none';
+    if (!data.ok) return;
+    _templates = data.templates || [];
+    _templatesLoaded = true;
+    renderTemplatePickers();
+    renderTemplateList();
+  } catch (e) {
+    console.error('[templates] load failed:', e.message);
+  }
+}
+
+function renderTemplatePickers() {
+  const opts = '<option value="">— Load a saved template —</option>' +
+    _templates.map(t =>
+      `<option value="${t.id}">${esc(t.template_name)}${t.jurisdiction ? ' — ' + esc(t.jurisdiction) : ''}</option>`
+    ).join('');
+  ['sm-template', 'bulk-template'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = opts;
+  });
+}
+
+function applyScheduleTemplate() {
+  const id  = parseInt(document.getElementById('sm-template').value);
+  const tpl = _templates.find(t => t.id === id);
+  if (!tpl) return;
+  document.getElementById('sm-role').value = tpl.role_title || '';
+  document.getElementById('sm-jd').value   = tpl.jd_text    || '';
+}
+
+function applyBulkTemplate() {
+  const id  = parseInt(document.getElementById('bulk-template').value);
+  const tpl = _templates.find(t => t.id === id);
+  if (!tpl) return;
+  document.getElementById('bulk-role').value = tpl.role_title || '';
+  document.getElementById('bulk-jd').value   = tpl.jd_text    || '';
+}
+
+function toggleSaveTemplateForm() {
+  const form = document.getElementById('sm-save-tpl-form');
+  const isOpen = form.classList.contains('open');
+  if (!isOpen) {
+    document.getElementById('sm-tpl-name').value = '';
+    document.getElementById('sm-tpl-jurisdiction').value = '';
+    document.getElementById('sm-tpl-error').style.display = 'none';
+  }
+  form.classList.toggle('open');
+}
+
+function closeSaveTemplateForm() {
+  const form = document.getElementById('sm-save-tpl-form');
+  if (form) form.classList.remove('open');
+}
+
+async function saveTemplate() {
+  const errEl        = document.getElementById('sm-tpl-error');
+  const templateName = (document.getElementById('sm-tpl-name').value         || '').trim();
+  const jurisdiction = (document.getElementById('sm-tpl-jurisdiction').value  || '').trim();
+  const roleTitle    = (document.getElementById('sm-role').value              || '').trim();
+  const jdText       = (document.getElementById('sm-jd').value                || '').trim();
+  errEl.style.display = 'none';
+  if (!templateName) { errEl.textContent = 'Template name is required.';             errEl.style.display = 'block'; return; }
+  if (!roleTitle)    { errEl.textContent = 'Fill in the Interview Role field first.'; errEl.style.display = 'block'; return; }
+  if (!jdText)       { errEl.textContent = 'Fill in the Job Description field first.';errEl.style.display = 'block'; return; }
+
+  const btn = document.getElementById('btn-save-tpl-submit');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const res  = await fetch('/api/employer/jd-templates', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template_name: templateName, role_title: roleTitle, jurisdiction, jd_text: jdText }),
+    });
+    const data = await res.json();
+    if (!data.ok) { errEl.textContent = data.error || 'Failed to save template.'; errEl.style.display = 'block'; return; }
+    closeSaveTemplateForm();
+    showToast('Template saved.', 'success');
+    _templatesLoaded = false;
+    await loadTemplates();
+  } catch (e) {
+    errEl.textContent = 'Network error.'; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save Template';
+  }
+}
+
+// ── Templates panel ───────────────────────────────────────────────────────────
+
+function toggleTemplatesPanel() {
+  const panel = document.getElementById('templates-panel');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen && !_templatesLoaded) loadTemplates();
+}
+
+function renderTemplateList() {
+  const listEl = document.getElementById('tpl-list');
+  if (!listEl) return;
+  if (!_templates.length) {
+    listEl.innerHTML = `<div class="empty-state" style="padding:24px 0;"><div class="empty-state-title">No templates yet</div><div class="empty-state-sub">Create a template to reuse role + JD combinations quickly when scheduling.</div></div>`;
+    return;
+  }
+  listEl.innerHTML = _templates.map(t => `
+    <div class="tpl-card" id="tpl-card-${t.id}">
+      <div class="tpl-info">
+        <div class="tpl-card-name">${esc(t.template_name)}</div>
+        <div class="tpl-card-meta">${esc(t.role_title)}${t.jurisdiction ? ' &bull; ' + esc(t.jurisdiction) : ''}</div>
+      </div>
+      <div class="tpl-actions">
+        <button class="btn-tpl-edit" onclick="openEditTemplate(${t.id})">Edit</button>
+        <button class="btn-tpl-del"  onclick="deleteTemplate(${t.id})">Delete</button>
+      </div>
+    </div>
+    <div class="tpl-edit-form" id="tpl-edit-${t.id}">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div>
+          <label class="form-label">Template Name</label>
+          <input class="form-input" id="tpl-en-name-${t.id}" type="text" value="${esc(t.template_name)}">
+        </div>
+        <div>
+          <label class="form-label">Role Title</label>
+          <input class="form-input" id="tpl-en-role-${t.id}" type="text" value="${esc(t.role_title)}">
+        </div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label class="form-label">Jurisdiction</label>
+        <select class="form-select" id="tpl-en-juris-${t.id}" style="max-width:220px;">${jurisdictionOptions(t.jurisdiction)}</select>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label class="form-label">Job Description</label>
+        <textarea class="form-textarea" id="tpl-en-jd-${t.id}" rows="5">${esc(t.jd_text)}</textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button class="btn-cancel" onclick="closeEditTemplate(${t.id})" style="font-size:13px;padding:8px 16px;">Cancel</button>
+        <button class="btn-submit" id="btn-tpl-save-${t.id}" onclick="submitEditTemplate(${t.id})" style="font-size:13px;padding:8px 16px;">Save</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function jurisdictionOptions(selected) {
+  const vals   = ['', 'UK', 'US', 'India', 'Singapore', 'Australia', 'Canada', 'UAE'];
+  const labels = { '': 'Global / Any', UK:'UK', US:'US', India:'India', Singapore:'Singapore', Australia:'Australia', Canada:'Canada', UAE:'UAE' };
+  return vals.map(v => `<option value="${v}"${(selected || '') === v ? ' selected' : ''}>${labels[v]}</option>`).join('');
+}
+
+function openNewTemplateForm() {
+  document.getElementById('tpl-new-form').style.display = 'block';
+  ['tpl-new-name', 'tpl-new-role', 'tpl-new-jd'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('tpl-new-jurisdiction').value = '';
+  document.getElementById('tpl-new-error').style.display = 'none';
+}
+
+function closeNewTemplateForm() {
+  document.getElementById('tpl-new-form').style.display = 'none';
+}
+
+async function submitNewTemplate() {
+  const errEl        = document.getElementById('tpl-new-error');
+  const templateName = (document.getElementById('tpl-new-name').value         || '').trim();
+  const roleTitle    = (document.getElementById('tpl-new-role').value          || '').trim();
+  const jurisdiction = (document.getElementById('tpl-new-jurisdiction').value  || '').trim();
+  const jdText       = (document.getElementById('tpl-new-jd').value            || '').trim();
+  errEl.style.display = 'none';
+  if (!templateName) { errEl.textContent = 'Template name is required.'; errEl.style.display = 'block'; return; }
+  if (!roleTitle)    { errEl.textContent = 'Role title is required.';    errEl.style.display = 'block'; return; }
+  if (!jdText)       { errEl.textContent = 'Job description is required.'; errEl.style.display = 'block'; return; }
+
+  const btn = document.getElementById('btn-tpl-new-submit');
+  btn.disabled = true; btn.textContent = 'Creating...';
+  try {
+    const res  = await fetch('/api/employer/jd-templates', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template_name: templateName, role_title: roleTitle, jurisdiction, jd_text: jdText }),
+    });
+    const data = await res.json();
+    if (!data.ok) { errEl.textContent = data.error || 'Failed to create template.'; errEl.style.display = 'block'; return; }
+    closeNewTemplateForm();
+    showToast('Template created.', 'success');
+    _templatesLoaded = false;
+    await loadTemplates();
+  } catch (e) {
+    errEl.textContent = 'Network error.'; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create Template';
+  }
+}
+
+function openEditTemplate(id) {
+  // Close any other open edit forms first
+  document.querySelectorAll('.tpl-edit-form').forEach(el => {
+    if (el.id !== 'tpl-new-form' && el.id !== `tpl-edit-${id}`) el.style.display = 'none';
+  });
+  document.getElementById(`tpl-edit-${id}`).style.display = 'block';
+}
+
+function closeEditTemplate(id) {
+  document.getElementById(`tpl-edit-${id}`).style.display = 'none';
+}
+
+async function submitEditTemplate(id) {
+  const btn          = document.getElementById(`btn-tpl-save-${id}`);
+  const templateName = (document.getElementById(`tpl-en-name-${id}`).value  || '').trim();
+  const roleTitle    = (document.getElementById(`tpl-en-role-${id}`).value   || '').trim();
+  const jurisdiction = (document.getElementById(`tpl-en-juris-${id}`).value  || '').trim();
+  const jdText       = (document.getElementById(`tpl-en-jd-${id}`).value     || '').trim();
+  if (!templateName) { showToast('Template name is required.', 'error'); return; }
+  if (!roleTitle)    { showToast('Role title is required.', 'error');    return; }
+  if (!jdText)       { showToast('Job description is required.', 'error'); return; }
+
+  btn.disabled = true; btn.textContent = 'Saving...';
+  try {
+    const res  = await fetch('/api/employer/jd-templates/' + id, {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template_name: templateName, role_title: roleTitle, jurisdiction, jd_text: jdText }),
+    });
+    const data = await res.json();
+    if (!data.ok) { showToast(data.error || 'Failed to save.', 'error'); return; }
+    showToast('Template saved.', 'success');
+    _templatesLoaded = false;
+    await loadTemplates();
+  } catch (e) {
+    showToast('Network error.', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save';
+  }
+}
+
+async function deleteTemplate(id) {
+  const tpl  = _templates.find(t => t.id === id);
+  const name = tpl ? tpl.template_name : 'this template';
+  if (!confirm(`Delete template "${name}"? This cannot be undone.`)) return;
+  try {
+    const res  = await fetch('/api/employer/jd-templates/' + id, { method: 'DELETE', credentials: 'include' });
+    const data = await res.json();
+    if (!data.ok) { showToast(data.error || 'Failed to delete.', 'error'); return; }
+    showToast('Template deleted.', 'success');
+    _templatesLoaded = false;
+    await loadTemplates();
+  } catch (e) {
+    showToast('Network error.', 'error');
+  }
+}
+
+// ── Bulk Schedule ─────────────────────────────────────────────────────────────
+
+function openBulkModal() {
+  document.getElementById('bulk-modal').style.display = 'flex';
+  document.getElementById('bulk-modal-error').style.display = 'none';
+  document.getElementById('bulk-results').style.display     = 'none';
+  document.getElementById('bulk-form').style.display        = 'block';
+  if (!_templatesLoaded) loadTemplates();
+}
+
+function closeBulkModal() {
+  document.getElementById('bulk-modal').style.display = 'none';
+}
+
+async function submitBulkSchedule() {
+  const errEl  = document.getElementById('bulk-modal-error');
+  const emails = (document.getElementById('bulk-emails').value || '').trim();
+  const role   = (document.getElementById('bulk-role').value   || '').trim();
+  const sType  = document.getElementById('bulk-session-type').value;
+  const jd     = (document.getElementById('bulk-jd').value     || '').trim();
+  errEl.style.display = 'none';
+
+  if (!emails) { errEl.textContent = 'Please enter at least one email address.'; errEl.style.display = 'block'; return; }
+  if (!role)   { errEl.textContent = 'Interview role is required.';              errEl.style.display = 'block'; return; }
+  if (!jd)     { errEl.textContent = 'Job description is required.';             errEl.style.display = 'block'; return; }
+
+  const btn = document.getElementById('btn-bulk-submit');
+  btn.disabled = true; btn.textContent = 'Sending...';
+  try {
+    const res  = await fetch('/api/employer/bulk-schedule', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emails, interview_role: role, session_type: sType, jd_raw_text: jd }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      errEl.textContent = data.message || data.error || 'Failed to schedule interviews.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    // Show results, hide form
+    let html = '';
+    if (data.scheduled.length)
+      html += `<div class="bulk-result bulk-result-green">${data.scheduled.length} interview${data.scheduled.length !== 1 ? 's' : ''} scheduled successfully.</div>`;
+    if (data.not_found.length)
+      html += `<div class="bulk-result bulk-result-yellow">${data.not_found.length} email${data.not_found.length !== 1 ? 's' : ''} not found in AGZIT:<br>${data.not_found.map(esc).join('<br>')}</div>`;
+    if (data.already_scheduled.length)
+      html += `<div class="bulk-result bulk-result-orange">${data.already_scheduled.length} already have a scheduled interview:<br>${data.already_scheduled.map(esc).join('<br>')}</div>`;
+    if (!html)
+      html = '<div class="bulk-result bulk-result-yellow">No interviews were scheduled. Check that the emails are registered on AGZIT.</div>';
+
+    document.getElementById('bulk-results').innerHTML = html;
+    document.getElementById('bulk-results').style.display = 'block';
+    document.getElementById('bulk-form').style.display    = 'none';
+
+    if (data.scheduled.length > 0) {
+      interviewsFullLoaded = false;
+      loadInterviewsFull();
+    }
+  } catch (e) {
+    errEl.textContent = 'Network error. Please try again.'; errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Send Invitations';
+  }
 }
 </script>
 
