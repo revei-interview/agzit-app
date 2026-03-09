@@ -143,6 +143,15 @@ textarea.input { resize: vertical; min-height: 100px; }
   .hero { padding: 48px 20px 40px; }
   .input { font-size: 16px; }
 }
+
+/* Phone field — code select + number input */
+.phone-row { display: flex; gap: 8px; }
+.phone-code { width: 120px; flex-shrink: 0; background: var(--surface); }
+.phone-num  { flex: 1; min-width: 0; }
+/* Experience field — number + inline unit */
+.exp-row { display: flex; align-items: center; gap: 10px; }
+.exp-row .input { flex: 1; }
+.exp-unit { font-size: 13.5px; color: var(--muted); font-weight: 600; white-space: nowrap; }
 </style>
 <script src="/assets/layout.js" defer></script>
 </head>
@@ -212,50 +221,137 @@ textarea.input { resize: vertical; min-height: 100px; }
       <div class="form-row col2">
         <div class="field">
           <label>Phone Number <span class="req">*</span></label>
-          <input class="input" type="tel" id="s1-phone" placeholder="+91 98765 43210">
+          <div class="phone-row">
+            <select class="input phone-code" id="s1-phone-code">
+              <option value="+1">+1 (US/CA)</option>
+              <option value="+44">+44 (UK)</option>
+              <option value="+61">+61 (AU)</option>
+              <option value="+64">+64 (NZ)</option>
+              <option value="+971">+971 (UAE)</option>
+              <option value="+966">+966 (SA)</option>
+              <option value="+974">+974 (QA)</option>
+              <option value="+965">+965 (KW)</option>
+              <option value="+973">+973 (BH)</option>
+              <option value="+968">+968 (OM)</option>
+              <option value="+65">+65 (SG)</option>
+              <option value="+60">+60 (MY)</option>
+              <option value="+852">+852 (HK)</option>
+              <option value="+27">+27 (ZA)</option>
+              <option value="+234">+234 (NG)</option>
+              <option value="+254">+254 (KE)</option>
+              <option value="+49">+49 (DE)</option>
+              <option value="+33">+33 (FR)</option>
+              <option value="+31">+31 (NL)</option>
+              <option value="+34">+34 (ES)</option>
+              <option value="+39">+39 (IT)</option>
+              <option value="+46">+46 (SE)</option>
+              <option value="+47">+47 (NO)</option>
+              <option value="+45">+45 (DK)</option>
+              <option value="+41">+41 (CH)</option>
+              <option value="+43">+43 (AT)</option>
+              <option value="+32">+32 (BE)</option>
+              <option value="+351">+351 (PT)</option>
+              <option value="+91">+91 (IN)</option>
+              <option value="+92">+92 (PK)</option>
+              <option value="+880">+880 (BD)</option>
+              <option value="+94">+94 (LK)</option>
+              <option value="+977">+977 (NP)</option>
+              <option value="+62">+62 (ID)</option>
+              <option value="+63">+63 (PH)</option>
+              <option value="+66">+66 (TH)</option>
+              <option value="+84">+84 (VN)</option>
+              <option value="+86">+86 (CN)</option>
+              <option value="+81">+81 (JP)</option>
+              <option value="+82">+82 (KR)</option>
+              <option value="+55">+55 (BR)</option>
+              <option value="+52">+52 (MX)</option>
+              <option value="+54">+54 (AR)</option>
+              <option value="+56">+56 (CL)</option>
+              <option value="+57">+57 (CO)</option>
+              <option value="+51">+51 (PE)</option>
+            </select>
+            <input class="input phone-num" type="text" id="s1-phone-num" placeholder="Your number">
+          </div>
         </div>
         <div class="field">
           <label>Location (City) <span class="req">*</span></label>
-          <input class="input" type="text" id="s1-city" placeholder="e.g. Mumbai">
+          <input class="input" type="text" id="s1-city" placeholder="Your city">
         </div>
       </div>
       <div class="form-row">
         <div class="field">
           <label>Professional Headline <span class="req">*</span></label>
-          <input class="input" type="text" id="s1-headline" placeholder="e.g. Senior Product Manager with 8 years experience">
+          <input class="input" type="text" id="s1-headline" placeholder="e.g. Senior Product Manager · 8 years experience">
           <div class="hint">This appears at the top of your DPR profile.</div>
         </div>
       </div>
       <div class="form-row col2">
         <div class="field">
           <label>Total Experience <span class="req">*</span></label>
-          <select class="input" id="s1-exp">
-            <option value="">Select</option>
-            <option>0 – 1 year</option>
-            <option>1 – 3 years</option>
-            <option>3 – 5 years</option>
-            <option>5 – 8 years</option>
-            <option>8 – 12 years</option>
-            <option>12 – 15 years</option>
-            <option>15+ years</option>
-          </select>
+          <div class="exp-row">
+            <input class="input" type="number" id="s1-exp" min="0" max="50" step="1" placeholder="Years of experience">
+            <span class="exp-unit">years</span>
+          </div>
         </div>
         <div class="field">
           <label>Industry <span class="req">*</span></label>
           <select class="input" id="s1-industry">
-            <option value="">Select</option>
-            <option>Technology</option>
-            <option>Finance &amp; Banking</option>
-            <option>Healthcare</option>
-            <option>Marketing</option>
-            <option>Operations</option>
-            <option>Sales</option>
-            <option>Data &amp; Analytics</option>
-            <option>Product Management</option>
-            <option>Legal &amp; Risk</option>
-            <option>Engineering</option>
-            <option>Education</option>
-            <option>Other</option>
+            <option value="">Select industry</option>
+            <option value="compliance">Compliance / Regulatory</option>
+            <option value="finance">Finance / Treasury</option>
+            <option value="accounting">Accounting / Taxation / Audit</option>
+            <option value="banking">Banking / Financial Services</option>
+            <option value="risk">Risk Management</option>
+            <option value="fraud">Fraud / Anti-Fraud</option>
+            <option value="audit">Audit &amp; Assurance</option>
+            <option value="legal">Legal / Law / Advisory</option>
+            <option value="insurance">Insurance / Underwriting / Actuarial</option>
+            <option value="hr">Human Resources / People Ops</option>
+            <option value="administration">Administration / Office Management</option>
+            <option value="sales">Sales / Business Development</option>
+            <option value="marketing">Marketing / Brand / Digital Marketing</option>
+            <option value="product">Product Management</option>
+            <option value="operations">Operations / Back Office</option>
+            <option value="procurement">Procurement / Purchase / Vendor Management</option>
+            <option value="supply_chain">Logistics / Supply Chain</option>
+            <option value="customer_support">Customer Support / Helpdesk / Telecalling</option>
+            <option value="data">Data / Analytics / BI</option>
+            <option value="it">IT / Systems</option>
+            <option value="software">Software Development / Engineering</option>
+            <option value="cybersecurity">Cybersecurity / InfoSec</option>
+            <option value="erp_crm">ERP / CRM (IT Software)</option>
+            <option value="qa">Quality / Testing / QA / QC</option>
+            <option value="r_and_d">Research &amp; Development</option>
+            <option value="engineering">Engineering (General)</option>
+            <option value="telecom">Telecom / Communications Engineering</option>
+            <option value="network_admin">System / Network Administration</option>
+            <option value="hardware_it">IT Hardware / Support / Maintenance</option>
+            <option value="architecture">Architecture / Interior Design</option>
+            <option value="design">Graphic / Web / Visual Design</option>
+            <option value="media">Advertising / Media / PR</option>
+            <option value="content">Journalism / Content / Editing</option>
+            <option value="translation">Language Translation</option>
+            <option value="education">Teaching / Education / Training</option>
+            <option value="healthcare">Healthcare / Medical / Paramedical</option>
+            <option value="pharma">Pharmaceutical / Life Sciences</option>
+            <option value="manufacturing">Production / Manufacturing</option>
+            <option value="site_engineering">Site Engineering / Projects</option>
+            <option value="civil">Civil / Surveying</option>
+            <option value="mech_electrical">Mechanical / Electrical / Plumbing (MEP)</option>
+            <option value="hse">Health / Safety / Environment (HSE)</option>
+            <option value="aviation">Aviation / Flight Operations / Cabin Crew</option>
+            <option value="marine">Marine / Shipping / Offshore</option>
+            <option value="oil_gas">Oil &amp; Gas / Energy</option>
+            <option value="mining">Mining / Drilling / Geology</option>
+            <option value="security">Security Services / Guards</option>
+            <option value="retail">Retail / Store Operations</option>
+            <option value="hospitality">Hospitality / F&amp;B / Housekeeping</option>
+            <option value="travel">Travel / Ticketing / Reservations</option>
+            <option value="transport">Transport / Driving</option>
+            <option value="government">Government / Public Sector</option>
+            <option value="management">Senior Management / Leadership</option>
+            <option value="freshers">Fresh Graduates / Trainees / Interns</option>
+            <option value="other">Other</option>
           </select>
         </div>
       </div>
@@ -420,13 +516,15 @@ function validateCurrentStep() {
   errEl.classList.remove('show');
 
   if (currentStep === 1) {
-    if (!v('s1-first'))    return err(errEl, 'Please enter your first name.');
-    if (!v('s1-last'))     return err(errEl, 'Please enter your last name.');
-    if (!v('s1-phone'))    return err(errEl, 'Please enter your phone number.');
-    if (!v('s1-city'))     return err(errEl, 'Please enter your city.');
-    if (!v('s1-headline')) return err(errEl, 'Please enter your professional headline.');
-    if (!v('s1-exp'))      return err(errEl, 'Please select your years of experience.');
-    if (!v('s1-industry')) return err(errEl, 'Please select your industry.');
+    if (!v('s1-first'))     return err(errEl, 'Please enter your first name.');
+    if (!v('s1-last'))      return err(errEl, 'Please enter your last name.');
+    if (!v('s1-phone-num')) return err(errEl, 'Please enter your phone number.');
+    if (!v('s1-city'))      return err(errEl, 'Please enter your city.');
+    if (!v('s1-headline'))  return err(errEl, 'Please enter your professional headline.');
+    if (!v('s1-exp'))       return err(errEl, 'Please enter your years of experience.');
+    const expNum = parseInt(v('s1-exp'));
+    if (isNaN(expNum) || expNum < 0 || expNum > 50) return err(errEl, 'Years of experience must be between 0 and 50.');
+    if (!v('s1-industry'))  return err(errEl, 'Please select your industry.');
   }
   if (currentStep === 2) {
     if (!v('s2-title'))   return err(errEl, 'Please enter your job title.');
@@ -465,10 +563,10 @@ async function submitDPR() {
     personal: {
       first_name:  v('s1-first'),
       last_name:   v('s1-last'),
-      phone:       v('s1-phone'),
+      phone:       (document.getElementById('s1-phone-code').value || '+1') + v('s1-phone-num'),
       city:        v('s1-city'),
       headline:    v('s1-headline'),
-      experience:  v('s1-exp'),
+      experience:  parseInt(v('s1-exp')) || 0,
       industry:    v('s1-industry'),
     },
     career: {
