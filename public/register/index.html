@@ -765,12 +765,8 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
         <div class="privacy-label">Who can find and view your profile</div>
         <div class="privacy-options">
           <label class="privacy-opt">
-            <input type="radio" name="profile_visibility" id="pv_public" value="public" checked>
-            <span>Public</span>
-          </label>
-          <label class="privacy-opt">
-            <input type="radio" name="profile_visibility" id="pv_private" value="private">
-            <span>AGZIT Verified Employers Only</span>
+            <input type="radio" name="profile_visibility" id="pv_private" value="private" checked>
+            <span>Verified Employers Only</span>
           </label>
         </div>
       </div>
@@ -778,11 +774,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
         <div class="privacy-label">Who can see your email address</div>
         <div class="privacy-options">
           <label class="privacy-opt">
-            <input type="radio" name="email_visibility" id="ev_public" value="co_public" checked>
-            <span>Public</span>
-          </label>
-          <label class="privacy-opt">
-            <input type="radio" name="email_visibility" id="ev_private" value="co_verified_only">
+            <input type="radio" name="email_visibility" id="ev_private" value="co_verified_only" checked>
             <span>Verified Employers Only</span>
           </label>
         </div>
@@ -790,10 +782,6 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
       <div class="privacy-group">
         <div class="privacy-label">Who can see your phone number</div>
         <div class="privacy-options">
-          <label class="privacy-opt">
-            <input type="radio" name="phone_visibility" id="phv_public" value="co_public">
-            <span>Public</span>
-          </label>
           <label class="privacy-opt">
             <input type="radio" name="phone_visibility" id="phv_private" value="co_verified_only" checked>
             <span>Verified Employers Only</span>
@@ -1129,29 +1117,6 @@ function addCareerEntry(prefill) {
         <input class="input entry-company-input" type="text" placeholder="e.g. HSBC">
       </div>
     </div>
-    <div class="form-row">
-      <div class="field">
-        <label>Employment Type</label>
-        <select class="input entry-emp-type">
-          <option value="">Select type</option>
-          <option value="contract">Contract</option>
-          <option value="freelance">Freelance</option>
-          <option value="full_time">Full-time</option>
-          <option value="internship">Internship</option>
-          <option value="part_time">Part-time</option>
-        </select>
-      </div>
-    </div>
-    <div class="form-row col2">
-      <div class="field">
-        <label>Office City</label>
-        <input class="input entry-office-city" type="text" placeholder="City">
-      </div>
-      <div class="field">
-        <label>Office Country</label>
-        <input class="input entry-office-country" type="text" placeholder="Country">
-      </div>
-    </div>
     <div class="form-row col2">
       <div class="field">
         <label>Start Date <span class="req">*</span></label>
@@ -1184,9 +1149,6 @@ function addCareerEntry(prefill) {
     div.querySelector('.entry-title-input').value   = prefill.title   || '';
     div.querySelector('.entry-company-input').value = prefill.company || '';
     div.querySelector('.entry-resp').value          = prefill.responsibilities || '';
-    if (prefill.employment_type) div.querySelector('.entry-emp-type').value = prefill.employment_type;
-    if (prefill.office_city)    div.querySelector('.entry-office-city').value = prefill.office_city;
-    if (prefill.office_country) div.querySelector('.entry-office-country').value = prefill.office_country;
     const sd = splitDate(prefill.start_date);
     if (sd.month) div.querySelector('.entry-start-month').value = sd.month;
     if (sd.year)  div.querySelector('.entry-start-year').value  = sd.year;
@@ -1284,25 +1246,30 @@ function addEduEntry(prefill) {
         <input class="input edu-grad-year" type="number" min="1970" max="2030" placeholder="e.g. 2020">
       </div>
     </div>
-    <div class="form-row col2">
-      <div class="field">
-        <label>Institution City</label>
-        <input class="input edu-city" type="text" placeholder="e.g. London">
-      </div>
-      <div class="field">
-        <label>Institution Country</label>
-        <input class="input edu-country" type="text" placeholder="e.g. United Kingdom">
-      </div>
-    </div>`;
+`;
   document.getElementById('edu-entries').appendChild(div);
   if (window.initSearchableSelects) window.initSearchableSelects();
 
   if (prefill) {
-    if (prefill.degree)      div.querySelector('.edu-degree').value      = prefill.degree;
+    // Degree: match by exact value, exact text, abbreviation in parentheses, or partial match
+    if (prefill.degree) {
+      const degSelect = div.querySelector('.edu-degree');
+      const deg = prefill.degree.trim();
+      const degLower = deg.toLowerCase();
+      const match = Array.from(degSelect.options).find(o => {
+        const t = o.text.trim(), tl = t.toLowerCase(), v = o.value;
+        if (v === deg || t === deg) return true;
+        // Match abbreviation inside parentheses: "Master of Business Administration (MBA)" matches "MBA"
+        const abbr = t.match(/\(([^)]+)\)/);
+        if (abbr && abbr[1].toLowerCase() === degLower) return true;
+        // Partial: "MBA" in "Master of Business Administration (MBA)"
+        if (tl.includes(degLower) || degLower.includes(tl.split('(')[0].trim().toLowerCase())) return true;
+        return false;
+      });
+      if (match) degSelect.value = match.value || match.text;
+    }
     if (prefill.field)       div.querySelector('.edu-field').value        = prefill.field || '';
     if (prefill.institution) div.querySelector('.edu-institution').value  = prefill.institution;
-    if (prefill.edu_city)    div.querySelector('.edu-city').value         = prefill.edu_city;
-    if (prefill.edu_country) div.querySelector('.edu-country').value      = prefill.edu_country;
     const gradYr = prefill.end_year || prefill.start_year;
     if (gradYr)              div.querySelector('.edu-grad-year').value    = String(gradYr);
   }
@@ -1567,8 +1534,6 @@ function prefillFromResume(data) {
         degree:      ed.degree || '',
         field:       ed.field_of_study || ed.field || '',
         institution: ed.institution || ed.institution_name || '',
-        edu_city:    ed.city || '',
-        edu_country: ed.country || '',
         end_year:    ed.graduation_year || ed.year || '',
       });
     });
@@ -1743,9 +1708,6 @@ function getCareerData() {
   return Array.from(document.querySelectorAll('.career-entry')).map(el => ({
     title:             el.querySelector('.entry-title-input').value.trim(),
     company:           el.querySelector('.entry-company-input').value.trim(),
-    employment_type:   el.querySelector('.entry-emp-type').value,
-    office_city:       el.querySelector('.entry-office-city').value.trim(),
-    office_country:    el.querySelector('.entry-office-country').value.trim(),
     start_month:       el.querySelector('.entry-start-month').value,
     start_year:        el.querySelector('.entry-start-year').value,
     end_month:         el.querySelector('.entry-end-month').value,
@@ -1759,8 +1721,6 @@ function getEduData() {
     degree:      el.querySelector('.edu-degree').value,
     field:       el.querySelector('.edu-field').value.trim(),
     institution: el.querySelector('.edu-institution').value.trim(),
-    edu_city:    el.querySelector('.edu-city')?.value.trim() || '',
-    edu_country: el.querySelector('.edu-country')?.value.trim() || '',
     start_year:  '',
     end_year:    el.querySelector('.edu-grad-year')?.value || '',
   }));
@@ -1833,8 +1793,8 @@ async function submitDPR() {
       language_proficiency: getLangData(),
     },
     privacy: {
-      profile_visibility: document.querySelector('input[name="profile_visibility"]:checked')?.value || 'public',
-      email_visibility:   document.querySelector('input[name="email_visibility"]:checked')?.value   || 'co_public',
+      profile_visibility: document.querySelector('input[name="profile_visibility"]:checked')?.value || 'private',
+      email_visibility:   document.querySelector('input[name="email_visibility"]:checked')?.value   || 'co_verified_only',
       phone_visibility:   document.querySelector('input[name="phone_visibility"]:checked')?.value   || 'co_verified_only',
     },
     job_preferences: {
