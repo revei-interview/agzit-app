@@ -1052,22 +1052,6 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
       <div id="prefloc-entries"></div>
       <button class="add-entry-btn" type="button" onclick="addPrefLocEntry()">+ Add Location</button>
     </div>
-    <!-- Resume Upload (mandatory) -->
-    <div class="card" style="margin-top:16px;">
-      <div class="card-title">Upload Resume <span class="req">*</span></div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Upload your latest resume in PDF format. This will be shared with employers.</p>
-      <div class="resume-attached" id="resume-attached-5">
-        <span class="resume-attached-icon">📄</span>
-        <span class="resume-attached-name" id="resume-attached-name-5"></span>
-        <button type="button" class="resume-attached-remove" onclick="removeResumeFile()">Remove</button>
-      </div>
-      <input type="file" id="final-resume-file" accept=".pdf" style="display:none">
-      <div class="file-drop" id="final-file-drop" onclick="document.getElementById('final-resume-file').click()" style="padding:20px;">
-        <div class="file-drop-label" style="font-size:14px;">Click to select your PDF resume</div>
-        <div class="file-drop-hint">Max 5 MB · PDF files only</div>
-        <div class="file-name" id="final-file-name"></div>
-      </div>
-    </div>
     <div class="form-nav">
       <button class="btn btn-outline" onclick="goStep(4)">← Back</button>
       <button class="btn btn-save" onclick="manualSave()">Save</button>
@@ -1770,31 +1754,23 @@ async function deleteResumeFromIDB() {
 function updateResumeDisplay() {
   const file = window._resumeFile;
   const el0  = document.getElementById('resume-attached-0');
-  const el5  = document.getElementById('resume-attached-5');
   const elS4 = document.getElementById('resume-attached-s4');
   const nm0  = document.getElementById('resume-attached-name-0');
-  const nm5  = document.getElementById('resume-attached-name-5');
   const nmS4 = document.getElementById('resume-attached-name-s4');
   const drop0  = document.getElementById('file-drop');
-  const drop5  = document.getElementById('final-file-drop');
   const dropS4 = document.getElementById('s4-file-drop');
   if (file) {
     const name = file.name || 'Resume.pdf';
     if (nm0)  nm0.textContent  = name;
-    if (nm5)  nm5.textContent  = name;
     if (nmS4) nmS4.textContent = name;
     if (el0)  el0.classList.add('show');
-    if (el5)  el5.classList.add('show');
     if (elS4) elS4.classList.add('show');
     if (drop0)  drop0.style.display  = 'none';
-    if (drop5)  drop5.style.display  = 'none';
     if (dropS4) dropS4.style.display = 'none';
   } else {
     if (el0)  el0.classList.remove('show');
-    if (el5)  el5.classList.remove('show');
     if (elS4) elS4.classList.remove('show');
     if (drop0)  drop0.style.display  = '';
-    if (drop5)  drop5.style.display  = '';
     if (dropS4) dropS4.style.display = '';
   }
 }
@@ -1803,16 +1779,13 @@ function removeResumeFile() {
   window._resumeFile = null;
   deleteResumeFromIDB();
   // Reset file inputs
-  const f0  = document.getElementById('resume-file');       if (f0)  f0.value  = '';
-  const f5  = document.getElementById('final-resume-file'); if (f5)  f5.value  = '';
-  const fS4 = document.getElementById('s4-resume-file');    if (fS4) fS4.value = '';
+  const f0  = document.getElementById('resume-file');    if (f0)  f0.value  = '';
+  const fS4 = document.getElementById('s4-resume-file'); if (fS4) fS4.value = '';
   // Reset drop area state
   document.getElementById('file-drop')?.classList.remove('has-file');
-  document.getElementById('final-file-drop')?.classList.remove('has-file');
   document.getElementById('s4-file-drop')?.classList.remove('has-file');
-  const fn0  = document.getElementById('file-name');      if (fn0)  fn0.textContent  = '';
-  const fn5  = document.getElementById('final-file-name'); if (fn5)  fn5.textContent  = '';
-  const fnS4 = document.getElementById('s4-file-name');   if (fnS4) fnS4.textContent = '';
+  const fn0  = document.getElementById('file-name');    if (fn0)  fn0.textContent  = '';
+  const fnS4 = document.getElementById('s4-file-name'); if (fnS4) fnS4.textContent = '';
   updateResumeDisplay();
   saveDraft();
 }
@@ -1833,18 +1806,6 @@ document.getElementById('resume-file').addEventListener('change', function () {
     document.getElementById('file-name').textContent = file.name;
     document.getElementById('file-drop').classList.add('has-file');
     document.getElementById('parse-btn').disabled = false;
-    window._resumeFile = file;
-    saveResumeToIDB(file);
-    updateResumeDisplay();
-  }
-});
-
-// Final resume upload on Step 5
-document.getElementById('final-resume-file').addEventListener('change', function () {
-  const file = this.files[0];
-  if (file) {
-    document.getElementById('final-file-name').textContent = file.name;
-    document.getElementById('final-file-drop').classList.add('has-file');
     window._resumeFile = file;
     saveResumeToIDB(file);
     updateResumeDisplay();
@@ -2205,7 +2166,7 @@ function collectFormData() {
     current_ctc_currency: v('current_ctc_currency'), current_ctc_amount: v('current_ctc_amount'),
     expected_ctc_currency: v('expected_ctc_currency'), expected_ctc_amount: v('expected_ctc_amount'),
     pref_locations: getPrefLocData(),
-    resume_filename: window._resumeFile?.name || document.getElementById('final-file-name')?.textContent || document.getElementById('file-name')?.textContent || '',
+    resume_filename: window._resumeFile?.name || document.getElementById('file-name')?.textContent || '',
     _saved: new Date().toISOString(),
   };
 }
