@@ -290,14 +290,28 @@ router.get('/profile', ...guard, async (req, res) => {
       'start_date', 'end_date', 'Currently_working',   // capital C — ACF naming
       'key_responsibilities', 'employment_type', 'key_achievements',
     ]);
+    // Sort work experience: currently working first, then by start_date descending
+    workExperience.sort((a, b) => {
+      const aCurr = String(a.Currently_working || '').toLowerCase() === 'yes';
+      const bCurr = String(b.Currently_working || '').toLowerCase() === 'yes';
+      if (aCurr && !bCurr) return -1;
+      if (!aCurr && bCurr) return 1;
+      return (b.start_date || '').localeCompare(a.start_date || '');
+    });
+
     const education = parseRepeater(meta, 'education', [
       'degree', 'institution_name', 'edu_country', 'edu_city',
       'edu_start_date', 'edu_end_date',
     ]);
+    // Sort education: by edu_end_date descending (most recent graduation first)
+    education.sort((a, b) => (b.edu_end_date || '').localeCompare(a.edu_end_date || ''));
+
     const certifications = parseRepeater(meta, 'certifications', [
       'certification_name', 'credential_id', 'issuing_organization',
       'cert_issue_date', 'cert_expiry_date', 'certificate_pdf',
     ]);
+    // Sort certifications: by cert_issue_date descending
+    certifications.sort((a, b) => (b.cert_issue_date || '').localeCompare(a.cert_issue_date || ''));
     const complianceTools     = parseRepeater(meta, 'compliance_tools',     ['tool_name']);
     const languageProficiency = parseRepeater(meta, 'language_proficiency', ['language']);
     const preferredLocation   = parseRepeater(meta, 'preferred_location',   [
@@ -1658,6 +1672,7 @@ router.post('/dpr', requireAuth, async (req, res) => {
       ['preferred_work_type',                s(job_preferences.preferred_work_type)],
       ['profile_completeness',               profileCompleteness],
       ['profile_last_updated',               nowStr],
+      ['has_resume',                         '1'],
     ];
     for (const [key, value] of scalarMeta) {
       await pool.execute(
@@ -1756,9 +1771,19 @@ router.post('/dpr', requireAuth, async (req, res) => {
     // 11. Upsert dpr_profile_post_id in wp_usermeta + update agzit_users
     if (wpUserId) await upsertUserMeta(wpUserId, 'dpr_profile_post_id', String(postId));
     await pool.execute(
-      'UPDATE agzit_users SET dpr_profile_id = ? WHERE id = ?',
-      [postId, req.user.user_id]
+      'UPDATE agzit_users SET dpr_profile_id = ?, first_name = ?, last_name = ? WHERE id = ?',
+      [postId, s(personal.first_name), s(personal.last_name), req.user.user_id]
     );
+
+    // 12. Update wp_users first_name, last_name, display_name
+    if (wpUserId) {
+      await pool.execute(
+        'UPDATE wp_users SET display_name = ?, user_nicename = ? WHERE ID = ?',
+        [fullName, fullName.toLowerCase().replace(/\s+/g, '-'), wpUserId]
+      );
+      await upsertUserMeta(wpUserId, 'first_name', s(personal.first_name));
+      await upsertUserMeta(wpUserId, 'last_name',  s(personal.last_name));
+    }
 
     console.log(`[dpr] Created ${dprId} (post ${postId}) for user ${req.user.user_id}`);
     return res.json({ ok: true, dpr_id: dprId, post_id: postId, redirectTo: '/dashboard' });
