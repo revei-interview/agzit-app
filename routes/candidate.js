@@ -21,28 +21,6 @@ const upload = multer({
 
 const guard = [requireAuth, requireRole('dpr_candidate')];
 
-// ── TEMP: Reset DPR (remove after use) ──
-router.post('/admin-reset-dpr', async (req, res) => {
-  const { email, secret } = req.body;
-  if (secret !== 'agzit-reset-2026') return res.status(403).json({ ok: false });
-  try {
-    const [u] = await pool.execute("UPDATE agzit_users SET dpr_profile_id = NULL WHERE email = ?", [email]);
-    const [[wp]] = await pool.execute("SELECT ID FROM wp_users WHERE user_email = ?", [email]);
-    const results = { agzit_users: u.affectedRows };
-    if (wp) {
-      const [um] = await pool.execute("DELETE FROM wp_usermeta WHERE user_id = ? AND meta_key IN ('dpr_profile_post_id','resume_parsed_at')", [wp.ID]);
-      results.usermeta = um.affectedRows;
-      const [posts] = await pool.execute("SELECT ID FROM wp_posts WHERE post_author = ? AND post_type = 'dpr_profile'", [wp.ID]);
-      for (const p of posts) {
-        await pool.execute("DELETE FROM wp_postmeta WHERE post_id = ?", [p.ID]);
-        await pool.execute("DELETE FROM wp_posts WHERE ID = ?", [p.ID]);
-      }
-      results.posts = posts.length;
-    }
-    res.json({ ok: true, email, results });
-  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
-});
-
 // ── Unlock helpers (used by /resume/download for employer access checks) ─────
 
 function parseUnlockedMap(raw) {
