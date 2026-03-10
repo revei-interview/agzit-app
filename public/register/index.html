@@ -1204,6 +1204,10 @@ function addCareerEntry(prefill) {
       if (ed.year)  div.querySelector('.entry-end-year').value  = ed.year;
     }
   }
+  // Re-sort on date/currently-working change
+  div.querySelector('.entry-start-year').addEventListener('change', sortCareerEntries);
+  div.querySelector('.entry-start-month').addEventListener('change', sortCareerEntries);
+  div.querySelector('.entry-current').addEventListener('change', sortCareerEntries);
   updateEntryNums('.career-entry', 'Position');
 }
 
@@ -1320,6 +1324,9 @@ function addEduEntry(prefill) {
     const gradYr = prefill.end_year || prefill.start_year;
     if (gradYr)              div.querySelector('.edu-grad-year').value    = String(gradYr);
   }
+  // Re-sort on graduation year change
+  div.querySelector('.edu-grad-year').addEventListener('change', sortEduEntries);
+  div.querySelector('.edu-grad-year').addEventListener('blur', sortEduEntries);
   updateEntryNums('.edu-entry', 'Education');
 }
 
@@ -1369,7 +1376,12 @@ function addCertEntry(prefill) {
         <input class="input cert-url" type="text" placeholder="https://...">
       </div>
     </div>`;
-  document.getElementById('cert-entries').appendChild(div);
+  const certContainer = document.getElementById('cert-entries');
+  if (prefill) {
+    certContainer.appendChild(div);
+  } else {
+    certContainer.insertBefore(div, certContainer.firstChild);
+  }
 
   if (prefill) {
     if (prefill.name)       div.querySelector('.cert-name').value       = prefill.name;
@@ -1381,6 +1393,9 @@ function addCertEntry(prefill) {
     const expYr = prefill.expiry_year || (prefill.expiry_date ? splitDate(prefill.expiry_date).year : '');
     if (expYr) div.querySelector('.cert-expiry-year').value = expYr;
   }
+  // Re-sort on issue year change
+  div.querySelector('.cert-issue-year').addEventListener('change', sortCertEntries);
+  div.querySelector('.cert-issue-year').addEventListener('blur', sortCertEntries);
   updateEntryNums('.cert-entry', 'Certification');
 }
 
@@ -1431,6 +1446,58 @@ function removeInlineEntry(btn, sel, visFn) {
   if (all.length <= 1) return;
   btn.closest(sel).remove();
   visFn();
+}
+
+/* ── Sort entries by date (most recent first) ──────────────────────────── */
+function sortCareerEntries() {
+  const container = document.getElementById('career-entries');
+  if (!container) return;
+  const entries = Array.from(container.querySelectorAll('.career-entry'));
+  if (entries.length < 2) return;
+  entries.sort((a, b) => {
+    const aWorking = a.querySelector('.entry-current')?.checked;
+    const bWorking = b.querySelector('.entry-current')?.checked;
+    // Currently working always on top
+    if (aWorking && !bWorking) return -1;
+    if (!aWorking && bWorking) return 1;
+    // Compare by start year+month descending (most recent first)
+    const aY = parseInt(a.querySelector('.entry-start-year')?.value) || 0;
+    const bY = parseInt(b.querySelector('.entry-start-year')?.value) || 0;
+    if (aY !== bY) return bY - aY;
+    const aM = parseInt(a.querySelector('.entry-start-month')?.value) || 0;
+    const bM = parseInt(b.querySelector('.entry-start-month')?.value) || 0;
+    return bM - aM;
+  });
+  entries.forEach(el => container.appendChild(el));
+  updateEntryNums('.career-entry', 'Position');
+}
+
+function sortEduEntries() {
+  const container = document.getElementById('edu-entries');
+  if (!container) return;
+  const entries = Array.from(container.querySelectorAll('.edu-entry'));
+  if (entries.length < 2) return;
+  entries.sort((a, b) => {
+    const aY = parseInt(a.querySelector('.edu-grad-year')?.value) || 0;
+    const bY = parseInt(b.querySelector('.edu-grad-year')?.value) || 0;
+    return bY - aY; // most recent first
+  });
+  entries.forEach(el => container.appendChild(el));
+  updateEntryNums('.edu-entry', 'Education');
+}
+
+function sortCertEntries() {
+  const container = document.getElementById('cert-entries');
+  if (!container) return;
+  const entries = Array.from(container.querySelectorAll('.cert-entry'));
+  if (entries.length < 2) return;
+  entries.sort((a, b) => {
+    const aY = parseInt(a.querySelector('.cert-issue-year')?.value) || 0;
+    const bY = parseInt(b.querySelector('.cert-issue-year')?.value) || 0;
+    return bY - aY; // most recent first
+  });
+  entries.forEach(el => container.appendChild(el));
+  updateEntryNums('.cert-entry', 'Certification');
 }
 
 /* ── Preferred Locations repeater ───────────────────────────────────────── */
@@ -1602,6 +1669,11 @@ function prefillFromResume(data) {
   fillWork(data.work_experience);
   fillEdu(data.education);
   fillCerts(data.certifications);
+
+  // Sort all entries by date (most recent first)
+  sortCareerEntries();
+  sortEduEntries();
+  sortCertEntries();
 
   // Navigate to Step 1 to show results
   goStep(1);
@@ -1961,6 +2033,7 @@ function collectFormData() {
     current_ctc_currency: v('current_ctc_currency'), current_ctc_amount: v('current_ctc_amount'),
     expected_ctc_currency: v('expected_ctc_currency'), expected_ctc_amount: v('expected_ctc_amount'),
     pref_locations: getPrefLocData(),
+    resume_filename: window._resumeFile?.name || document.getElementById('final-file-name')?.textContent || '',
     _saved: new Date().toISOString(),
   };
 }
@@ -2051,6 +2124,12 @@ function restoreDraft() {
     }));
   }
 
+  // Step 5: resume filename (file itself can't persist in localStorage, show re-upload prompt)
+  if (d.resume_filename && !window._resumeFile) {
+    const fnEl = document.getElementById('final-file-name');
+    if (fnEl) fnEl.textContent = d.resume_filename + ' (please re-upload)';
+  }
+
   // Step 5
   if (d.profile_visibility) { const r = document.getElementById(d.profile_visibility === 'public' ? 'pv_public' : d.profile_visibility === 'verified_only' ? 'pv_verified' : 'pv_private'); if (r) r.checked = true; }
   if (d.email_visibility) { const r = document.querySelector(`input[name="email_visibility"][value="${d.email_visibility}"]`); if (r) r.checked = true; }
@@ -2062,6 +2141,11 @@ function restoreDraft() {
   if (d.open_to_relocate) document.getElementById('open_to_relocate').checked = true;
   set('current_ctc_currency', d.current_ctc_currency); set('current_ctc_amount', d.current_ctc_amount);
   set('expected_ctc_currency', d.expected_ctc_currency); set('expected_ctc_amount', d.expected_ctc_amount);
+
+  // Sort all entries by date (most recent first)
+  sortCareerEntries();
+  sortEduEntries();
+  sortCertEntries();
 
   // Restore step
   if (d.step > 0) goStep(d.step);
