@@ -444,6 +444,37 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 #resume-upload-feedback.ok  { color: var(--green); font-size: 12.5px; }
 #resume-upload-feedback.err { color: var(--red);   font-size: 12.5px; }
 
+/* ── Job Preferences tab ─────────────────────────────────────────────────── */
+.jp-card {
+  background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 24px;
+}
+.jp-heading {
+  font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 12px; letter-spacing: -.2px;
+}
+.jp-divider { border: none; border-top: 1px solid var(--line); margin-bottom: 20px; }
+.jp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; }
+.jp-field { display: flex; flex-direction: column; gap: 5px; }
+.jp-label { font-size: 13px; font-weight: 500; color: var(--soft); }
+.jp-input {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+  font-size: 13.5px; font-weight: 500; color: var(--ink); background: var(--white);
+  font-family: var(--font); transition: border-color .15s; appearance: none;
+}
+select.jp-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237C83A0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+}
+.jp-input:focus { outline: none; border-color: var(--blue); }
+.jp-footer { margin-top: 24px; display: flex; flex-direction: column; align-items: flex-end; }
+.jp-save-btn {
+  padding: 10px 24px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  background: var(--blue); color: var(--white); border: none; cursor: pointer;
+  font-family: var(--font); transition: background .15s;
+}
+.jp-save-btn:hover { background: #1538A8; }
+.jp-save-btn:disabled { opacity: .55; cursor: not-allowed; }
+@media (max-width: 640px) { .jp-grid { grid-template-columns: 1fr; } }
+
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 960px) {
   .two-col { grid-template-columns: 1fr; }
@@ -576,10 +607,10 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
           <div class="tabs-nav">
             <button class="tab-btn active" data-tab="overview">Overview</button>
             <button class="tab-btn" data-tab="profile">Profile</button>
-            <button class="tab-btn" data-tab="job">Job Pref</button>
             <button class="tab-btn" data-tab="scorecard">Scorecard</button>
             <button class="tab-btn" data-tab="interviews" id="tab-btn-interviews">Interviews</button>
             <button class="tab-btn" data-tab="resume">Resume</button>
+            <button class="tab-btn" data-tab="job">Job Preferences</button>
             <button class="tab-btn" data-tab="account">Account</button>
           </div>
 
@@ -703,61 +734,6 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
             </div>
           </div>
 
-          <!-- ── Job Preferences ───────────────────────────────────────── -->
-          <div class="tab-pane" id="tab-job">
-            <div style="max-width:480px;">
-              <div class="acc-field">
-                <label class="acc-label" for="jp-desired-role">Desired Role</label>
-                <input type="text" id="jp-desired-role" class="acc-input" placeholder="e.g. Compliance Analyst">
-              </div>
-              <div class="acc-field">
-                <label class="acc-label" for="jp-employment-status">Employment Status</label>
-                <select id="jp-employment-status" class="acc-input">
-                  <option value="">Select status</option>
-                  <option value="employed">Employed</option>
-                  <option value="unemployed">Unemployed</option>
-                  <option value="freelance">Freelance</option>
-                  <option value="on_notice">On Notice</option>
-                  <option value="contract">Contract</option>
-                </select>
-              </div>
-              <div class="acc-field">
-                <label class="acc-label" for="jp-notice-period">Notice Period</label>
-                <input type="text" id="jp-notice-period" class="acc-input" placeholder="e.g. 30 days, Immediate">
-              </div>
-              <div class="acc-field">
-                <label class="acc-label" for="jp-current-ctc">Current CTC</label>
-                <input type="text" id="jp-current-ctc" class="acc-input" placeholder="e.g. GBP 60,000">
-              </div>
-              <div class="acc-field">
-                <label class="acc-label" for="jp-expected-ctc">Expected CTC</label>
-                <input type="text" id="jp-expected-ctc" class="acc-input" placeholder="e.g. GBP 70,000">
-              </div>
-              <div class="acc-field">
-                <label class="acc-label" for="jp-work-type">Preferred Work Type</label>
-                <select id="jp-work-type" class="acc-input">
-                  <option value="">Select</option>
-                  <option value="full_time">Full Time</option>
-                  <option value="part_time">Part Time</option>
-                  <option value="contract">Contract</option>
-                  <option value="freelance">Freelance</option>
-                  <option value="remote">Remote</option>
-                  <option value="hybrid">Hybrid</option>
-                </select>
-              </div>
-              <div class="acc-field">
-                <label class="acc-label" for="jp-relocate">Open to Relocate</label>
-                <select id="jp-relocate" class="acc-input">
-                  <option value="">Select</option>
-                  <option value="1">Yes</option>
-                  <option value="0">No</option>
-                </select>
-              </div>
-              <button class="btn-save" id="jp-save-btn" onclick="saveJobPref(event)">Save Preferences</button>
-              <div id="jp-feedback" style="font-size:12.5px;margin-top:10px;min-height:16px;"></div>
-            </div>
-          </div>
-
           <!-- ── Scorecard ─────────────────────────────────────────────── -->
           <div class="tab-pane" id="tab-scorecard">
             <div id="scorecard-content">
@@ -836,6 +812,77 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
             </div>
             <button class="btn-save" id="vis-save" onclick="saveVisibility()">Save Settings</button>
             <div id="vis-feedback"></div>
+          </div>
+
+          <!-- ── Job Preferences ───────────────────────────────────────── -->
+          <div class="tab-pane" id="tab-job">
+            <div class="jp-card">
+              <div class="jp-heading">Job Preferences</div>
+              <hr class="jp-divider">
+              <div class="jp-grid">
+                <div class="jp-field">
+                  <label class="jp-label" for="jp-desired-role">Desired Role</label>
+                  <input type="text" id="jp-desired-role" class="jp-input" placeholder="e.g. Data Analyst">
+                </div>
+                <div class="jp-field">
+                  <label class="jp-label" for="jp-work-level">Work Level</label>
+                  <select id="jp-work-level" class="jp-input">
+                    <option value="">Select level</option>
+                    <option value="junior">Junior</option>
+                    <option value="mid">Mid-Level</option>
+                    <option value="senior">Senior</option>
+                    <option value="lead">Lead</option>
+                    <option value="manager">Manager</option>
+                    <option value="director">Director</option>
+                    <option value="csuite">C-Suite</option>
+                  </select>
+                </div>
+                <div class="jp-field">
+                  <label class="jp-label" for="jp-employment-status">Employment Status</label>
+                  <select id="jp-employment-status" class="jp-input">
+                    <option value="">Select status</option>
+                    <option value="employed">Employed</option>
+                    <option value="unemployed">Unemployed</option>
+                    <option value="freelance">Freelance</option>
+                    <option value="on_notice">On Notice</option>
+                    <option value="contract">Contract</option>
+                  </select>
+                </div>
+                <div class="jp-field">
+                  <label class="jp-label" for="jp-notice-period">Notice Period</label>
+                  <input type="text" id="jp-notice-period" class="jp-input" placeholder="e.g. Immediate, 30 days">
+                </div>
+                <div class="jp-field">
+                  <label class="jp-label" for="jp-work-type">Preferred Work Type</label>
+                  <select id="jp-work-type" class="jp-input">
+                    <option value="">Select type</option>
+                    <option value="onsite">On-site</option>
+                    <option value="remote">Remote</option>
+                    <option value="hybrid">Hybrid</option>
+                  </select>
+                </div>
+                <div class="jp-field">
+                  <label class="jp-label" for="jp-relocate">Open to Relocate</label>
+                  <select id="jp-relocate" class="jp-input">
+                    <option value="">Select</option>
+                    <option value="1">Yes</option>
+                    <option value="0">No</option>
+                  </select>
+                </div>
+                <div class="jp-field">
+                  <label class="jp-label" for="jp-current-ctc">Current CTC</label>
+                  <input type="text" id="jp-current-ctc" class="jp-input" placeholder="e.g. INR 12,00,000">
+                </div>
+                <div class="jp-field">
+                  <label class="jp-label" for="jp-expected-ctc">Expected CTC</label>
+                  <input type="text" id="jp-expected-ctc" class="jp-input" placeholder="e.g. INR 15,00,000">
+                </div>
+              </div>
+              <div class="jp-footer">
+                <button class="jp-save-btn" id="jp-save-btn" onclick="saveJobPref(event)">Save Preferences</button>
+                <div id="jp-feedback" style="font-size:12.5px;margin-top:10px;min-height:16px;"></div>
+              </div>
+            </div>
           </div>
 
           <!-- ── Account ───────────────────────────────────────────────── -->
@@ -1268,12 +1315,13 @@ function render(d, pd, id) {
     const p = pd.profile;
     const setVal = (id, val) => { const e = el(id); if (e && val != null) e.value = val; };
     setVal('jp-desired-role',       p.desired_role);
+    setVal('jp-work-level',         p.work_level);
     setVal('jp-employment-status',  p.current_employment_status);
     setVal('jp-notice-period',      p.notice_period_in_days);
-    setVal('jp-current-ctc',        p.current_annual_ctc_with_currency);
-    setVal('jp-expected-ctc',       p.expected_annual_ctc_with_currency);
     setVal('jp-work-type',          p.preferred_work_type);
     setVal('jp-relocate',           p.open_to_relocate);
+    setVal('jp-current-ctc',        p.current_annual_ctc_with_currency);
+    setVal('jp-expected-ctc',       p.expected_annual_ctc_with_currency);
   }
 
   /* ── Account tab ────────────────────────────────────────────────────────── */
@@ -1822,13 +1870,14 @@ window.saveJobPref = async function (event) {
   fb.textContent = ''; fb.className = '';
   try {
     const body = {
-      desired_role:                   (el('jp-desired-role').value  || '').trim(),
-      current_employment_status:      el('jp-employment-status').value,
-      notice_period_in_days:          (el('jp-notice-period').value || '').trim(),
+      desired_role:                      (el('jp-desired-role').value  || '').trim(),
+      work_level:                        el('jp-work-level').value,
+      current_employment_status:         el('jp-employment-status').value,
+      notice_period_in_days:             (el('jp-notice-period').value || '').trim(),
+      preferred_work_type:               el('jp-work-type').value,
+      open_to_relocate:                  el('jp-relocate').value,
       current_annual_ctc_with_currency:  (el('jp-current-ctc').value  || '').trim(),
       expected_annual_ctc_with_currency: (el('jp-expected-ctc').value || '').trim(),
-      preferred_work_type:            el('jp-work-type').value,
-      open_to_relocate:               el('jp-relocate').value,
     };
     const res  = await fetch('/api/candidate/profile', {
       method: 'PUT', credentials: 'include',
