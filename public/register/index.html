@@ -221,7 +221,9 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
 .privacy-opt:has(input:checked) span { color: var(--blue); font-weight: 700; }
 
 /* agzit-select dropdown clipping fix */
-.agzit-select-dropdown { max-height: 260px !important; overflow-y: auto !important; z-index: 999 !important; position: absolute !important; width: 100% !important; }
+.agzit-select-dropdown { max-height: 260px !important; overflow-y: auto !important; z-index: 999 !important; position: absolute !important; min-width: 100% !important; width: max-content !important; max-width: 500px !important; left: 0 !important; }
+/* Degree select wrapper needs position:relative so dropdown escapes col2 constraint */
+.edu-degree-wrap { position: relative; }
 
 /* Open for work toggle */
 .toggle-row {
@@ -857,6 +859,22 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
           <input class="input" type="text" id="desired_role" placeholder="e.g. Project Manager, Finance Analyst, Compliance Officer">
         </div>
       </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Work Level</label>
+          <select class="input agzit-select" id="work_level">
+            <option value="">Select level</option>
+            <option value="director">Director</option>
+            <option value="entry_level">Entry Level</option>
+            <option value="junior">Junior</option>
+            <option value="lead">Lead</option>
+            <option value="manager">Manager</option>
+            <option value="mid_level">Mid-Level</option>
+            <option value="senior">Senior</option>
+            <option value="vp_c_suite">VP / C-Suite</option>
+          </select>
+        </div>
+      </div>
       <!-- Preferred Work Type -->
       <div class="form-row col2">
         <div class="field">
@@ -1217,7 +1235,7 @@ function addEduEntry(prefill) {
       <button class="entry-remove" type="button" onclick="removeEntry(this,'.edu-entry','Education')">Remove</button>
     </div>
     <div class="form-row col2">
-      <div class="field">
+      <div class="field edu-degree-wrap">
         <label>Degree <span class="req">*</span></label>
         <select class="input agzit-select edu-degree">
           <option value="">Select degree</option>
@@ -1812,6 +1830,7 @@ async function submitDPR() {
       employment_status:    v('employment_status'),
       notice_period:        v('notice_period'),
       desired_role:         v('desired_role'),
+      work_level:           v('work_level'),
       preferred_work_type:  v('preferred_work_type'),
       open_to_relocate:     document.getElementById('open_to_relocate').checked,
       current_ctc:          [v('current_ctc_currency'), v('current_ctc_amount')].filter(Boolean).join(' '),
