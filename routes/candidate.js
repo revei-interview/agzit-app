@@ -288,7 +288,7 @@ router.get('/profile', ...guard, async (req, res) => {
     const workExperience = parseRepeater(meta, 'work_experience', [
       'job_title', 'company_name', 'office_country', 'office_city',
       'start_date', 'end_date', 'Currently_working',   // capital C — ACF naming
-      'key_responsibilities', 'employment_type', 'key_achievements',
+      'key_responsibilities', 'key_achievements',
     ]);
     // Sort work experience: currently working first, then by start_date descending
     workExperience.sort((a, b) => {
@@ -1030,7 +1030,6 @@ router.put('/profile', ...guard, async (req, res) => {
           end_date:             s(r.end_date),
           Currently_working:    r.Currently_working ? '1' : '0', // capital C — exact ACF field name
           key_responsibilities: s(r.key_responsibilities),
-          employment_type:      s(r.employment_type),
           key_achievements:     s(r.key_achievements),
         }));
       await clearRepeaterMeta(profileId, 'work_experience');
@@ -1731,7 +1730,6 @@ router.post('/dpr', requireAuth, async (req, res) => {
         end_date:             c.currently_working ? '' : ((c.end_year && c.end_month) ? `${c.end_year}-${padM(c.end_month)}-01` : ''),
         Currently_working:    c.currently_working ? '1' : '0',
         key_responsibilities: s(c.responsibilities),
-        employment_type:      '',
         key_achievements:     '',
       }));
     await pool.execute('INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',

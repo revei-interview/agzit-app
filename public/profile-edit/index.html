@@ -631,11 +631,6 @@ function addWx(data = {}) {
         <input type="text" id="wx_${i}_job_title" value="${esc(data.job_title)}" placeholder="e.g. KYC Analyst"></div>
       <div class="field"><label class="label">Company Name</label>
         <input type="text" id="wx_${i}_company_name" value="${esc(data.company_name)}" placeholder="e.g. Barclays Bank"></div>
-      <div class="field"><label class="label">Employment Type</label>
-        <select id="wx_${i}_employment_type">
-          <option value="">Select type</option>
-          ${['Full Time','Part Time','Contract','Freelance','Internship'].map(t => `<option value="${t}"${data.employment_type===t?' selected':''}>${t}</option>`).join('')}
-        </select></div>
       <div class="field"><label class="label">Country</label>
         <input type="text" id="wx_${i}_office_country" value="${esc(data.office_country)}" placeholder="e.g. United Kingdom"></div>
       <div class="field"><label class="label">City</label>
@@ -954,7 +949,6 @@ function collectWx() {
     return {
       job_title:            getVal(`wx_${i}_job_title`),
       company_name:         getVal(`wx_${i}_company_name`),
-      employment_type:      getVal(`wx_${i}_employment_type`),
       office_country:       getVal(`wx_${i}_office_country`),
       office_city:          getVal(`wx_${i}_office_city`),
       start_date:           getVal(`wx_${i}_start_date`),
