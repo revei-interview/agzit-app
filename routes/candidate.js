@@ -1234,46 +1234,6 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
       return res.status(503).json({ ok: false, error: 'Resume parsing not available. Please fill the form manually.' });
     }
 
-    const schema = `{
-  "first_name": "string",
-  "last_name": "string",
-  "phone": "string (include country code if found)",
-  "city": "string",
-  "country": "string (2-letter ISO code, e.g. US, GB, IN, SG, AE)",
-  "headline": "string (e.g. Senior Compliance Manager · 8 years)",
-  "years_experience": "number",
-  "industry": "string (closest match from: accounting, compliance, hr, investment_banking, marketing, sales, software, finance, banking, risk, legal, other)",
-  "linkedin": "string or null (full URL if found)",
-  "summary": "string (professional bio, 3-5 sentences)",
-  "skills": ["array of skill strings"],
-  "work_experience": [
-    {
-      "title": "string",
-      "company": "string",
-      "start_date": "string (YYYY-MM format) or null",
-      "end_date": "string (YYYY-MM format) or null",
-      "currently_working": "boolean",
-      "responsibilities": "string (key responsibilities)"
-    }
-  ],
-  "education": [
-    {
-      "degree": "string (e.g. Bachelor's, Master's, MBA, PhD, Diploma, High School)",
-      "field": "string",
-      "institution": "string",
-      "start_year": "number or null",
-      "end_year": "number or null"
-    }
-  ],
-  "certifications": [
-    {
-      "name": "string",
-      "issuer": "string or null",
-      "issue_date": "string (YYYY-MM format) or null",
-      "expiry_date": "string (YYYY-MM format) or null"
-    }
-  ]
-}`;
 
     const pdfBuffer = req.file.buffer;
     let pdfText = '';
@@ -1313,13 +1273,52 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
       },
       signal: AbortSignal.timeout(55000),
       body: JSON.stringify({
-        model:           'gpt-4o',
-        max_tokens:      600,
-        temperature:     0,
-        response_format: { type: 'json_object' },
+        model:       'gpt-4o',
+        max_tokens:  1500,
+        temperature: 0,
         messages: [
-          { role: 'system', content: 'Extract resume data as JSON only. Be brief.' },
-          { role: 'user',   content: `From this resume text, extract these fields as JSON:\n{"first_name":"","last_name":"","headline":"","city":"","country":"","phone":"","linkedin":"","experience_years":0,"industry":"","summary":"","skills":[],"current_company":"","current_title":""}\n\nResume:\n${cleanText}` },
+          {
+            role: 'system',
+            content: 'You are a resume parser. Extract data and return ONLY valid JSON, no markdown, no explanation.',
+          },
+          {
+            role: 'user',
+            content: `Extract the following fields from this resume text and return as JSON.
+
+IMPORTANT RULES:
+- first_name and last_name: Extract from the candidate's actual name on the resume (usually at the top or bottom as a standalone name line like "Wasim Khan"). Do NOT extract from email addresses or LinkedIn URLs.
+- phone: Extract the full phone number including country code if present. Look for patterns like +91-XXXXXXXXXX or mobile/phone labels.
+- industry: You MUST map to one of these exact values only: accounting, administration, media, architecture, audit, aviation, banking, civil, compliance, customer_support, cybersecurity, data, engineering, erp_crm, finance, fraud, freshers, government, design, hse, healthcare, hospitality, hr, insurance, it, hardware_it, content, translation, legal, logistics, marine, marketing, mep, mining, oil_gas, operations, other, pharma, procurement, product, manufacturing, qa, r_and_d, retail, risk, sales, security, management, site_engineering, software, network_admin, education, telecom, transport, travel. Pick the closest match. For AML/KYC/Compliance roles use "compliance". For banking/financial services use "banking".
+- skills: Array of individual skill strings, max 10.
+- education: Array of objects with: degree (string), institution (string), graduation_year (number), field_of_study (string).
+- work_experience: Array of objects with: job_title, company, start_date (YYYY-MM), end_date (YYYY-MM or null), current (boolean), description (string, max 200 chars).
+- certifications: Array of objects with: name, issuing_org, year.
+
+Return this exact JSON structure:
+{
+  "first_name": "",
+  "last_name": "",
+  "headline": "",
+  "phone": "",
+  "phone_code": "",
+  "city": "",
+  "country": "",
+  "linkedin": "",
+  "experience_years": 0,
+  "industry": "",
+  "summary": "",
+  "skills": [],
+  "education": [],
+  "work_experience": [],
+  "certifications": [],
+  "desired_role": "",
+  "current_ctc": "",
+  "expected_ctc": ""
+}
+
+Resume text:
+${cleanText}`,
+          },
         ],
       }),
     });
