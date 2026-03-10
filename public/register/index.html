@@ -204,6 +204,21 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
   .p-label { display: none; }
   .p-line { min-width: 8px; margin: 0 6px; }
 }
+
+/* ── Privacy Settings ─────────────────────────────────────────────────── */
+.privacy-group { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+.privacy-group:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+.privacy-label { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 10px; }
+.privacy-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.privacy-opt {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 8px 14px; border: 1.5px solid var(--line); border-radius: 8px;
+  transition: border-color .15s, background .15s;
+}
+.privacy-opt:has(input:checked) { border-color: var(--blue); background: var(--blue-lt); }
+.privacy-opt input[type=radio] { width: 16px; height: 16px; accent-color: var(--blue); flex-shrink: 0; cursor: pointer; }
+.privacy-opt span { font-size: 13px; color: var(--soft); cursor: pointer; font-weight: 500; }
+.privacy-opt:has(input:checked) span { color: var(--blue); font-weight: 700; }
 </style>
 <link rel="stylesheet" href="/shared/searchable-select.css">
 <script src="/assets/layout.js" defer></script>
@@ -250,6 +265,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
         <p class="step0-desc">Our AI reads your resume and fills in your profile details automatically. You can review and edit everything before submitting.</p>
       </div>
       <input type="file" id="resume-file" accept=".pdf" style="display:none">
+      <input type="hidden" id="resume-file-data">
       <div class="file-drop" id="file-drop" onclick="document.getElementById('resume-file').click()">
         <div class="file-drop-icon">
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
@@ -497,6 +513,34 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
           </select>
         </div>
       </div>
+      <div class="form-row col2">
+        <div class="field">
+          <label>Gender</label>
+          <select class="input agzit-select" id="gender">
+            <option value="">Select gender</option>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="non_binary">Non-binary</option>
+            <option value="prefer_not_to_say">Prefer not to say</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Date of Birth</label>
+          <input class="input" type="date" id="dob">
+        </div>
+      </div>
+      <div class="form-row col2">
+        <div class="field">
+          <label>Nationality</label>
+          <select class="input agzit-select" id="nationality">
+            <!-- Populated by JS -->
+          </select>
+        </div>
+        <div class="field">
+          <label>State / Province</label>
+          <input class="input" type="text" id="state" placeholder="e.g. California, Punjab">
+        </div>
+      </div>
       <div class="form-row">
         <div class="field">
           <label>Professional Headline <span class="req">*</span></label>
@@ -574,6 +618,73 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
           </select>
         </div>
       </div>
+      <div class="form-row col2">
+        <div class="field">
+          <label>Employment Status</label>
+          <select class="input agzit-select" id="employment_status">
+            <option value="">Select status</option>
+            <option value="employed">Employed</option>
+            <option value="freelancer">Freelancer</option>
+            <option value="self_employed">Self-employed</option>
+            <option value="student">Student</option>
+            <option value="unemployed">Unemployed</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Notice Period</label>
+          <select class="input agzit-select" id="notice_period">
+            <option value="">Select</option>
+            <option value="15_days">15 Days</option>
+            <option value="1_month">1 Month</option>
+            <option value="2_months">2 Months</option>
+            <option value="3_months">3 Months</option>
+            <option value="immediate">Immediate</option>
+            <option value="more_than_3_months">More than 3 Months</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row col2">
+        <div class="field">
+          <label>Current CTC</label>
+          <input class="input" type="text" id="current_ctc" placeholder="e.g. 8 LPA or $80,000">
+        </div>
+        <div class="field">
+          <label>Expected CTC</label>
+          <input class="input" type="text" id="expected_ctc" placeholder="e.g. 12 LPA or $100,000">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Desired Role</label>
+          <input class="input" type="text" id="desired_role" placeholder="e.g. Compliance Manager, Risk Analyst">
+        </div>
+      </div>
+      <div class="form-row col2">
+        <div class="field">
+          <label>Work Type</label>
+          <select class="input agzit-select" id="work_type">
+            <option value="">Select</option>
+            <option value="contract">Contract</option>
+            <option value="freelance">Freelance</option>
+            <option value="full_time">Full-time</option>
+            <option value="internship">Internship</option>
+            <option value="part_time">Part-time</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Career Level</label>
+          <select class="input agzit-select" id="career_level">
+            <option value="">Select</option>
+            <option value="c_suite">C-Suite / Executive</option>
+            <option value="director">Director</option>
+            <option value="entry">Entry Level</option>
+            <option value="lead">Lead / Principal</option>
+            <option value="manager">Manager</option>
+            <option value="mid">Mid Level</option>
+            <option value="senior">Senior Level</option>
+          </select>
+        </div>
+      </div>
     </div>
     <div class="form-nav">
       <button class="btn btn-outline" onclick="goStep(0)">← Back</button>
@@ -639,6 +750,56 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
         <div class="field">
           <label>Portfolio / Website</label>
           <input class="input" type="url" id="s4-portfolio" placeholder="https://yoursite.com">
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title">Privacy Settings</div>
+      <div class="privacy-group">
+        <div class="privacy-label">Who can find and view your profile</div>
+        <div class="privacy-options">
+          <label class="privacy-opt">
+            <input type="radio" name="profile_visibility" id="pv_public" value="public" checked>
+            <span>Public</span>
+          </label>
+          <label class="privacy-opt">
+            <input type="radio" name="profile_visibility" id="pv_private" value="private">
+            <span>Private</span>
+          </label>
+        </div>
+      </div>
+      <div class="privacy-group">
+        <div class="privacy-label">Who can see your email and phone number</div>
+        <div class="privacy-options">
+          <label class="privacy-opt">
+            <input type="radio" name="contact_visibility" id="cv_public" value="public">
+            <span>Public</span>
+          </label>
+          <label class="privacy-opt">
+            <input type="radio" name="contact_visibility" id="cv_verified_only" value="co_verified_only" checked>
+            <span>Verified Employers Only</span>
+          </label>
+          <label class="privacy-opt">
+            <input type="radio" name="contact_visibility" id="cv_private" value="private">
+            <span>Private</span>
+          </label>
+        </div>
+      </div>
+      <div class="privacy-group">
+        <div class="privacy-label">Who can download your resume</div>
+        <div class="privacy-options">
+          <label class="privacy-opt">
+            <input type="radio" name="resume_visibility" id="rv_public" value="public">
+            <span>Public</span>
+          </label>
+          <label class="privacy-opt">
+            <input type="radio" name="resume_visibility" id="rv_verified_only" value="re_verified_only" checked>
+            <span>Verified Employers Only</span>
+          </label>
+          <label class="privacy-opt">
+            <input type="radio" name="resume_visibility" id="rv_private" value="private">
+            <span>Private</span>
+          </label>
         </div>
       </div>
     </div>
@@ -742,11 +903,15 @@ function yearOpts(from, to) {
   return h;
 }
 
-/* ── Populate residential country select ────────────────────────────────── */
-(function populateCountry() {
-  const sel = document.getElementById('s1-country');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">Select your country</option>' +
+/* ── Populate country selects ───────────────────────────────────────────── */
+(function populateCountrySelects() {
+  const countryOpts = '<option value=""></option>' +
+    COUNTRY_LIST.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
+  const country = document.getElementById('s1-country');
+  if (country) country.innerHTML = '<option value="">Select your country</option>' +
+    COUNTRY_LIST.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
+  const nationality = document.getElementById('nationality');
+  if (nationality) nationality.innerHTML = '<option value="">Select nationality</option>' +
     COUNTRY_LIST.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
 })();
 
@@ -1080,6 +1245,12 @@ document.getElementById('resume-file').addEventListener('change', function () {
     document.getElementById('file-name').textContent = file.name;
     document.getElementById('file-drop').classList.add('has-file');
     document.getElementById('parse-btn').disabled = false;
+    // Store file reference for post-DPR upload
+    window._resumeFile = file;
+    // Also store base64 in hidden input
+    const reader = new FileReader();
+    reader.onload = e => { document.getElementById('resume-file-data').value = e.target.result; };
+    reader.readAsDataURL(file);
   }
 });
 
@@ -1248,14 +1419,25 @@ async function submitDPR() {
 
   const payload = {
     personal: {
-      first_name: v('s1-first'),
-      last_name:  v('s1-last'),
-      phone:      (document.getElementById('s1-phone-code').value || '+1') + v('s1-phone-num'),
-      city:       v('s1-city'),
-      country:    v('s1-country'),
-      headline:   v('s1-headline'),
-      experience: parseInt(v('s1-exp')) || 0,
-      industry:   v('s1-industry'),
+      first_name:        v('s1-first'),
+      last_name:         v('s1-last'),
+      phone:             (document.getElementById('s1-phone-code').value || '+1') + v('s1-phone-num'),
+      city:              v('s1-city'),
+      country:           v('s1-country'),
+      headline:          v('s1-headline'),
+      experience:        parseInt(v('s1-exp')) || 0,
+      industry:          v('s1-industry'),
+      gender:            v('gender'),
+      dob:               v('dob'),
+      nationality:       v('nationality'),
+      state:             v('state'),
+      employment_status: v('employment_status'),
+      notice_period:     v('notice_period'),
+      current_ctc:       v('current_ctc'),
+      expected_ctc:      v('expected_ctc'),
+      desired_role:      v('desired_role'),
+      work_type:         v('work_type'),
+      career_level:      v('career_level'),
     },
     career:         getCareerData(),
     education:      getEduData(),
@@ -1265,6 +1447,11 @@ async function submitDPR() {
       summary:     v('s4-summary'),
       linkedin:    v('s4-linkedin'),
       portfolio:   v('s4-portfolio'),
+    },
+    privacy: {
+      profile_visibility: document.querySelector('input[name="profile_visibility"]:checked')?.value || 'public',
+      contact_visibility: document.querySelector('input[name="contact_visibility"]:checked')?.value || 'co_verified_only',
+      resume_visibility:  document.querySelector('input[name="resume_visibility"]:checked')?.value  || 're_verified_only',
     },
   };
 
@@ -1276,8 +1463,25 @@ async function submitDPR() {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!data.ok) { err(errEl, data.error || 'Submission failed. Please try again.'); }
-    else          { window.location.href = data.redirectTo || '/dashboard'; }
+    if (!data.ok) {
+      err(errEl, data.error || 'Submission failed. Please try again.');
+    } else {
+      // Upload resume if available
+      if (window._resumeFile && data.post_id) {
+        try {
+          const fd = new FormData();
+          fd.append('resume', window._resumeFile);
+          await fetch(`/api/candidate/dpr/${data.post_id}/resume`, {
+            method: 'POST',
+            credentials: 'include',
+            body: fd,
+          });
+        } catch (e) {
+          console.warn('[register] Resume upload failed (non-fatal):', e.message);
+        }
+      }
+      window.location.href = data.redirectTo || '/dashboard';
+    }
   } catch (e) {
     err(errEl, 'Network error. Please check your connection and try again.');
   } finally {

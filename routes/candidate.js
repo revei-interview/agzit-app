@@ -1570,31 +1570,44 @@ router.post('/dpr', requireAuth, async (req, res) => {
       .digest('hex').slice(0, 6).toUpperCase();
     const dprId = `DPR-${dateYmd}-${country2}-${postId}-${hash6}`;
 
+    const { privacy = {} } = req.body;
+
     // 6. Write scalar postmeta
+    const careerLevel = s(personal.career_level) || 'mid';
     const scalarMeta = [
-      ['full_name',                fullName],
-      ['email_address',            userEmail],
-      ['phone_number',             s(personal.phone)],
-      ['residential_city',         s(personal.city)],
-      ['residential_country',      s(personal.country)],
-      ['professional_summary_bio', s(skills.summary)],
-      ['total_work_experience',    String(parseInt(personal.experience) || 0)],
-      ['compliance_domains',       JSON.stringify([s(personal.industry)].filter(Boolean))],
-      ['current_career_level',     'mid'],
-      ['work_level',               'mid'],
-      ['soft_skills',              s(skills.skills_list)],
-      ['linkedin_url',             s(skills.linkedin)],
-      ['portfolio_url',            s(skills.portfolio)],
-      ['dpr_id',                   dprId],
-      ['dpr_status',               'approved'],
-      ['profile_visibility',       'public'],
-      ['contact_visibility',       'co_verified_only'],
-      ['resume_visibility',        're_verified_only'],
-      ['public_name_mode',         'initials'],
-      ['open_for_work_badge',      '1'],
-      ['open_to_relocate',         '0'],
-      ['profile_completeness',     '0'],
-      ['profile_last_updated',     nowStr],
+      ['full_name',                          fullName],
+      ['email_address',                      userEmail],
+      ['phone_number',                       s(personal.phone)],
+      ['residential_city',                   s(personal.city)],
+      ['residential_country',                s(personal.country)],
+      ['residential_state',                  s(personal.state)],
+      ['gender',                             s(personal.gender)],
+      ['date_of_birth',                      s(personal.dob)],
+      ['country_of_nationality',             s(personal.nationality)],
+      ['professional_summary_bio',           s(skills.summary)],
+      ['total_work_experience',              String(parseInt(personal.experience) || 0)],
+      ['compliance_domains',                 JSON.stringify([s(personal.industry)].filter(Boolean))],
+      ['current_employment_status',          s(personal.employment_status)],
+      ['notice_period_in_days',              s(personal.notice_period)],
+      ['current_annual_ctc_with_currency',   s(personal.current_ctc)],
+      ['expected_annual_ctc_with_currency',  s(personal.expected_ctc)],
+      ['desired_role',                       s(personal.desired_role)],
+      ['preferred_work_type',                s(personal.work_type)],
+      ['current_career_level',               careerLevel],
+      ['work_level',                         careerLevel],
+      ['soft_skills',                        s(skills.skills_list)],
+      ['linkedin_url',                       s(skills.linkedin)],
+      ['portfolio_url',                      s(skills.portfolio)],
+      ['dpr_id',                             dprId],
+      ['dpr_status',                         'approved'],
+      ['profile_visibility',                 s(privacy.profile_visibility) || 'public'],
+      ['contact_visibility',                 s(privacy.contact_visibility) || 'co_verified_only'],
+      ['resume_visibility',                  s(privacy.resume_visibility)  || 're_verified_only'],
+      ['public_name_mode',                   'initials'],
+      ['open_for_work_badge',                '1'],
+      ['open_to_relocate',                   '0'],
+      ['profile_completeness',               '0'],
+      ['profile_last_updated',               nowStr],
     ];
     for (const [key, value] of scalarMeta) {
       await pool.execute(
@@ -1682,11 +1695,41 @@ router.post('/dpr', requireAuth, async (req, res) => {
     );
 
     console.log(`[dpr] Created ${dprId} (post ${postId}) for user ${req.user.user_id}`);
-    return res.json({ ok: true, dpr_id: dprId, redirectTo: '/dashboard' });
+    return res.json({ ok: true, dpr_id: dprId, post_id: postId, redirectTo: '/dashboard' });
 
   } catch (err) {
     console.error('[dpr/create]', err.message);
     res.status(500).json({ ok: false, error: 'Server error. Please try again.' });
+  }
+});
+
+// ── POST /api/candidate/dpr/:postId/resume ─────────────────────────────────
+// Uploads a resume PDF after DPR creation. Stores base64 in wp_postmeta.
+// Auth: requireAuth
+
+router.post('/dpr/:postId/resume', requireAuth, upload.single('resume'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded.' });
+
+    const postId = parseInt(req.params.postId);
+    if (!postId) return res.status(400).json({ ok: false, error: 'Invalid post ID.' });
+
+    // Verify this post belongs to the authenticated user
+    const profileId = await getProfileId(req.user.user_id);
+    if (profileId !== postId) return res.status(403).json({ ok: false, error: 'Access denied.' });
+
+    const base64   = req.file.buffer.toString('base64');
+    const filename = req.file.originalname || 'resume.pdf';
+
+    await upsertPostMeta(postId, 'resume_base64',   base64);
+    await upsertPostMeta(postId, 'resume_filename',  filename);
+    await upsertPostMeta(postId, 'has_resume',       '1');
+
+    console.log(`[dpr/resume] Saved resume for post ${postId}, ${req.file.size} bytes`);
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[dpr/resume]', err.message);
+    res.status(500).json({ ok: false, error: 'Server error.' });
   }
 });
 
