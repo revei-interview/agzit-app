@@ -1690,25 +1690,4 @@ router.post('/dpr', requireAuth, async (req, res) => {
   }
 });
 
-// ── TEMP: POST /api/candidate/admin/clear-dpr/:userId ────────────────────────
-// One-time cleanup — clears stale dpr_profile_id. Remove after use.
-router.post('/admin/clear-dpr/:userId', async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    // Clear dpr_profile_id in agzit_users
-    await pool.execute('UPDATE agzit_users SET dpr_profile_id = NULL WHERE id = ?', [userId]);
-
-    // Clear dpr_profile_post_id in wp_usermeta
-    const [[user]] = await pool.execute('SELECT wp_user_id FROM agzit_users WHERE id = ?', [userId]);
-    if (user?.wp_user_id) {
-      await pool.execute("DELETE FROM wp_usermeta WHERE user_id = ? AND meta_key = 'dpr_profile_post_id'", [user.wp_user_id]);
-    }
-
-    res.json({ ok: true, cleared: true, userId });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
-
 module.exports = router;
