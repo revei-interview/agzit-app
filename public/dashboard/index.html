@@ -675,7 +675,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 
             <!-- Quick actions -->
             <div class="ov-actions">
-              <a href="https://agzit.com/dpr-registration/" class="btn-primary">Update DPR Profile</a>
+              <a href="/profile-edit" class="btn-primary">Update DPR Profile</a>
               <a id="ov-preview-link" href="#" class="btn-secondary" target="_blank" style="width:auto;display:none;">Preview Public Profile</a>
             </div>
             </div><!-- /ov-main-content -->
@@ -1401,13 +1401,13 @@ function renderProfile(p) {
     ? `<div class="resume-uploaded">
         <div>
           <div style="font-weight:700;color:var(--green);font-size:14px;">Resume uploaded</div>
-          <div style="font-size:12.5px;color:var(--muted);margin-top:3px;">To replace, go to Update DPR Profile.</div>
+          <div style="font-size:12.5px;color:var(--muted);margin-top:3px;">To replace, go to <a href="/profile-edit" style="color:var(--blue);font-weight:700;">Edit Profile</a>.</div>
         </div>
-        <a href="https://agzit.com/dpr-download/?type=resume&dpr_id=${encodeURIComponent(p.dpr_id||'')}" target="_blank" class="resume-download">Download PDF</a>
+        <a href="/api/candidate/download?type=resume" target="_blank" class="resume-download">Download PDF</a>
       </div>`
     : `<div class="resume-missing">
         <div style="font-weight:700;color:#991B1B;font-size:14px;">No resume uploaded</div>
-        <div style="font-size:12.5px;color:var(--muted);margin-top:3px;">Upload your resume via <strong>Update DPR Profile</strong>.</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:3px;">Upload your resume via <a href="/profile-edit" style="color:var(--blue);font-weight:700;">Edit Profile</a>.</div>
       </div>`;
 
   /* profile completeness bar */
@@ -1499,14 +1499,14 @@ function renderResume(p) {
         <div>
           <div style="font-weight:700;color:var(--green);font-size:14px;">Resume uploaded</div>
           <div style="font-size:12.5px;color:var(--muted);margin-top:3px;">
-            To replace, go to <a href="https://agzit.com/dpr-registration/" style="color:var(--blue);font-weight:700;">Update DPR Profile</a>.
+            To replace, go to <a href="/profile-edit" style="color:var(--blue);font-weight:700;">Edit Profile</a>.
           </div>
         </div>
-        <a href="https://agzit.com/dpr-download/?type=resume&dpr_id=${encodeURIComponent(p.dpr_id||'')}" target="_blank" class="resume-download">Download PDF</a>
+        <a href="/api/candidate/download?type=resume" target="_blank" class="resume-download">Download PDF</a>
       </div>`
     : `<div class="resume-missing">
         <div style="font-weight:700;color:#991B1B;font-size:14px;">No resume uploaded</div>
-        <div style="font-size:12.5px;color:var(--muted);margin-top:4px;">Upload your resume via <a href="https://agzit.com/dpr-registration/" style="color:var(--blue);font-weight:700;">Update DPR Profile</a>.</div>
+        <div style="font-size:12.5px;color:var(--muted);margin-top:4px;">Upload your resume via <a href="/profile-edit" style="color:var(--blue);font-weight:700;">Edit Profile</a>.</div>
       </div>`;
 }
 

@@ -179,11 +179,34 @@
     }
     .btn-cancel:hover { border-color: var(--ink); }
 
+    /* ── Resume upload ── */
+    .resume-box {
+      border: 1.5px solid var(--line); border-radius: 12px;
+      padding: 20px 22px; background: var(--surface);
+    }
+    .resume-box.has-file { border-color: var(--green); background: var(--green-lt); }
+    .resume-info {
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    }
+    .resume-icon { font-size: 28px; }
+    .resume-name { font-size: 14px; font-weight: 700; color: var(--ink); }
+    .resume-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .resume-actions { display: flex; gap: 8px; margin-left: auto; }
+    .resume-actions a, .resume-actions button {
+      padding: 7px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 700;
+      cursor: pointer; font-family: inherit; text-decoration: none; display: inline-flex;
+      align-items: center; gap: 4px; border: 1px solid var(--line); background: #fff; color: var(--ink);
+      transition: border-color .15s;
+    }
+    .resume-actions a:hover, .resume-actions button:hover { border-color: var(--blue); color: var(--blue); }
+    .resume-actions .btn-replace { background: var(--blue-lt); border-color: #C7D7F8; color: var(--blue); }
+
     /* ── Responsive ── */
     @media (max-width: 640px) {
       .sec { padding: 20px 18px; }
       .grid2, .grid3 { grid-template-columns: 1fr; }
       .full { grid-column: 1; }
+      .resume-actions { margin-left: 0; margin-top: 8px; }
     }
   </style>
 </head>
@@ -391,10 +414,35 @@
     <button type="button" class="add-btn" onclick="addCert()">+ Add Certification</button>
   </div>
 
-  <!-- 6. Skills & Tools -->
+  <!-- 6. Resume -->
   <div class="sec">
     <div class="sec-hd">
       <div class="sec-num">6</div>
+      <div>
+        <div class="sec-title">Resume</div>
+        <span class="sec-sub">Upload or replace your resume PDF</span>
+      </div>
+    </div>
+    <div id="resume-box-container">
+      <div class="resume-box" id="resume-box">
+        <div class="resume-info" id="resume-info">
+          <span class="resume-icon">📄</span>
+          <div>
+            <div class="resume-name" id="resume-fname">No resume uploaded</div>
+            <div class="resume-meta" id="resume-fmeta"></div>
+          </div>
+          <div class="resume-actions" id="resume-btns"></div>
+        </div>
+      </div>
+      <input type="file" id="resume-file-input" accept=".pdf" style="display:none" onchange="handleResumeUpload(this)">
+      <div id="resume-upload-status" style="margin-top:10px;font-size:13px;font-weight:600;display:none;"></div>
+    </div>
+  </div>
+
+  <!-- 7. Skills & Tools -->
+  <div class="sec">
+    <div class="sec-hd">
+      <div class="sec-num">7</div>
       <div>
         <div class="sec-title">Skills &amp; Tools</div>
         <span class="sec-sub">Technical skills and software tools</span>
@@ -413,10 +461,10 @@
     </div>
   </div>
 
-  <!-- 7. Visibility & Settings -->
+  <!-- 8. Visibility & Settings -->
   <div class="sec">
     <div class="sec-hd">
-      <div class="sec-num">7</div>
+      <div class="sec-num">8</div>
       <div>
         <div class="sec-title">Visibility &amp; Settings</div>
         <span class="sec-sub">Control who can see your profile and contact details</span>
@@ -679,6 +727,7 @@ async function loadProfile() {
     if (r.status === 401) { location.href = '/login?next=/profile-edit'; return; }
     const d = await r.json();
     if (!d.ok) { showToast('Failed to load profile', 'error'); return; }
+    if (d.profile) d.profile._dpr_post_id = d.dpr_post_id;
     populateForm(d.profile);
     document.getElementById('loading').style.display = 'none';
     document.getElementById('main').style.display = 'block';
@@ -720,6 +769,102 @@ function populateForm(p) {
 
   // Tools
   (p.compliance_tools || []).forEach(row => addTool(row));
+
+  // Resume
+  renderResumeSection(p);
+}
+
+// ── Resume section ──────────────────────────────────────────────────────────
+let _dprPostId = null;
+
+function renderResumeSection(p) {
+  _dprPostId = p._dpr_post_id || null;
+  const hasRes = !!(p.has_resume === '1' || p.resume_upload);
+  const box = document.getElementById('resume-box');
+  const fname = document.getElementById('resume-fname');
+  const fmeta = document.getElementById('resume-fmeta');
+  const btns  = document.getElementById('resume-btns');
+
+  if (hasRes) {
+    box.classList.add('has-file');
+    fname.textContent = p.resume_filename || 'Resume uploaded';
+    fmeta.textContent = p.resume_uploaded_at ? `Uploaded: ${p.resume_uploaded_at}` : '';
+    btns.innerHTML = `
+      <a href="/api/candidate/download?type=resume" target="_blank">⬇ Download</a>
+      <button type="button" class="btn-replace" onclick="document.getElementById('resume-file-input').click()">↻ Replace</button>
+    `;
+  } else {
+    box.classList.remove('has-file');
+    fname.textContent = 'No resume uploaded';
+    fmeta.textContent = 'Upload a PDF resume to complete your profile.';
+    btns.innerHTML = `
+      <button type="button" class="btn-replace" onclick="document.getElementById('resume-file-input').click()">📤 Upload Resume</button>
+    `;
+  }
+}
+
+async function handleResumeUpload(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  if (file.type !== 'application/pdf') {
+    showToast('Only PDF files are accepted', 'error');
+    input.value = '';
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('File size must be under 10MB', 'error');
+    input.value = '';
+    return;
+  }
+
+  const status = document.getElementById('resume-upload-status');
+  status.style.display = 'block';
+  status.style.color = 'var(--blue)';
+  status.textContent = 'Uploading resume...';
+
+  try {
+    // Get post ID from profile if not cached
+    if (!_dprPostId) {
+      const r = await fetch('/api/candidate/profile');
+      const d = await r.json();
+      _dprPostId = d.dpr_post_id;
+    }
+    if (!_dprPostId) {
+      showToast('Could not find DPR profile', 'error');
+      status.style.display = 'none';
+      return;
+    }
+
+    const fd = new FormData();
+    fd.append('resume', file);
+    const res = await fetch(`/api/candidate/dpr/${_dprPostId}/resume`, {
+      method: 'POST',
+      credentials: 'include',
+      body: fd,
+    });
+    const data = await res.json();
+    if (data.ok) {
+      status.style.color = 'var(--green)';
+      status.textContent = 'Resume uploaded successfully!';
+      // Update UI
+      const box = document.getElementById('resume-box');
+      box.classList.add('has-file');
+      document.getElementById('resume-fname').textContent = file.name;
+      document.getElementById('resume-fmeta').textContent = `Uploaded: just now`;
+      document.getElementById('resume-btns').innerHTML = `
+        <a href="/api/candidate/download?type=resume" target="_blank">⬇ Download</a>
+        <button type="button" class="btn-replace" onclick="document.getElementById('resume-file-input').click()">↻ Replace</button>
+      `;
+      setTimeout(() => { status.style.display = 'none'; }, 3000);
+    } else {
+      showToast(data.error || 'Upload failed', 'error');
+      status.style.display = 'none';
+    }
+  } catch (e) {
+    showToast('Network error uploading resume', 'error');
+    status.style.display = 'none';
+  }
+  input.value = '';
 }
 
 // ── Collect & save ────────────────────────────────────────────────────────────

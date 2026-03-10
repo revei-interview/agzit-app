@@ -318,6 +318,17 @@ router.get('/profile', ...guard, async (req, res) => {
       'preferred_city_name', 'preferred_country_name',
     ]);
 
+    // Check agzit_resume_files for actual resume existence (fixes stale meta)
+    const [[resumeRow]] = await pool.execute(
+      'SELECT filename FROM agzit_resume_files WHERE post_id = ? LIMIT 1', [profileId]
+    );
+    const hasResumeActual = !!(resumeRow || meta.has_resume === '1' || meta.resume_upload);
+    // Auto-heal: if resume exists in DB but meta missing, set it now
+    if (resumeRow && meta.has_resume !== '1') {
+      upsertPostMeta(profileId, 'has_resume', '1').catch(() => {});
+      upsertPostMeta(profileId, 'resume_upload', String(profileId)).catch(() => {});
+    }
+
     res.json({
       ok:              true,
       has_dpr_profile: true,
@@ -364,8 +375,10 @@ router.get('/profile', ...guard, async (req, res) => {
         preferred_location:               preferredLocation,
         expected_annual_ctc_with_currency: meta.expected_annual_ctc_with_currency,
         preferred_work_type:              meta.preferred_work_type,
-        resume_upload:                    meta.resume_upload,
-        has_resume:                       meta.has_resume,
+        resume_upload:                    meta.resume_upload || (resumeRow ? String(profileId) : null),
+        has_resume:                       hasResumeActual ? '1' : null,
+        resume_filename:                  meta.resume_filename || (resumeRow ? resumeRow.filename : null),
+        resume_uploaded_at:               meta.resume_uploaded_at,
         key_achievements:                 meta.key_achievements,
 
         // ── Repeaters
@@ -1089,6 +1102,26 @@ router.put('/profile', ...guard, async (req, res) => {
             [`${dprId}_resume`, `${dprId.toLowerCase()}_resume`, attachId]
           );
         }
+      }
+    }
+
+    // ── Sync name to agzit_users + wp_users if full_name changed ──────────────
+    if (b.full_name) {
+      const parts = String(b.full_name).trim().split(/\s+/);
+      const firstName = parts[0] || '';
+      const lastName  = parts.slice(1).join(' ') || '';
+      await pool.execute(
+        'UPDATE agzit_users SET first_name = ?, last_name = ? WHERE id = ?',
+        [firstName, lastName, req.user.user_id]
+      );
+      const wpUserId = req.user.wp_user_id;
+      if (wpUserId) {
+        await pool.execute(
+          'UPDATE wp_users SET display_name = ?, user_nicename = ? WHERE ID = ?',
+          [b.full_name.trim(), b.full_name.trim().toLowerCase().replace(/\s+/g, '-'), wpUserId]
+        );
+        await upsertUserMeta(wpUserId, 'first_name', firstName);
+        await upsertUserMeta(wpUserId, 'last_name',  lastName);
       }
     }
 
