@@ -867,10 +867,8 @@ function fmtDT(d) {
 
 function setSelectVal(id, val) {
   const s = el(id);
-  if (!s) return;
-  for (let i = 0; i < s.options.length; i++) {
-    if (s.options[i].value === val) { s.selectedIndex = i; return; }
-  }
+  if (!s || !val) return;
+  s.value = val; // triggers searchable-select display update
 }
 
 /* ── Career level normaliser (fixes legacy 'lLead' typo stored in DB) ─────── */
@@ -977,6 +975,15 @@ function visCls(v) {
   if (v.includes('public'))  return 'vv-public';
   if (v.includes('private')) return 'vv-private';
   return 'vv-verified';
+}
+
+function updateVisibilitySidebar(pv, ev, phv, rv) {
+  if (!pv && !ev && !phv && !rv) return;
+  el('sb-vis-card').innerHTML = `<div class="card-title" style="margin-bottom:12px;">Visibility</div>` +
+    [['Profile', pv],['Email', ev],['Phone', phv],['Resume', rv]]
+    .map(([k,v]) => `<div class="vis-row"><span class="vis-row-label">${k}</span><span class="vis-val ${visCls(v)}">${visLabel(v)}</span></div>`)
+    .join('') +
+    `<div style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.55;">Controls what employers see on your public DPR page.</div>`;
 }
 
 /* ── Main fetch ───────────────────────────────────────────────────────────── */
@@ -1155,13 +1162,7 @@ function render(d, pd, id) {
   }
 
   /* ── Visibility sidebar card ─────────────────────────────────────────────── */
-  if (prof.profile_visibility || prof.email_visibility || prof.phone_visibility || prof.resume_visibility) {
-    el('sb-vis-card').innerHTML = `<div class="card-title" style="margin-bottom:12px;">Visibility</div>` +
-      [['Profile', prof.profile_visibility],['Email', prof.email_visibility],['Phone', prof.phone_visibility],['Resume', prof.resume_visibility]]
-      .map(([k,v]) => `<div class="vis-row"><span class="vis-row-label">${k}</span><span class="vis-val ${visCls(v)}">${visLabel(v)}</span></div>`)
-      .join('') +
-      `<div style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.55;">Controls what employers see on your public DPR page.</div>`;
-  }
+  updateVisibilitySidebar(prof.profile_visibility, prof.email_visibility, prof.phone_visibility, prof.resume_visibility);
 
   /* ── Scorecard tab ───────────────────────────────────────────────────────── */
   if (sc && sc.mock_overall_score) renderScorecard(sc);
@@ -1182,6 +1183,10 @@ function render(d, pd, id) {
     setSelectVal('sel-email',   pd.profile.email_visibility);
     setSelectVal('sel-phone',   pd.profile.phone_visibility);
     setSelectVal('sel-resume',  pd.profile.resume_visibility);
+    // Re-sync sidebar banner from full profile data (source of truth)
+    updateVisibilitySidebar(pd.profile.profile_visibility, pd.profile.email_visibility, pd.profile.phone_visibility, pd.profile.resume_visibility);
+    // Re-init searchable selects so display text matches
+    if (window.initSearchableSelects) window.initSearchableSelects();
   }
 
   /* ── Account tab ────────────────────────────────────────────────────────── */
@@ -1668,7 +1673,11 @@ window.saveVisibility = async function () {
       }),
     });
     const data = await res.json();
-    if (data.ok) { fbEl.textContent = 'Settings saved.'; fbEl.className = 'ok'; }
+    if (data.ok) {
+      fbEl.textContent = 'Settings saved.'; fbEl.className = 'ok';
+      // Update sidebar banner to stay in sync
+      updateVisibilitySidebar(el('sel-profile').value, el('sel-email').value, el('sel-phone').value, el('sel-resume').value);
+    }
     else { fbEl.textContent = data.error || 'Save failed.'; fbEl.className = 'err'; }
   } catch (e) {
     fbEl.textContent = 'Network error. Please try again.'; fbEl.className = 'err';
