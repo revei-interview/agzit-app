@@ -1330,16 +1330,31 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
       return res.status(422).json({ ok: false, error: 'Could not read PDF. Please ensure it is a text-based PDF.' });
     }
 
-    if (!pdfText || pdfText.length < 50) {
-      console.error('[parse-resume] empty text, length:', pdfText.length);
+    // Readable text ratio check — reject image-only or garbled PDFs
+    const readableCount = (pdfText.match(/[\x20-\x7E\n\t]/g) || []).length;
+    const readableRatio = pdfText.length > 0 ? readableCount / pdfText.length : 0;
+    console.log('[parse-resume] extracted', pdfText.length, 'chars, readableRatio:', readableRatio.toFixed(2));
+
+    if (readableRatio < 0.6 || pdfText.trim().length < 200) {
+      console.error('[parse-resume] low readable ratio or too short:', readableRatio.toFixed(2), pdfText.trim().length);
       return res.status(422).json({ ok: false, error: 'PDF appears to be empty or image-only. Please upload a text-based PDF.' });
     }
 
-    console.log('[parse-resume] extracted', pdfText.length, 'chars:', pdfText.slice(0, 200));
+    // Clean: keep only lines where >50% of chars are printable ASCII and line has >3 readable chars
+    const cleanText = pdfText
+      .split('\n')
+      .filter(line => {
+        const r = (line.match(/[\x20-\x7E]/g) || []).length;
+        return r > line.length * 0.5 && r > 3;
+      })
+      .join('\n')
+      .slice(0, 4000);
+
+    console.log('[parse-resume] sending to OpenAI, chars:', cleanText.length, 'sample:', cleanText.slice(0, 100));
 
     // Call GPT-4o with extracted text
     const systemPrompt = 'You are a resume parser. Extract structured data and return ONLY valid JSON matching the schema. No markdown, no explanation.';
-    const userContent  = `Extract profile data from this resume text and return JSON matching this schema exactly:\n\n${schema}\n\nResume text:\n${pdfText.slice(0, 4000)}`;
+    const userContent  = `Extract profile data from this resume text and return JSON matching this schema exactly:\n\n${schema}\n\nResume text:\n${cleanText}`;
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
