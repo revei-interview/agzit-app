@@ -1345,13 +1345,9 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
         return r > line.length * 0.5 && r > 3;
       })
       .join('\n')
-      .slice(0, 4000);
+      .slice(0, 2000);
 
     console.log('[parse-resume] sending to OpenAI, chars:', cleanText.length, 'sample:', cleanText.slice(0, 100));
-
-    // Call GPT-4o with extracted text
-    const systemPrompt = 'You are a resume parser. Extract structured data and return ONLY valid JSON matching the schema. No markdown, no explanation.';
-    const userContent  = `Extract profile data from this resume text and return JSON matching this schema exactly:\n\n${schema}\n\nResume text:\n${cleanText}`;
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
@@ -1365,15 +1361,17 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
       signal: AbortSignal.timeout(55000),
       body: JSON.stringify({
         model:           'gpt-4o',
-        max_tokens:      2048,
+        max_tokens:      600,
+        temperature:     0,
         response_format: { type: 'json_object' },
         messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user',   content: userContent  },
+          { role: 'system', content: 'Extract resume data as JSON only. Be brief.' },
+          { role: 'user',   content: `From this resume text, extract these fields as JSON:\n{"first_name":"","last_name":"","headline":"","city":"","country":"","phone":"","linkedin":"","experience_years":0,"industry":"","summary":"","skills":[],"current_company":"","current_title":""}\n\nResume:\n${cleanText}` },
         ],
       }),
     });
     const oaiData = await oaiRes.json();
+    console.log('[parse-resume] OpenAI responded, usage:', oaiData?.usage?.total_tokens);
     if (!oaiRes.ok) {
       console.error('[parse-resume] OpenAI error:', JSON.stringify(oaiData));
       throw new Error('OpenAI API error');
