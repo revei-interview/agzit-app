@@ -765,7 +765,11 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
         <div class="privacy-label">Who can find and view your profile</div>
         <div class="privacy-options">
           <label class="privacy-opt">
-            <input type="radio" name="profile_visibility" id="pv_private" value="private" checked>
+            <input type="radio" name="profile_visibility" id="pv_public" value="public" checked>
+            <span>Public</span>
+          </label>
+          <label class="privacy-opt">
+            <input type="radio" name="profile_visibility" id="pv_private" value="private">
             <span>Verified Employers Only</span>
           </label>
         </div>
@@ -774,7 +778,11 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
         <div class="privacy-label">Who can see your email address</div>
         <div class="privacy-options">
           <label class="privacy-opt">
-            <input type="radio" name="email_visibility" id="ev_private" value="co_verified_only" checked>
+            <input type="radio" name="email_visibility" id="ev_public" value="co_public" checked>
+            <span>Public</span>
+          </label>
+          <label class="privacy-opt">
+            <input type="radio" name="email_visibility" id="ev_private" value="co_verified_only">
             <span>Verified Employers Only</span>
           </label>
         </div>
@@ -782,6 +790,10 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
       <div class="privacy-group">
         <div class="privacy-label">Who can see your phone number</div>
         <div class="privacy-options">
+          <label class="privacy-opt">
+            <input type="radio" name="phone_visibility" id="phv_public" value="co_public">
+            <span>Public</span>
+          </label>
           <label class="privacy-opt">
             <input type="radio" name="phone_visibility" id="phv_private" value="co_verified_only" checked>
             <span>Verified Employers Only</span>
@@ -1140,7 +1152,7 @@ function addCareerEntry(prefill) {
     <div class="form-row">
       <div class="field">
         <label>Job Description</label>
-        <textarea class="input entry-resp" rows="3" placeholder="Brief description of responsibilities and key achievements"></textarea>
+        <textarea class="input entry-resp" rows="5" placeholder="Key responsibilities and achievements"></textarea>
       </div>
     </div>`;
   document.getElementById('career-entries').appendChild(div);
@@ -1793,8 +1805,8 @@ async function submitDPR() {
       language_proficiency: getLangData(),
     },
     privacy: {
-      profile_visibility: document.querySelector('input[name="profile_visibility"]:checked')?.value || 'private',
-      email_visibility:   document.querySelector('input[name="email_visibility"]:checked')?.value   || 'co_verified_only',
+      profile_visibility: document.querySelector('input[name="profile_visibility"]:checked')?.value || 'public',
+      email_visibility:   document.querySelector('input[name="email_visibility"]:checked')?.value   || 'co_public',
       phone_visibility:   document.querySelector('input[name="phone_visibility"]:checked')?.value   || 'co_verified_only',
     },
     job_preferences: {

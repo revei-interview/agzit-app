@@ -1274,7 +1274,7 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
       signal: AbortSignal.timeout(90000),
       body: JSON.stringify({
         model:       'gpt-4o',
-        max_tokens:  2500,
+        max_tokens:  4096,
         temperature: 0,
         messages: [
           {
@@ -1293,7 +1293,7 @@ IMPORTANT RULES:
 - industry: You MUST map to one of these exact values only: accounting, administration, media, architecture, audit, aviation, banking, civil, compliance, customer_support, cybersecurity, data, engineering, erp_crm, finance, fraud, freshers, government, design, hse, healthcare, hospitality, hr, insurance, it, hardware_it, content, translation, legal, logistics, marine, marketing, mep, mining, oil_gas, operations, other, pharma, procurement, product, manufacturing, qa, r_and_d, retail, risk, sales, security, management, site_engineering, software, network_admin, education, telecom, transport, travel. Pick the closest match. For AML/KYC/Compliance roles use "compliance". For banking/financial services use "banking".
 - skills: Array of individual skill strings, max 10.
 - education: Array of ALL education entries. Each: degree (string), institution (string), graduation_year (number), field_of_study (string). Include every degree listed.
-- work_experience: CRITICAL — include EVERY role listed in the resume, not just the most recent. If someone held multiple titles at the same company (e.g. Analyst then Senior Analyst then Manager), list EACH as a separate entry with its own dates. Each: job_title, company, start_date (YYYY-MM), end_date (YYYY-MM or null), current (boolean), description (string, 2-4 bullet points summarizing key responsibilities, max 500 chars).
+- work_experience: CRITICAL — you MUST include EVERY role listed in the resume, from the most recent to the very first/oldest. If someone held multiple titles at the same company (e.g. Analyst → Senior Analyst → Manager), list EACH as a separate entry with its own dates. Do NOT skip any role. Each entry: job_title, company, start_date (YYYY-MM), end_date (YYYY-MM or null), current (boolean), description (string — copy ALL the responsibility bullet points exactly as written in the resume, do NOT summarize or shorten them).
 - certifications: Array of objects with: name, issuing_org, year.
 
 Return this exact JSON structure:
