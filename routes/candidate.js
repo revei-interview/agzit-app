@@ -1271,7 +1271,7 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
         'Content-Type':  'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      signal: AbortSignal.timeout(55000),
+      signal: AbortSignal.timeout(90000),
       body: JSON.stringify({
         model:       'gpt-4o',
         max_tokens:  2500,
@@ -1349,11 +1349,14 @@ ${cleanText}`,
 
     return res.json({ ok: true, data: parsed });
   } catch (err) {
-    console.error('[parse-resume]', err.message);
+    console.error('[parse-resume] ERROR:', err.message, err.stack?.split('\n')[1]);
     if (err.message?.startsWith('OPENAI_API_KEY')) {
       return res.status(503).json({ ok: false, error: 'Resume parsing not configured.' });
     }
-    res.status(500).json({ ok: false, error: 'Server error' });
+    if (err.name === 'TimeoutError' || err.message?.includes('abort')) {
+      return res.status(504).json({ ok: false, error: 'AI parsing took too long. Please try again.' });
+    }
+    res.status(500).json({ ok: false, error: 'Server error: ' + (err.message || 'unknown') });
   }
 });
 

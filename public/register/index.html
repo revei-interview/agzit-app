@@ -1649,7 +1649,8 @@ async function parseResume() {
       setTimeout(() => goStep(1), 1100);
     }
   } catch (e) {
-    banner.textContent = 'Resume parsing failed. Please fill the form manually — your progress is saved.';
+    console.error('[parse-resume] client error:', e);
+    banner.textContent = 'Resume parsing failed (' + (e.message || 'network error') + '). Please fill the form manually.';
     banner.className = 'parse-banner error show';
   } finally {
     btn.disabled = false;
