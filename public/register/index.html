@@ -158,6 +158,19 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
 .file-drop-label { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
 .file-drop-hint { font-size: 12px; color: var(--muted); }
 .file-name { font-size: 13px; color: var(--green); font-weight: 600; margin-top: 10px; }
+.resume-attached {
+  display: none; align-items: center; gap: 10px;
+  background: var(--green-lt); border: 1px solid var(--green); border-radius: 8px;
+  padding: 10px 14px; margin-bottom: 12px; font-size: 13px; color: var(--ink);
+}
+.resume-attached.show { display: flex; }
+.resume-attached-icon { font-size: 18px; flex-shrink: 0; }
+.resume-attached-name { font-weight: 600; flex: 1; word-break: break-all; }
+.resume-attached-remove {
+  background: none; border: 1px solid var(--red, #e74c3c); color: var(--red, #e74c3c);
+  border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+.resume-attached-remove:hover { background: var(--red, #e74c3c); color: #fff; }
 .step0-sep { text-align: center; font-size: 12px; color: var(--muted); margin: 14px 0; }
 .parse-banner {
   border-radius: 10px; font-size: 14px; font-weight: 600;
@@ -294,6 +307,11 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
         <p class="step0-desc">Our AI reads your resume and fills in your profile details automatically. You can review and edit everything before submitting.</p>
       </div>
       <input type="file" id="resume-file" accept=".pdf" style="display:none">
+      <div class="resume-attached" id="resume-attached-0">
+        <span class="resume-attached-icon">📄</span>
+        <span class="resume-attached-name" id="resume-attached-name-0"></span>
+        <button type="button" class="resume-attached-remove" onclick="removeResumeFile()">Remove</button>
+      </div>
       <div class="file-drop" id="file-drop" onclick="document.getElementById('resume-file').click()">
         <div class="file-drop-icon">
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
@@ -1010,6 +1028,11 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
     <div class="card" style="margin-top:16px;">
       <div class="card-title">Upload Resume <span class="req">*</span></div>
       <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Upload your latest resume in PDF format. This will be shared with employers.</p>
+      <div class="resume-attached" id="resume-attached-5">
+        <span class="resume-attached-icon">📄</span>
+        <span class="resume-attached-name" id="resume-attached-name-5"></span>
+        <button type="button" class="resume-attached-remove" onclick="removeResumeFile()">Remove</button>
+      </div>
       <input type="file" id="final-resume-file" accept=".pdf" style="display:none">
       <div class="file-drop" id="final-file-drop" onclick="document.getElementById('final-resume-file').click()" style="padding:20px;">
         <div class="file-drop-label" style="font-size:14px;">Click to select your PDF resume</div>
@@ -1679,6 +1702,91 @@ function prefillFromResume(data) {
   goStep(1);
 }
 
+/* ── IndexedDB helpers for resume file persistence ─────────────────────── */
+const RESUME_DB_NAME = 'agzit_resume';
+function _openResumeDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(RESUME_DB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('files');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function saveResumeToIDB(file) {
+  try {
+    const db = await _openResumeDB();
+    const tx = db.transaction('files', 'readwrite');
+    tx.objectStore('files').put(file, 'resume');
+  } catch (e) { console.warn('[idb] save failed:', e); }
+}
+async function loadResumeFromIDB() {
+  try {
+    const db = await _openResumeDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction('files', 'readonly');
+      const req = tx.objectStore('files').get('resume');
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch (e) { return null; }
+}
+async function deleteResumeFromIDB() {
+  try {
+    const db = await _openResumeDB();
+    const tx = db.transaction('files', 'readwrite');
+    tx.objectStore('files').delete('resume');
+  } catch (e) { console.warn('[idb] delete failed:', e); }
+}
+
+/* ── Resume display helpers ────────────────────────────────────────────── */
+function updateResumeDisplay() {
+  const file = window._resumeFile;
+  const el0 = document.getElementById('resume-attached-0');
+  const el5 = document.getElementById('resume-attached-5');
+  const nm0 = document.getElementById('resume-attached-name-0');
+  const nm5 = document.getElementById('resume-attached-name-5');
+  const drop0 = document.getElementById('file-drop');
+  const drop5 = document.getElementById('final-file-drop');
+  if (file) {
+    const name = file.name || 'Resume.pdf';
+    if (nm0) nm0.textContent = name;
+    if (nm5) nm5.textContent = name;
+    if (el0) el0.classList.add('show');
+    if (el5) el5.classList.add('show');
+    if (drop0) drop0.style.display = 'none';
+    if (drop5) drop5.style.display = 'none';
+  } else {
+    if (el0) el0.classList.remove('show');
+    if (el5) el5.classList.remove('show');
+    if (drop0) drop0.style.display = '';
+    if (drop5) drop5.style.display = '';
+  }
+}
+
+function removeResumeFile() {
+  window._resumeFile = null;
+  deleteResumeFromIDB();
+  // Reset file inputs
+  const f0 = document.getElementById('resume-file'); if (f0) f0.value = '';
+  const f5 = document.getElementById('final-resume-file'); if (f5) f5.value = '';
+  // Reset drop area state
+  document.getElementById('file-drop')?.classList.remove('has-file');
+  document.getElementById('final-file-drop')?.classList.remove('has-file');
+  const fn0 = document.getElementById('file-name'); if (fn0) fn0.textContent = '';
+  const fn5 = document.getElementById('final-file-name'); if (fn5) fn5.textContent = '';
+  updateResumeDisplay();
+  saveDraft();
+}
+
+// Restore resume from IndexedDB on load
+loadResumeFromIDB().then(file => {
+  if (file) {
+    window._resumeFile = file;
+    updateResumeDisplay();
+    console.log('[idb] Restored resume file:', file.name);
+  }
+});
+
 /* ── Step 0: Parse resume ───────────────────────────────────────────────── */
 document.getElementById('resume-file').addEventListener('change', function () {
   const file = this.files[0];
@@ -1687,6 +1795,8 @@ document.getElementById('resume-file').addEventListener('change', function () {
     document.getElementById('file-drop').classList.add('has-file');
     document.getElementById('parse-btn').disabled = false;
     window._resumeFile = file;
+    saveResumeToIDB(file);
+    updateResumeDisplay();
   }
 });
 
@@ -1696,7 +1806,9 @@ document.getElementById('final-resume-file').addEventListener('change', function
   if (file) {
     document.getElementById('final-file-name').textContent = file.name;
     document.getElementById('final-file-drop').classList.add('has-file');
-    window._resumeFile = file; // overwrite with latest
+    window._resumeFile = file;
+    saveResumeToIDB(file);
+    updateResumeDisplay();
   }
 });
 
@@ -1975,6 +2087,7 @@ async function submitDPR() {
         }
       }
       localStorage.removeItem(DRAFT_KEY);
+      deleteResumeFromIDB();
       window.location.href = data.redirectTo || '/dashboard';
     }
   } catch (e) {
@@ -2122,18 +2235,6 @@ function restoreDraft() {
     d.pref_locations.forEach(p => addPrefLocEntry({
       city: p.preferred_city_name, country: p.preferred_country_name,
     }));
-  }
-
-  // Restore resume filename display on both Step 0 and Step 5
-  if (d.resume_filename) {
-    const fn0 = document.getElementById('file-name');
-    const fd0 = document.getElementById('file-drop');
-    if (fn0) fn0.textContent = d.resume_filename;
-    if (fd0) fd0.classList.add('has-file');
-    const fn5 = document.getElementById('final-file-name');
-    const fd5 = document.getElementById('final-file-drop');
-    if (fn5) fn5.textContent = d.resume_filename;
-    if (fd5) fd5.classList.add('has-file');
   }
 
   // Step 5
