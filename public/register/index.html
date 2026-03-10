@@ -1346,7 +1346,7 @@ async function parseResume() {
       setTimeout(() => goStep(1), 1100);
     }
   } catch (e) {
-    banner.textContent = 'Network error. Please try again or fill manually.';
+    banner.textContent = 'Resume parsing timed out. Please fill the form manually or try again.';
     banner.className = 'parse-banner error show';
   } finally {
     btn.disabled = false;

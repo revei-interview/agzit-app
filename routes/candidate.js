@@ -1339,7 +1339,7 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
 
     // Call GPT-4o with extracted text
     const systemPrompt = 'You are a resume parser. Extract structured data and return ONLY valid JSON matching the schema. No markdown, no explanation.';
-    const userContent  = `Extract profile data from this resume text and return JSON matching this schema exactly:\n\n${schema}\n\nResume text:\n${pdfText.slice(0, 12000)}`;
+    const userContent  = `Extract profile data from this resume text and return JSON matching this schema exactly:\n\n${schema}\n\nResume text:\n${pdfText.slice(0, 4000)}`;
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
@@ -1350,7 +1350,7 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
         'Content-Type':  'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(55000),
       body: JSON.stringify({
         model:           'gpt-4o',
         max_tokens:      2048,
