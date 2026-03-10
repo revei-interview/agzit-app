@@ -650,7 +650,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
       </div>
       <div class="form-row">
         <div class="field">
-          <label>Nationality</label>
+          <label>Nationality <span class="req">*</span></label>
           <select class="input agzit-select" id="nationality">
             <!-- Populated by JS -->
           </select>
@@ -1925,6 +1925,7 @@ function validateCurrentStep() {
     if (!v('s1-exp'))        return err(errEl, 'Please enter your years of experience.');
     const expNum = parseInt(v('s1-exp'));
     if (isNaN(expNum) || expNum < 0 || expNum > 50) return err(errEl, 'Years of experience must be between 0 and 50.');
+    if (!v('nationality'))   return err(errEl, 'Please select your nationality.');
     if (!v('s1-industry'))   return err(errEl, 'Please select your industry.');
   }
 
