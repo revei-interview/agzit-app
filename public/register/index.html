@@ -1516,7 +1516,9 @@ function prefillFromResume(data) {
     }
   }
   sv('s1-headline', data.headline);
-  if (data.years_experience != null) sv('s1-exp', data.years_experience);
+  // OpenAI returns experience_years; fall back to years_experience if present
+  const expVal = data.experience_years != null ? data.experience_years : data.years_experience;
+  if (expVal != null) sv('s1-exp', expVal);
   if (data.industry) setSel('s1-industry', data.industry);
 
   // Step 4
@@ -1528,29 +1530,65 @@ function prefillFromResume(data) {
   if (Array.isArray(data.work_experience) && data.work_experience.length) {
     careerCount = 0;
     document.getElementById('career-entries').innerHTML = '';
-    data.work_experience.slice(0, 6).forEach(w => addCareerEntry({
-      title:            w.title,
-      company:          w.company,
-      start_date:       w.start_date,
-      end_date:         w.end_date,
-      currently_working: w.currently_working,
-      responsibilities: w.responsibilities,
-    }));
+    data.work_experience.slice(0, 6).forEach(w => {
+      try {
+        addCareerEntry({
+          title:             w.title,
+          company:           w.company,
+          start_date:        w.start_date,
+          end_date:          w.end_date,
+          currently_working: w.currently_working,
+          responsibilities:  w.responsibilities,
+        });
+      } catch (err) {
+        console.warn('[prefill] career entry error:', err.message);
+      }
+    });
     updateEntryNums('.career-entry', 'Position');
   }
 
   // Step 3: education entries
+  // addEduEntry() calls initSearchableSelects() globally, which crashes when it tries to
+  // redefine the .value property on already-initialised selects (Cannot redefine property: value).
+  // Fix: call addEduEntry() with no prefill arg (the card div is appended before the crash),
+  // catch the error, then set field values after a short delay once the DOM has settled.
   if (Array.isArray(data.education) && data.education.length) {
+    const eduItems = data.education.slice(0, 4);
     eduCount = 0;
     document.getElementById('edu-entries').innerHTML = '';
-    data.education.slice(0, 4).forEach(e => addEduEntry({
-      degree:      e.degree,
-      field:       e.field,
-      institution: e.institution,
-      start_year:  e.start_year,
-      end_year:    e.end_year,
-    }));
+    eduItems.forEach(() => {
+      try {
+        addEduEntry(); // no prefill arg — values set below via setTimeout
+      } catch (err) {
+        console.warn('[prefill] edu entry init error:', err.message);
+      }
+    });
     updateEntryNums('.edu-entry', 'Education');
+
+    // Set values after DOM settles to avoid the defineProperty crash
+    setTimeout(() => {
+      const cards = document.querySelectorAll('#edu-entries .edu-entry');
+      eduItems.forEach((e, idx) => {
+        const card = cards[idx];
+        if (!card) return;
+
+        // Degree: set native select value; also update ss-selected-text if the widget
+        // happened to initialise before the crash on this particular card.
+        if (e.degree) {
+          const degSel = card.querySelector('.edu-degree');
+          if (degSel) {
+            try { degSel.value = e.degree; } catch (err) { /* already crashed, ignore */ }
+            const ssText = card.querySelector('.ss-selected-text');
+            if (ssText) ssText.textContent = e.degree;
+          }
+        }
+
+        if (e.field)       { const el = card.querySelector('.edu-field');       if (el) el.value = e.field; }
+        if (e.institution) { const el = card.querySelector('.edu-institution'); if (el) el.value = e.institution; }
+        const gradYr = e.end_year || e.start_year;
+        if (gradYr)        { const el = card.querySelector('.edu-grad-year');   if (el) el.value = String(gradYr); }
+      });
+    }, 50);
   }
 
   // Step 3: certifications
@@ -1558,9 +1596,9 @@ function prefillFromResume(data) {
     certCount = 0;
     document.getElementById('cert-entries').innerHTML = '';
     data.certifications.slice(0, 5).forEach(c => addCertEntry({
-      name:       c.name,
-      issuer:     c.issuer,
-      issue_year: c.issue_date ? splitDate(c.issue_date).year : '',
+      name:        c.name,
+      issuer:      c.issuer,
+      issue_year:  c.issue_date  ? splitDate(c.issue_date).year  : '',
       expiry_year: c.expiry_date ? splitDate(c.expiry_date).year : '',
     }));
     updateEntryNums('.cert-entry', 'Certification');
