@@ -32,19 +32,18 @@ body { font-family: var(--f); background: var(--surface); color: var(--ink); -we
   padding: 0 24px;
 }
 .reg-header-inner {
-  max-width: 640px;
+  max-width: 780px;
   margin: 0 auto;
   width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+  gap: 0;
 }
-.reg-steps { display: flex; align-items: center; flex: 1; min-width: 0; }
-.reg-step-counter { font-size: 12px; color: var(--muted); font-weight: 500; white-space: nowrap; }
+.reg-steps { display: flex; align-items: center; flex: 1; min-width: 0; flex-wrap: nowrap; overflow: visible; }
+.reg-step-counter { font-size: 12px; color: var(--muted); font-weight: 500; white-space: nowrap; margin-left: auto; padding-left: 16px; flex-shrink: 0; }
 
 /* Step dots + connectors */
-.p-step { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.p-step { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .p-dot {
   width: 24px; height: 24px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -54,19 +53,19 @@ body { font-family: var(--f); background: var(--surface); color: var(--ink); -we
 }
 .p-dot.active { background: var(--blue); border-color: var(--blue); color: #fff; }
 .p-dot.done   { background: var(--green-lt); border-color: var(--green); color: var(--green); }
-.p-label { font-size: 12px; font-weight: 500; color: var(--muted); white-space: nowrap; }
+.p-label { font-size: 11px; font-weight: 500; color: var(--muted); white-space: nowrap; }
 .p-label.active { color: var(--blue); font-weight: 700; }
 .p-label.done   { color: var(--green); }
-.p-line { flex: 1; height: 1.5px; background: var(--line); margin: 0 10px; min-width: 12px; }
+.p-line { flex: 1; height: 1.5px; background: var(--line); margin: 0 6px; min-width: 20px; }
 .p-line.done { background: var(--green); }
 
 /* ── Main ─────────────────────────────────────────────────────────────── */
-.main { max-width: 640px; margin: 0 auto; padding: 24px 16px 80px; }
+.main { max-width: 780px; margin: 0 auto; padding: 24px 16px 80px; }
 
 /* Card */
 .card {
   background: #fff; border: 1px solid var(--line);
-  border-radius: 16px; padding: 28px 32px; margin-bottom: 20px;
+  border-radius: 16px; padding: 40px 48px; margin-bottom: 20px;
   box-shadow: 0 2px 16px rgba(9,16,31,0.06);
 }
 .card-title {
@@ -202,7 +201,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
   .card { padding: 20px 18px; }
   .entry-card { padding: 16px 14px 12px; }
   .p-label { display: none; }
-  .p-line { min-width: 8px; margin: 0 6px; }
+  .p-line { min-width: 8px; margin: 0 4px; }
 }
 
 /* ── Privacy Settings ─────────────────────────────────────────────────── */
@@ -221,7 +220,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
 .privacy-opt:has(input:checked) span { color: var(--blue); font-weight: 700; }
 
 /* agzit-select dropdown clipping fix */
-.agzit-select-dropdown { max-height: 260px !important; overflow-y: auto !important; z-index: 999 !important; position: absolute !important; min-width: 100% !important; width: max-content !important; max-width: 500px !important; left: 0 !important; }
+.agzit-select-dropdown { max-height: 260px !important; overflow-y: auto !important; z-index: 999 !important; position: absolute !important; min-width: 100% !important; width: max-content !important; max-width: 480px !important; left: 0 !important; white-space: nowrap !important; }
 /* Degree select wrapper needs position:relative so dropdown escapes col2 constraint */
 .edu-degree-wrap { position: relative; }
 
@@ -271,7 +270,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
       <div class="p-line" id="pline4"></div>
       <div class="p-step">
         <div class="p-dot" id="pd5">5</div>
-        <div class="p-label" id="pl5">Job Preferences</div>
+        <div class="p-label" id="pl5">Job Prefs</div>
       </div>
     </div>
     <span class="reg-step-counter" id="step-counter">Quick Start</span>
@@ -322,7 +321,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
           <input class="input" type="text" id="s1-last" placeholder="Your last name">
         </div>
       </div>
-      <div class="form-row col2">
+      <div class="form-row">
         <div class="field">
           <label>Phone Number <span class="req">*</span></label>
           <div class="phone-row">
@@ -525,19 +524,10 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
             <input class="input phone-num" type="text" id="s1-phone-num" placeholder="Your number">
           </div>
         </div>
-        <div class="field">
-          <label>City <span class="req">*</span></label>
-          <input class="input" type="text" id="s1-city" placeholder="Your city">
-        </div>
       </div>
-      <div class="form-row">
-        <div class="field">
-          <label>Country <span class="req">*</span></label>
-          <select class="input" id="s1-country">
-            <!-- Populated by JS -->
-          </select>
-        </div>
-      </div>
+      <!-- s1-city and s1-country retained as hidden for payload compatibility -->
+      <input type="hidden" id="s1-city" value="">
+      <input type="hidden" id="s1-country" value="">
       <div class="form-row">
         <div class="field">
           <label>Professional Headline <span class="req">*</span></label>
@@ -645,6 +635,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
         </div>
       </div>
       <!-- Structured address block -->
+      <div style="font-size:13px;font-weight:600;color:var(--soft);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:8px;margin-top:8px;">Residential Address</div>
       <div class="form-row">
         <div class="field">
           <label>Address Line 1</label>
@@ -1106,8 +1097,6 @@ function yearOpts(from, to) {
 /* ── Populate country selects ───────────────────────────────────────────── */
 (function populateCountrySelects() {
   const opts = COUNTRY_LIST.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
-  const country = document.getElementById('s1-country');
-  if (country) country.innerHTML = '<option value="">Select your country</option>' + opts;
   const nationality = document.getElementById('nationality');
   if (nationality) nationality.innerHTML = '<option value="">Select nationality</option>' + opts;
   const addrCountry = document.getElementById('addr_country');
@@ -1526,8 +1515,6 @@ function prefillFromResume(data) {
       sv('s1-phone-num', phoneStr.replace(/^\+\d{1,4}[-.\s]?/, '').replace(/^\+/, ''));
     }
   }
-  sv('s1-city', data.city);
-  if (data.country) setSel('s1-country', data.country);
   sv('s1-headline', data.headline);
   if (data.years_experience != null) sv('s1-exp', data.years_experience);
   if (data.industry) setSel('s1-industry', data.industry);
@@ -1681,8 +1668,6 @@ function validateCurrentStep() {
     if (!v('s1-first'))      return err(errEl, 'Please enter your first name.');
     if (!v('s1-last'))       return err(errEl, 'Please enter your last name.');
     if (!v('s1-phone-num'))  return err(errEl, 'Please enter your phone number.');
-    if (!v('s1-city'))       return err(errEl, 'Please enter your city.');
-    if (!v('s1-country'))    return err(errEl, 'Please select your country.');
     if (!v('s1-headline'))   return err(errEl, 'Please enter your professional headline.');
     if (!v('s1-exp'))        return err(errEl, 'Please enter your years of experience.');
     const expNum = parseInt(v('s1-exp'));
@@ -1793,8 +1778,6 @@ async function submitDPR() {
       first_name:                  v('s1-first'),
       last_name:                   v('s1-last'),
       phone:                       (document.getElementById('s1-phone-code').value || '+1') + v('s1-phone-num'),
-      city:                        v('s1-city'),
-      country:                     v('s1-country'),
       headline:                    v('s1-headline'),
       experience:                  parseInt(v('s1-exp')) || 0,
       industry:                    v('s1-industry'),
