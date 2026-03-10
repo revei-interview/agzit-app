@@ -1534,75 +1534,62 @@ function prefillFromResume(data) {
   }
 
   // ── Work Experience (Step 2) ──
-  // The first entry already exists in DOM from page init. Just fill it.
-  // Additional entries: call addWorkEntry() then fill with delay.
+  // Clear the default empty entry, then use addCareerEntry(prefill) which
+  // uses class-based selectors that actually exist in the DOM.
   const fillWork = (entries) => {
     if (!entries || !entries.length) return;
-    entries.forEach((we, i) => {
-      const fill = () => {
-        set(`jt-${i}`, we.job_title || we.title);
-        set(`cn-${i}`, we.company || we.company_name);
-        set(`jd-${i}`, we.description);
-        if (we.employment_type) set(`emp-type-${i}`, we.employment_type);
-        if (we.start_date) {
-          const [sy, sm] = (we.start_date || '').split('-');
-          if (sy) set(`sy-${i}`, sy);
-          if (sm) set(`sm-${i}`, parseInt(sm, 10).toString());
-        }
-        if (we.current || !we.end_date) {
-          const cb = document.getElementById(`current-${i}`);
-          if (cb && !cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
-        } else if (we.end_date) {
-          const [ey, em] = (we.end_date || '').split('-');
-          if (ey) set(`ey-${i}`, ey);
-          if (em) set(`em-${i}`, parseInt(em, 10).toString());
-        }
-      };
-      if (i === 0) { fill(); }
-      else {
-        const btn = document.getElementById('add-work-btn') || document.querySelector('[onclick*="addWorkEntry"], [onclick*="addCareerEntry"]');
-        if (btn) btn.click();
-        setTimeout(fill, 150);
-      }
+    // Remove existing empty entries
+    document.querySelectorAll('.career-entry').forEach(el => el.remove());
+    careerCount = 0;
+    entries.forEach(we => {
+      addCareerEntry({
+        title:             we.job_title || we.title || '',
+        company:           we.company || we.company_name || '',
+        responsibilities:  we.description || '',
+        employment_type:   we.employment_type || '',
+        office_city:       we.office_city || '',
+        office_country:    we.office_country || '',
+        start_date:        we.start_date || '',
+        end_date:          we.end_date || '',
+        currently_working: we.current || false,
+      });
     });
   };
 
   // ── Education (Step 3) ──
+  // Clear the default empty entry, then use addEduEntry(prefill).
   const fillEdu = (entries) => {
     if (!entries || !entries.length) return;
-    entries.forEach((ed, i) => {
-      const fill = () => {
-        set(`edu-fos-${i}`, ed.field_of_study || ed.field);
-        set(`edu-inst-${i}`, ed.institution || ed.institution_name);
-        set(`edu-grad-${i}`, ed.graduation_year || ed.year);
-        set(`edu-city-${i}`, ed.city);
-        set(`edu-country-${i}`, ed.country);
-        // Degree: set the hidden select directly
-        const degSelect = document.getElementById(`edu-deg-${i}`);
-        if (degSelect && ed.degree) {
-          // Try exact match first, then partial
-          const match = Array.from(degSelect.options).find(o =>
-            o.value === ed.degree || o.text === ed.degree ||
-            o.text.toLowerCase().includes((ed.degree || '').toLowerCase().split(' ')[0])
-          );
-          if (match) degSelect.value = match.value;
-          // Update the agzit-select display trigger if present
-          const trigger = degSelect.closest('.agzit-select-wrapper')?.querySelector('.agzit-select-trigger span') ||
-                          document.querySelector(`[data-select-id="edu-deg-${i}"] .agzit-select-trigger span`);
-          if (trigger && match) trigger.textContent = match.text;
-        }
-      };
-      if (i === 0) { setTimeout(fill, 50); }
-      else {
-        const btn = document.getElementById('add-edu-btn') || document.querySelector('[onclick*="addEduEntry"]');
-        if (btn) btn.click();
-        setTimeout(fill, 200 + i * 100);
-      }
+    document.querySelectorAll('.edu-entry').forEach(el => el.remove());
+    eduCount = 0;
+    entries.forEach(ed => {
+      addEduEntry({
+        degree:      ed.degree || '',
+        field:       ed.field_of_study || ed.field || '',
+        institution: ed.institution || ed.institution_name || '',
+        edu_city:    ed.city || '',
+        edu_country: ed.country || '',
+        end_year:    ed.graduation_year || ed.year || '',
+      });
+    });
+  };
+
+  // ── Certifications ──
+  const fillCerts = (entries) => {
+    if (!entries || !entries.length) return;
+    document.querySelectorAll('.cert-entry').forEach(el => el.remove());
+    certCount = 0;
+    entries.forEach(c => {
+      addCertEntry({
+        name:   c.name || c.certification_name || '',
+        issuer: c.issuing_org || c.issuing_organization || '',
+      });
     });
   };
 
   fillWork(data.work_experience);
   fillEdu(data.education);
+  fillCerts(data.certifications);
 
   // Navigate to Step 1 to show results
   goStep(1);
