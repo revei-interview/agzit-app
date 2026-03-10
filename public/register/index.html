@@ -219,6 +219,25 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
 .privacy-opt input[type=radio] { width: 16px; height: 16px; accent-color: var(--blue); flex-shrink: 0; cursor: pointer; }
 .privacy-opt span { font-size: 13px; color: var(--soft); cursor: pointer; font-weight: 500; }
 .privacy-opt:has(input:checked) span { color: var(--blue); font-weight: 700; }
+
+/* agzit-select dropdown clipping fix */
+.agzit-select-dropdown { max-height: 260px !important; overflow-y: auto !important; z-index: 999 !important; position: absolute !important; width: 100% !important; }
+
+/* Open for work toggle */
+.toggle-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border: 1.5px solid var(--line); border-radius: 10px;
+  cursor: pointer; transition: border-color .15s, background .15s;
+}
+.toggle-row:has(input:checked) { border-color: var(--blue); background: var(--blue-lt); }
+.toggle-row input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--blue); flex-shrink: 0; }
+.toggle-row .toggle-label { font-size: 14px; font-weight: 600; color: var(--soft); cursor: pointer; }
+.toggle-row:has(input:checked) .toggle-label { color: var(--blue); }
+
+/* Inline repeater rows (tools, languages) */
+.inline-entry { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.inline-entry .input { flex: 1; }
+.inline-entry .entry-remove { flex-shrink: 0; }
 </style>
 <link rel="stylesheet" href="/shared/searchable-select.css">
 <script src="/assets/layout.js" defer></script>
@@ -246,6 +265,11 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
       <div class="p-step">
         <div class="p-dot" id="pd4">4</div>
         <div class="p-label" id="pl4">Skills &amp; More</div>
+      </div>
+      <div class="p-line" id="pline4"></div>
+      <div class="p-step">
+        <div class="p-dot" id="pd5">5</div>
+        <div class="p-label" id="pl5">Job Preferences</div>
       </div>
     </div>
     <span class="reg-step-counter" id="step-counter">Quick Start</span>
@@ -589,67 +613,6 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
           </select>
         </div>
       </div>
-      <div class="form-row col2">
-        <div class="field">
-          <label>Employment Status</label>
-          <select class="input agzit-select" id="employment_status">
-            <option value="">Select status</option>
-            <option value="employed">Employed</option>
-            <option value="freelancer">Freelancer</option>
-            <option value="self_employed">Self-employed</option>
-            <option value="student">Student</option>
-            <option value="unemployed">Unemployed</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Notice Period</label>
-          <select class="input agzit-select" id="notice_period">
-            <option value="">Select</option>
-            <option value="15_days">15 Days</option>
-            <option value="1_month">1 Month</option>
-            <option value="2_months">2 Months</option>
-            <option value="3_months">3 Months</option>
-            <option value="immediate">Immediate</option>
-            <option value="more_than_3_months">More than 3 Months</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-row col2">
-        <div class="field">
-          <label>Current CTC</label>
-          <div style="display:flex;gap:8px;">
-            <select class="input" id="current_ctc_currency" style="width:90px;flex-shrink:0;">
-              <option value="AED">AED</option>
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-              <option value="INR" selected>INR</option>
-              <option value="SGD">SGD</option>
-              <option value="USD">USD</option>
-            </select>
-            <input class="input" type="number" id="current_ctc_amount" placeholder="Amount" min="0" style="flex:1;min-width:0;">
-          </div>
-        </div>
-        <div class="field">
-          <label>Expected CTC</label>
-          <div style="display:flex;gap:8px;">
-            <select class="input" id="expected_ctc_currency" style="width:90px;flex-shrink:0;">
-              <option value="AED">AED</option>
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
-              <option value="INR" selected>INR</option>
-              <option value="SGD">SGD</option>
-              <option value="USD">USD</option>
-            </select>
-            <input class="input" type="number" id="expected_ctc_amount" placeholder="Amount" min="0" style="flex:1;min-width:0;">
-          </div>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="field">
-          <label>Desired Role</label>
-          <input class="input" type="text" id="desired_role" placeholder="e.g. Project Manager, Finance Analyst, Software Engineer">
-        </div>
-      </div>
       <!-- Additional details divider -->
       <div style="margin:24px 0 18px;padding-top:20px;border-top:1px solid var(--line);">
         <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);">Additional Details</span>
@@ -679,10 +642,39 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
           </select>
         </div>
       </div>
+      <!-- Structured address block -->
       <div class="form-row">
         <div class="field">
-          <label>Current Address</label>
-          <input class="input" type="text" id="current_address" placeholder="e.g. 123 High Street, London, UK">
+          <label>Address Line 1</label>
+          <input class="input" type="text" id="addr_line1" name="residential_address_line_1" placeholder="Street address, building, apartment">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Address Line 2</label>
+          <input class="input" type="text" id="addr_line2" name="residential_address_line_2" placeholder="Area, landmark (optional)">
+        </div>
+      </div>
+      <div class="form-row col2">
+        <div class="field">
+          <label>City</label>
+          <input class="input" type="text" id="addr_city" name="residential_city" placeholder="City">
+        </div>
+        <div class="field">
+          <label>State / Province</label>
+          <input class="input" type="text" id="addr_state" name="residential_state" placeholder="State / Province">
+        </div>
+      </div>
+      <div class="form-row col2">
+        <div class="field">
+          <label>Postal Code</label>
+          <input class="input" type="text" id="addr_zip" name="residential_zip_code" placeholder="Postal code">
+        </div>
+        <div class="field">
+          <label>Country</label>
+          <select class="input" id="addr_country" name="residential_country">
+            <!-- Populated by JS -->
+          </select>
         </div>
       </div>
     </div>
@@ -724,7 +716,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
     </div>
   </div>
 
-  <!-- STEP 4: Skills + Submit -->
+  <!-- STEP 4: Skills & More -->
   <div id="step4" style="display:none;">
     <div class="card">
       <div class="card-title">Skills &amp; More</div>
@@ -734,6 +726,24 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
           <input class="input" type="text" id="s4-skills" placeholder="e.g. Python, SQL, Project Management, Stakeholder Communication">
           <div class="hint">Separate with commas. Include both technical and soft skills.</div>
         </div>
+      </div>
+      <!-- Tools & Software repeater -->
+      <div style="margin:20px 0 12px;padding-top:16px;border-top:1px solid var(--line);">
+        <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--soft);">Tools &amp; Software</span>
+        <span class="opt-label">Optional</span>
+      </div>
+      <div id="tool-entries"></div>
+      <button class="add-entry-btn" type="button" onclick="addToolEntry()" style="margin-bottom:16px;">+ Add Tool</button>
+      <!-- Language Proficiency repeater -->
+      <div style="margin:20px 0 12px;padding-top:16px;border-top:1px solid var(--line);">
+        <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--soft);">Language Proficiency</span>
+        <span class="opt-label">Optional</span>
+      </div>
+      <div id="lang-entries"></div>
+      <button class="add-entry-btn" type="button" onclick="addLangEntry()" style="margin-bottom:16px;">+ Add Language</button>
+      <!-- Professional Summary -->
+      <div style="margin:20px 0 12px;padding-top:16px;border-top:1px solid var(--line);">
+        <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--soft);">Profile Details</span>
       </div>
       <div class="form-row">
         <div class="field">
@@ -750,7 +760,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
       <div class="form-row">
         <div class="field">
           <label>Key Achievements <span class="opt-label">Optional</span></label>
-          <textarea class="input" id="achievements" rows="3" placeholder="e.g. Led a team of 50+ analysts · Reduced onboarding turnaround by 40%"></textarea>
+          <textarea class="input" id="achievements" rows="3" placeholder="e.g. Reduced compliance breaches by 40%, Led a team of 30+ analysts, Implemented AML framework across 3 countries (separate with commas)"></textarea>
         </div>
       </div>
     </div>
@@ -779,7 +789,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
             <span>Public</span>
           </label>
           <label class="privacy-opt">
-            <input type="radio" name="email_visibility" id="ev_verified_only" value="co_verified_only">
+            <input type="radio" name="email_visibility" id="ev_private" value="co_verified_only">
             <span>Verified Employers Only</span>
           </label>
         </div>
@@ -792,7 +802,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
             <span>Public</span>
           </label>
           <label class="privacy-opt">
-            <input type="radio" name="phone_visibility" id="phv_verified_only" value="co_verified_only" checked>
+            <input type="radio" name="phone_visibility" id="phv_private" value="co_verified_only" checked>
             <span>Verified Employers Only</span>
           </label>
         </div>
@@ -800,8 +810,185 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
     </div>
     <div class="form-nav">
       <button class="btn btn-outline" onclick="goStep(3)">← Back</button>
+      <button class="btn btn-primary" onclick="goStep(5)">Next: Job Preferences →</button>
+    </div>
+  </div>
+
+  <!-- STEP 5: Job Preferences -->
+  <div id="step5" style="display:none;">
+    <div class="card">
+      <div class="card-title">Job Preferences</div>
+      <!-- Open for Work toggle -->
+      <div class="form-row" style="margin-bottom:20px;">
+        <label class="toggle-row">
+          <input type="checkbox" id="open_for_work">
+          <span class="toggle-label">I am currently open to new opportunities</span>
+        </label>
+      </div>
+      <!-- Employment Status -->
+      <div class="form-row col2">
+        <div class="field">
+          <label>Employment Status</label>
+          <select class="input agzit-select" id="employment_status">
+            <option value="">Select status</option>
+            <option value="employed">Employed</option>
+            <option value="freelancer">Freelancer</option>
+            <option value="self_employed">Self-employed</option>
+            <option value="student">Student</option>
+            <option value="unemployed">Unemployed</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Notice Period</label>
+          <select class="input agzit-select" id="notice_period">
+            <option value="">Select</option>
+            <option value="immediate">Immediate</option>
+            <option value="15_days">15 Days</option>
+            <option value="1_month">1 Month</option>
+            <option value="2_months">2 Months</option>
+            <option value="3_months">3 Months</option>
+            <option value="more_than_3_months">More than 3 Months</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Desired Role</label>
+          <input class="input" type="text" id="desired_role" placeholder="e.g. Project Manager, Finance Analyst, Compliance Officer">
+        </div>
+      </div>
+      <!-- Preferred Work Type -->
+      <div class="form-row col2">
+        <div class="field">
+          <label>Preferred Work Type</label>
+          <select class="input agzit-select" id="preferred_work_type">
+            <option value="">Select</option>
+            <option value="hybrid">Hybrid</option>
+            <option value="on_site">On-site</option>
+            <option value="open_to_all">Open to All</option>
+            <option value="remote">Remote</option>
+          </select>
+        </div>
+        <div class="field" style="display:flex;align-items:flex-end;padding-bottom:2px;">
+          <label class="check-row" style="margin-top:0;cursor:pointer;">
+            <input type="checkbox" id="open_to_relocate" style="accent-color:var(--blue);">
+            <span style="font-size:13px;color:var(--soft);">Open to relocation</span>
+          </label>
+        </div>
+      </div>
+      <!-- CTC -->
+      <div class="form-row col2">
+        <div class="field">
+          <label>Current CTC</label>
+          <div style="display:flex;gap:8px;">
+            <select class="input" id="current_ctc_currency" style="width:90px;flex-shrink:0;">
+              <option value="AED">AED</option>
+              <option value="AUD">AUD</option>
+              <option value="BDT">BDT</option>
+              <option value="BHD">BHD</option>
+              <option value="BRL">BRL</option>
+              <option value="CAD">CAD</option>
+              <option value="CHF">CHF</option>
+              <option value="CNY">CNY</option>
+              <option value="EGP">EGP</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+              <option value="HKD">HKD</option>
+              <option value="IDR">IDR</option>
+              <option value="ILS">ILS</option>
+              <option value="INR" selected>INR</option>
+              <option value="JPY">JPY</option>
+              <option value="KES">KES</option>
+              <option value="KWD">KWD</option>
+              <option value="LKR">LKR</option>
+              <option value="MAD">MAD</option>
+              <option value="MXN">MXN</option>
+              <option value="MYR">MYR</option>
+              <option value="NGN">NGN</option>
+              <option value="NOK">NOK</option>
+              <option value="NPR">NPR</option>
+              <option value="NZD">NZD</option>
+              <option value="OMR">OMR</option>
+              <option value="PHP">PHP</option>
+              <option value="PKR">PKR</option>
+              <option value="PLN">PLN</option>
+              <option value="QAR">QAR</option>
+              <option value="SAR">SAR</option>
+              <option value="SEK">SEK</option>
+              <option value="SGD">SGD</option>
+              <option value="THB">THB</option>
+              <option value="TRY">TRY</option>
+              <option value="TZS">TZS</option>
+              <option value="UAH">UAH</option>
+              <option value="USD">USD</option>
+              <option value="VND">VND</option>
+              <option value="ZAR">ZAR</option>
+            </select>
+            <input class="input" type="number" id="current_ctc_amount" placeholder="Amount" min="0" style="flex:1;min-width:0;">
+          </div>
+        </div>
+        <div class="field">
+          <label>Expected CTC</label>
+          <div style="display:flex;gap:8px;">
+            <select class="input" id="expected_ctc_currency" style="width:90px;flex-shrink:0;">
+              <option value="AED">AED</option>
+              <option value="AUD">AUD</option>
+              <option value="BDT">BDT</option>
+              <option value="BHD">BHD</option>
+              <option value="BRL">BRL</option>
+              <option value="CAD">CAD</option>
+              <option value="CHF">CHF</option>
+              <option value="CNY">CNY</option>
+              <option value="EGP">EGP</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+              <option value="HKD">HKD</option>
+              <option value="IDR">IDR</option>
+              <option value="ILS">ILS</option>
+              <option value="INR" selected>INR</option>
+              <option value="JPY">JPY</option>
+              <option value="KES">KES</option>
+              <option value="KWD">KWD</option>
+              <option value="LKR">LKR</option>
+              <option value="MAD">MAD</option>
+              <option value="MXN">MXN</option>
+              <option value="MYR">MYR</option>
+              <option value="NGN">NGN</option>
+              <option value="NOK">NOK</option>
+              <option value="NPR">NPR</option>
+              <option value="NZD">NZD</option>
+              <option value="OMR">OMR</option>
+              <option value="PHP">PHP</option>
+              <option value="PKR">PKR</option>
+              <option value="PLN">PLN</option>
+              <option value="QAR">QAR</option>
+              <option value="SAR">SAR</option>
+              <option value="SEK">SEK</option>
+              <option value="SGD">SGD</option>
+              <option value="THB">THB</option>
+              <option value="TRY">TRY</option>
+              <option value="TZS">TZS</option>
+              <option value="UAH">UAH</option>
+              <option value="USD">USD</option>
+              <option value="VND">VND</option>
+              <option value="ZAR">ZAR</option>
+            </select>
+            <input class="input" type="number" id="expected_ctc_amount" placeholder="Amount" min="0" style="flex:1;min-width:0;">
+          </div>
+        </div>
+      </div>
+      <!-- Preferred Locations repeater -->
+      <div style="margin:20px 0 12px;padding-top:16px;border-top:1px solid var(--line);">
+        <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--soft);">Preferred Locations</span>
+        <span class="opt-label">Optional</span>
+      </div>
+      <div id="prefloc-entries"></div>
+      <button class="add-entry-btn" type="button" onclick="addPrefLocEntry()">+ Add Location</button>
+    </div>
+    <div class="form-nav">
+      <button class="btn btn-outline" onclick="goStep(4)">← Back</button>
       <button class="btn btn-primary" id="submit-btn" onclick="submitDPR()">
-        Submit DPR Profile <span class="spinner" id="submit-spinner"></span>
+        Save &amp; Submit <span class="spinner" id="submit-spinner"></span>
       </button>
     </div>
   </div>
@@ -811,7 +998,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
 <script>
 /* ── Constants ──────────────────────────────────────────────────────────── */
-const STEPS = 4;
+const STEPS = 5;
 let currentStep = 0;
 
 const CUR_YEAR = new Date().getFullYear();
@@ -900,14 +1087,13 @@ function yearOpts(from, to) {
 
 /* ── Populate country selects ───────────────────────────────────────────── */
 (function populateCountrySelects() {
-  const countryOpts = '<option value=""></option>' +
-    COUNTRY_LIST.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
+  const opts = COUNTRY_LIST.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
   const country = document.getElementById('s1-country');
-  if (country) country.innerHTML = '<option value="">Select your country</option>' +
-    COUNTRY_LIST.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
+  if (country) country.innerHTML = '<option value="">Select your country</option>' + opts;
   const nationality = document.getElementById('nationality');
-  if (nationality) nationality.innerHTML = '<option value="">Select nationality</option>' +
-    COUNTRY_LIST.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
+  if (nationality) nationality.innerHTML = '<option value="">Select nationality</option>' + opts;
+  const addrCountry = document.getElementById('addr_country');
+  if (addrCountry) addrCountry.innerHTML = '<option value="">Select country</option>' + opts;
 })();
 
 /* ── Multi-entry: Career ────────────────────────────────────────────────── */
@@ -936,6 +1122,29 @@ function addCareerEntry(prefill) {
         <input class="input entry-company-input" type="text" placeholder="e.g. HSBC">
       </div>
     </div>
+    <div class="form-row">
+      <div class="field">
+        <label>Employment Type</label>
+        <select class="input entry-emp-type">
+          <option value="">Select type</option>
+          <option value="contract">Contract</option>
+          <option value="freelance">Freelance</option>
+          <option value="full_time">Full-time</option>
+          <option value="internship">Internship</option>
+          <option value="part_time">Part-time</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row col2">
+      <div class="field">
+        <label>Office City</label>
+        <input class="input entry-office-city" type="text" placeholder="City">
+      </div>
+      <div class="field">
+        <label>Office Country</label>
+        <input class="input entry-office-country" type="text" placeholder="Country">
+      </div>
+    </div>
     <div class="form-row col2">
       <div class="field">
         <label>Start Date <span class="req">*</span></label>
@@ -959,7 +1168,7 @@ function addCareerEntry(prefill) {
     <div class="form-row">
       <div class="field">
         <label>Job Description</label>
-        <textarea class="input entry-resp" rows="3" placeholder="Brief description of responsibilities and achievements"></textarea>
+        <textarea class="input entry-resp" rows="3" placeholder="Brief description of responsibilities and key achievements"></textarea>
       </div>
     </div>`;
   document.getElementById('career-entries').appendChild(div);
@@ -968,6 +1177,9 @@ function addCareerEntry(prefill) {
     div.querySelector('.entry-title-input').value   = prefill.title   || '';
     div.querySelector('.entry-company-input').value = prefill.company || '';
     div.querySelector('.entry-resp').value          = prefill.responsibilities || '';
+    if (prefill.employment_type) div.querySelector('.entry-emp-type').value = prefill.employment_type;
+    if (prefill.office_city)    div.querySelector('.entry-office-city').value = prefill.office_city;
+    if (prefill.office_country) div.querySelector('.entry-office-country').value = prefill.office_country;
     const sd = splitDate(prefill.start_date);
     if (sd.month) div.querySelector('.entry-start-month').value = sd.month;
     if (sd.year)  div.querySelector('.entry-start-year').value  = sd.year;
@@ -1058,11 +1270,21 @@ function addEduEntry(prefill) {
     <div class="form-row col2">
       <div class="field">
         <label>Institution <span class="req">*</span></label>
-        <input class="input edu-institution" type="text" placeholder="e.g. University of Mumbai">
+        <input class="input edu-institution" type="text" placeholder="e.g. University of London">
       </div>
       <div class="field">
         <label>Graduation Year</label>
         <input class="input edu-grad-year" type="number" min="1970" max="2030" placeholder="e.g. 2020">
+      </div>
+    </div>
+    <div class="form-row col2">
+      <div class="field">
+        <label>Institution City</label>
+        <input class="input edu-city" type="text" placeholder="e.g. London">
+      </div>
+      <div class="field">
+        <label>Institution Country</label>
+        <input class="input edu-country" type="text" placeholder="e.g. United Kingdom">
       </div>
     </div>`;
   document.getElementById('edu-entries').appendChild(div);
@@ -1072,6 +1294,8 @@ function addEduEntry(prefill) {
     if (prefill.degree)      div.querySelector('.edu-degree').value      = prefill.degree;
     if (prefill.field)       div.querySelector('.edu-field').value        = prefill.field || '';
     if (prefill.institution) div.querySelector('.edu-institution').value  = prefill.institution;
+    if (prefill.edu_city)    div.querySelector('.edu-city').value         = prefill.edu_city;
+    if (prefill.edu_country) div.querySelector('.edu-country').value      = prefill.edu_country;
     const gradYr = prefill.end_year || prefill.start_year;
     if (gradYr)              div.querySelector('.edu-grad-year').value    = String(gradYr);
   }
@@ -1098,25 +1322,131 @@ function addCertEntry(prefill) {
         <input class="input cert-name" type="text" placeholder="e.g. Project Management Professional (PMP)">
       </div>
       <div class="field">
-        <label>Issuing Body</label>
+        <label>Issuing Organization</label>
         <input class="input cert-issuer" type="text" placeholder="e.g. PMI, Microsoft, Google">
       </div>
     </div>
     <div class="form-row">
       <div class="field">
-        <label>Year</label>
-        <input class="input cert-year" type="number" min="1990" max="2030" placeholder="e.g. 2022" style="max-width:160px;">
+        <label>Credential ID</label>
+        <input class="input cert-cred-id" type="text" placeholder="e.g. ABC123456">
+      </div>
+    </div>
+    <div class="form-row col2">
+      <div class="field">
+        <label>Issue Year</label>
+        <input class="input cert-issue-year" type="number" min="1990" max="2030" placeholder="e.g. 2022" style="max-width:160px;">
+      </div>
+      <div class="field">
+        <label>Expiry Year</label>
+        <input class="input cert-expiry-year" type="number" min="1990" max="2040" placeholder="N/A if no expiry" style="max-width:160px;">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="field">
+        <label>Certificate URL</label>
+        <input class="input cert-url" type="text" placeholder="https://...">
       </div>
     </div>`;
   document.getElementById('cert-entries').appendChild(div);
 
   if (prefill) {
-    if (prefill.name)   div.querySelector('.cert-name').value   = prefill.name;
-    if (prefill.issuer) div.querySelector('.cert-issuer').value = prefill.issuer || '';
-    const yr = prefill.issue_year || (prefill.issue_date ? splitDate(prefill.issue_date).year : '');
-    if (yr) div.querySelector('.cert-year').value = yr;
+    if (prefill.name)       div.querySelector('.cert-name').value       = prefill.name;
+    if (prefill.issuer)     div.querySelector('.cert-issuer').value     = prefill.issuer || '';
+    if (prefill.credential_id) div.querySelector('.cert-cred-id').value = prefill.credential_id || '';
+    if (prefill.cert_url)   div.querySelector('.cert-url').value        = prefill.cert_url || '';
+    const issueYr = prefill.issue_year || (prefill.issue_date ? splitDate(prefill.issue_date).year : '');
+    if (issueYr) div.querySelector('.cert-issue-year').value = issueYr;
+    const expYr = prefill.expiry_year || (prefill.expiry_date ? splitDate(prefill.expiry_date).year : '');
+    if (expYr) div.querySelector('.cert-expiry-year').value = expYr;
   }
   updateEntryNums('.cert-entry', 'Certification');
+}
+
+/* ── Inline repeater: Tools ─────────────────────────────────────────────── */
+let toolCount = 0;
+function addToolEntry(prefill) {
+  const idx = toolCount++;
+  const div = document.createElement('div');
+  div.className = 'inline-entry tool-entry';
+  div.innerHTML = `
+    <input class="input tool-input" id="tool-${idx}" type="text" placeholder="e.g. SAP, Bloomberg, Salesforce, Excel">
+    <button type="button" onclick="removeInlineEntry(this,'.tool-entry',updateToolVis)" class="entry-remove">Remove</button>`;
+  document.getElementById('tool-entries').appendChild(div);
+  if (prefill) div.querySelector('.tool-input').value = prefill;
+  updateToolVis();
+}
+function updateToolVis() {
+  const all = document.querySelectorAll('.tool-entry');
+  all.forEach(e => {
+    const b = e.querySelector('.entry-remove');
+    if (b) b.style.display = all.length > 1 ? '' : 'none';
+  });
+}
+
+/* ── Inline repeater: Languages ─────────────────────────────────────────── */
+let langCount = 0;
+function addLangEntry(prefill) {
+  const idx = langCount++;
+  const div = document.createElement('div');
+  div.className = 'inline-entry lang-entry';
+  div.innerHTML = `
+    <input class="input lang-input" id="lang-${idx}" type="text" placeholder="e.g. English (Fluent), Hindi (Native), Arabic (Conversational)">
+    <button type="button" onclick="removeInlineEntry(this,'.lang-entry',updateLangVis)" class="entry-remove">Remove</button>`;
+  document.getElementById('lang-entries').appendChild(div);
+  if (prefill) div.querySelector('.lang-input').value = prefill;
+  updateLangVis();
+}
+function updateLangVis() {
+  const all = document.querySelectorAll('.lang-entry');
+  all.forEach(e => {
+    const b = e.querySelector('.entry-remove');
+    if (b) b.style.display = all.length > 1 ? '' : 'none';
+  });
+}
+
+function removeInlineEntry(btn, sel, visFn) {
+  const all = document.querySelectorAll(sel);
+  if (all.length <= 1) return;
+  btn.closest(sel).remove();
+  visFn();
+}
+
+/* ── Preferred Locations repeater ───────────────────────────────────────── */
+let prefLocCount = 0;
+function addPrefLocEntry(prefill) {
+  const idx = prefLocCount++;
+  const div = document.createElement('div');
+  div.className = 'prefloc-entry';
+  div.innerHTML = `
+    <div class="form-row col2" style="margin-bottom:8px;">
+      <div class="field" style="margin-bottom:0;">
+        <input class="input prefloc-city" id="plc-${idx}" type="text" placeholder="City">
+      </div>
+      <div class="field" style="margin-bottom:0;display:flex;gap:8px;align-items:center;">
+        <input class="input prefloc-country" id="plcc-${idx}" type="text" placeholder="Country" style="flex:1;">
+        <button type="button" onclick="removePrefLocEntry(this)" class="entry-remove" style="flex-shrink:0;">Remove</button>
+      </div>
+    </div>`;
+  document.getElementById('prefloc-entries').appendChild(div);
+  if (prefill) {
+    div.querySelector('.prefloc-city').value    = prefill.city    || '';
+    div.querySelector('.prefloc-country').value = prefill.country || '';
+  }
+  updatePrefLocVis();
+}
+function removePrefLocEntry(btn) {
+  const all = document.querySelectorAll('.prefloc-entry');
+  if (all.length <= 1) return;
+  btn.closest('.prefloc-entry').remove();
+  updatePrefLocVis();
+}
+function updatePrefLocVis() {
+  const all = document.querySelectorAll('.prefloc-entry');
+  all.forEach(e => {
+    const b = e.querySelector('.entry-remove');
+    if (b) b.style.display = all.length > 1 ? '' : 'none';
+  });
 }
 
 /* ── Shared entry helpers ───────────────────────────────────────────────── */
@@ -1223,11 +1553,10 @@ function prefillFromResume(data) {
     certCount = 0;
     document.getElementById('cert-entries').innerHTML = '';
     data.certifications.slice(0, 5).forEach(c => addCertEntry({
-      name:        c.name,
-      issuer:      c.issuer,
-      issue_date:  c.issue_date,
-      expiry_date: c.expiry_date,
-      no_expiry:   !c.expiry_date,
+      name:       c.name,
+      issuer:     c.issuer,
+      issue_year: c.issue_date ? splitDate(c.issue_date).year : '',
+      expiry_year: c.expiry_date ? splitDate(c.expiry_date).year : '',
     }));
     updateEntryNums('.cert-entry', 'Certification');
   }
@@ -1297,7 +1626,6 @@ async function parseResume() {
 
 /* ── Navigation ─────────────────────────────────────────────────────────── */
 function goStep(n) {
-  // Only validate if moving forward past a numbered step
   if (n > currentStep && currentStep > 0 && !validateCurrentStep()) return;
   currentStep = n;
   for (let i = 0; i <= STEPS; i++) {
@@ -1315,6 +1643,7 @@ function updateProgress(n) {
   for (let i = 1; i <= STEPS; i++) {
     const dot   = document.getElementById('pd' + i);
     const label = document.getElementById('pl' + i);
+    if (!dot) continue;
     if (i < n)       { dot.className = 'p-dot done';   dot.textContent = '✓'; label.className = 'p-label done'; }
     else if (i === n){ dot.className = 'p-dot active'; dot.textContent = i;   label.className = 'p-label active'; }
     else             { dot.className = 'p-dot';        dot.textContent = i;   label.className = 'p-label'; }
@@ -1347,17 +1676,17 @@ function validateCurrentStep() {
     const entries = document.querySelectorAll('.career-entry');
     if (!entries.length) return err(errEl, 'Please add at least one career position.');
     const first = entries[0];
-    if (!first.querySelector('.entry-title-input').value.trim())  return err(errEl, 'Please enter your job title.');
+    if (!first.querySelector('.entry-title-input').value.trim())   return err(errEl, 'Please enter your job title.');
     if (!first.querySelector('.entry-company-input').value.trim()) return err(errEl, 'Please enter your company name.');
-    if (!first.querySelector('.entry-start-month').value)         return err(errEl, 'Please select a start month for your most recent role.');
-    if (!first.querySelector('.entry-start-year').value)          return err(errEl, 'Please select a start year for your most recent role.');
+    if (!first.querySelector('.entry-start-month').value)          return err(errEl, 'Please select a start month for your most recent role.');
+    if (!first.querySelector('.entry-start-year').value)           return err(errEl, 'Please select a start year for your most recent role.');
   }
 
   if (currentStep === 3) {
     const entries = document.querySelectorAll('.edu-entry');
     if (!entries.length) return err(errEl, 'Please add at least one education entry.');
     const first = entries[0];
-    if (!first.querySelector('.edu-degree').value)           return err(errEl, 'Please select your highest qualification.');
+    if (!first.querySelector('.edu-degree').value)            return err(errEl, 'Please select your highest qualification.');
     if (!first.querySelector('.edu-institution').value.trim()) return err(errEl, 'Please enter your institution name.');
   }
 
@@ -1365,6 +1694,7 @@ function validateCurrentStep() {
     if (!v('s4-skills'))  return err(errEl, 'Please enter your key skills.');
     if (!v('s4-summary')) return err(errEl, 'Please write a professional summary.');
   }
+
   return true;
 }
 
@@ -1379,12 +1709,15 @@ function err(el, msg) {
 /* ── Data collectors ────────────────────────────────────────────────────── */
 function getCareerData() {
   return Array.from(document.querySelectorAll('.career-entry')).map(el => ({
-    title:            el.querySelector('.entry-title-input').value.trim(),
-    company:          el.querySelector('.entry-company-input').value.trim(),
-    start_month:      el.querySelector('.entry-start-month').value,
-    start_year:       el.querySelector('.entry-start-year').value,
-    end_month:        el.querySelector('.entry-end-month').value,
-    end_year:         el.querySelector('.entry-end-year').value,
+    title:             el.querySelector('.entry-title-input').value.trim(),
+    company:           el.querySelector('.entry-company-input').value.trim(),
+    employment_type:   el.querySelector('.entry-emp-type').value,
+    office_city:       el.querySelector('.entry-office-city').value.trim(),
+    office_country:    el.querySelector('.entry-office-country').value.trim(),
+    start_month:       el.querySelector('.entry-start-month').value,
+    start_year:        el.querySelector('.entry-start-year').value,
+    end_month:         el.querySelector('.entry-end-month').value,
+    end_year:          el.querySelector('.entry-end-year').value,
     currently_working: el.querySelector('.entry-current').checked,
     responsibilities:  el.querySelector('.entry-resp').value.trim(),
   }));
@@ -1394,6 +1727,8 @@ function getEduData() {
     degree:      el.querySelector('.edu-degree').value,
     field:       el.querySelector('.edu-field').value.trim(),
     institution: el.querySelector('.edu-institution').value.trim(),
+    edu_city:    el.querySelector('.edu-city')?.value.trim() || '',
+    edu_country: el.querySelector('.edu-country')?.value.trim() || '',
     start_year:  '',
     end_year:    el.querySelector('.edu-grad-year')?.value || '',
   }));
@@ -1402,13 +1737,27 @@ function getCertData() {
   return Array.from(document.querySelectorAll('.cert-entry')).map(el => ({
     name:          el.querySelector('.cert-name').value.trim(),
     issuer:        el.querySelector('.cert-issuer').value.trim(),
-    credential_id: '',
-    issue_month:   '',
-    issue_year:    el.querySelector('.cert-year')?.value || '',
-    no_expiry:     true,
-    expiry_month:  '',
-    expiry_year:   '',
+    credential_id: el.querySelector('.cert-cred-id')?.value.trim() || '',
+    issue_year:    el.querySelector('.cert-issue-year')?.value || '',
+    expiry_year:   el.querySelector('.cert-expiry-year')?.value || '',
+    cert_url:      el.querySelector('.cert-url')?.value.trim() || '',
   }));
+}
+function getToolData() {
+  return Array.from(document.querySelectorAll('.tool-entry .tool-input'))
+    .map(el => ({ tool_name: el.value.trim() }))
+    .filter(t => t.tool_name);
+}
+function getLangData() {
+  return Array.from(document.querySelectorAll('.lang-entry .lang-input'))
+    .map(el => ({ language: el.value.trim() }))
+    .filter(l => l.language);
+}
+function getPrefLocData() {
+  return Array.from(document.querySelectorAll('.prefloc-entry')).map(el => ({
+    preferred_city_name:    el.querySelector('.prefloc-city').value.trim(),
+    preferred_country_name: el.querySelector('.prefloc-country').value.trim(),
+  })).filter(p => p.preferred_city_name || p.preferred_country_name);
 }
 
 /* ── Submit ─────────────────────────────────────────────────────────────── */
@@ -1423,39 +1772,51 @@ async function submitDPR() {
 
   const payload = {
     personal: {
-      first_name:        v('s1-first'),
-      last_name:         v('s1-last'),
-      phone:             (document.getElementById('s1-phone-code').value || '+1') + v('s1-phone-num'),
-      city:              v('s1-city'),
-      country:           v('s1-country'),
-      current_address:   v('current_address'),
-      headline:          v('s1-headline'),
-      experience:        parseInt(v('s1-exp')) || 0,
-      industry:          v('s1-industry'),
-      gender:            v('gender'),
-      dob:               v('dob'),
-      nationality:       v('nationality'),
-      employment_status: v('employment_status'),
-      notice_period:     v('notice_period'),
-      current_ctc:       [v('current_ctc_currency'), v('current_ctc_amount')].filter(Boolean).join(' '),
-      expected_ctc:      [v('expected_ctc_currency'), v('expected_ctc_amount')].filter(Boolean).join(' '),
-      desired_role:      v('desired_role'),
+      first_name:                  v('s1-first'),
+      last_name:                   v('s1-last'),
+      phone:                       (document.getElementById('s1-phone-code').value || '+1') + v('s1-phone-num'),
+      city:                        v('s1-city'),
+      country:                     v('s1-country'),
+      headline:                    v('s1-headline'),
+      experience:                  parseInt(v('s1-exp')) || 0,
+      industry:                    v('s1-industry'),
+      gender:                      v('gender'),
+      dob:                         v('dob'),
+      nationality:                 v('nationality'),
+      residential_address_line_1:  v('addr_line1'),
+      residential_address_line_2:  v('addr_line2'),
+      residential_city:            v('addr_city'),
+      residential_state:           v('addr_state'),
+      residential_zip_code:        v('addr_zip'),
+      residential_country:         v('addr_country'),
     },
     career:         getCareerData(),
     education:      getEduData(),
     certifications: getCertData(),
     skills: {
-      skills_list:  v('s4-skills'),
-      summary:      v('s4-summary'),
-      linkedin:     v('s4-linkedin'),
-      portfolio:    v('s4-portfolio'),
-      achievements: v('achievements'),
+      skills_list:          v('s4-skills'),
+      summary:              v('s4-summary'),
+      linkedin:             v('s4-linkedin'),
+      portfolio:            v('s4-portfolio'),
+      achievements:         v('achievements'),
+      compliance_tools:     getToolData(),
+      language_proficiency: getLangData(),
     },
     privacy: {
       profile_visibility: document.querySelector('input[name="profile_visibility"]:checked')?.value || 'public',
       email_visibility:   document.querySelector('input[name="email_visibility"]:checked')?.value   || 'co_public',
       phone_visibility:   document.querySelector('input[name="phone_visibility"]:checked')?.value   || 'co_verified_only',
-      resume_visibility:  document.querySelector('input[name="resume_visibility"]:checked')?.value  || 're_verified_only',
+    },
+    job_preferences: {
+      open_for_work_badge:  document.getElementById('open_for_work').checked,
+      employment_status:    v('employment_status'),
+      notice_period:        v('notice_period'),
+      desired_role:         v('desired_role'),
+      preferred_work_type:  v('preferred_work_type'),
+      open_to_relocate:     document.getElementById('open_to_relocate').checked,
+      current_ctc:          [v('current_ctc_currency'), v('current_ctc_amount')].filter(Boolean).join(' '),
+      expected_ctc:         [v('expected_ctc_currency'), v('expected_ctc_amount')].filter(Boolean).join(' '),
+      preferred_location:   getPrefLocData(),
     },
   };
 
@@ -1495,10 +1856,12 @@ async function submitDPR() {
 }
 
 /* ── Init ───────────────────────────────────────────────────────────────── */
-// Add initial entries (before searchable-select.js loads, so it sees a populated country select)
 addCareerEntry();
 addEduEntry();
 addCertEntry();
+addToolEntry();
+addLangEntry();
+addPrefLocEntry();
 updateEntryNums('.career-entry', 'Position');
 updateEntryNums('.edu-entry', 'Education');
 updateEntryNums('.cert-entry', 'Certification');
