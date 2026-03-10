@@ -319,9 +319,13 @@ router.get('/profile', ...guard, async (req, res) => {
     ]);
 
     // Check agzit_resume_files for actual resume existence (fixes stale meta)
-    const [[resumeRow]] = await pool.execute(
-      'SELECT filename FROM agzit_resume_files WHERE post_id = ? LIMIT 1', [profileId]
-    );
+    let resumeRow = null;
+    try {
+      const [[row]] = await pool.execute(
+        'SELECT filename FROM agzit_resume_files WHERE post_id = ? LIMIT 1', [profileId]
+      );
+      resumeRow = row || null;
+    } catch (_) { /* table may not exist yet */ }
     const hasResumeActual = !!(resumeRow || meta.has_resume === '1' || meta.resume_upload);
     // Auto-heal: if resume exists in DB but meta missing, set it now
     if (resumeRow && meta.has_resume !== '1') {
