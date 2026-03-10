@@ -21,6 +21,37 @@ const upload = multer({
 
 const guard = [requireAuth, requireRole('dpr_candidate')];
 
+// ── TEMP: Reset DPR for testing (remove after use) ──
+router.post('/admin-reset-dpr', async (req, res) => {
+  const { email, secret } = req.body;
+  if (secret !== 'agzit-reset-2026') return res.status(403).json({ ok: false });
+  if (!email) return res.status(400).json({ ok: false, error: 'email required' });
+  try {
+    const results = {};
+    // Clear agzit_users.dpr_profile_id
+    const [u] = await pool.execute("UPDATE agzit_users SET dpr_profile_id = NULL WHERE email = ?", [email]);
+    results.agzit_users_updated = u.affectedRows;
+    // Clear wp_usermeta
+    const [[wpUser]] = await pool.execute("SELECT ID FROM wp_users WHERE user_email = ?", [email]);
+    if (wpUser) {
+      const [um] = await pool.execute("DELETE FROM wp_usermeta WHERE user_id = ? AND meta_key IN ('dpr_profile_post_id','resume_parsed_at')", [wpUser.ID]);
+      results.wp_usermeta_deleted = um.affectedRows;
+      // Delete DPR posts + postmeta
+      const [posts] = await pool.execute("SELECT ID FROM wp_posts WHERE post_author = ? AND post_type = 'dpr_profile'", [wpUser.ID]);
+      for (const p of posts) {
+        await pool.execute("DELETE FROM wp_postmeta WHERE post_id = ?", [p.ID]);
+        await pool.execute("DELETE FROM wp_posts WHERE ID = ?", [p.ID]);
+      }
+      results.posts_deleted = posts.length;
+    }
+    console.log('[admin-reset-dpr]', email, results);
+    res.json({ ok: true, email, results });
+  } catch (e) {
+    console.error('[admin-reset-dpr] error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ── Unlock helpers (used by /resume/download for employer access checks) ─────
 
 function parseUnlockedMap(raw) {
