@@ -1330,13 +1330,10 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
       return res.status(422).json({ ok: false, error: 'Could not read PDF. Please ensure it is a text-based PDF.' });
     }
 
-    // Readable text ratio check — reject image-only or garbled PDFs
-    const readableCount = (pdfText.match(/[\x20-\x7E\n\t]/g) || []).length;
-    const readableRatio = pdfText.length > 0 ? readableCount / pdfText.length : 0;
-    console.log('[parse-resume] extracted', pdfText.length, 'chars, readableRatio:', readableRatio.toFixed(2));
+    console.log('[parse-resume] extracted', pdfText.length, 'chars');
 
-    if (readableRatio < 0.6 || pdfText.trim().length < 200) {
-      console.error('[parse-resume] low readable ratio or too short:', readableRatio.toFixed(2), pdfText.trim().length);
+    if (pdfText.trim().length < 50) {
+      console.error('[parse-resume] too short, length:', pdfText.trim().length);
       return res.status(422).json({ ok: false, error: 'PDF appears to be empty or image-only. Please upload a text-based PDF.' });
     }
 
