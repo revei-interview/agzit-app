@@ -1258,7 +1258,7 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
         return r > line.length * 0.5 && r > 3;
       })
       .join('\n')
-      .slice(0, 2000);
+      .slice(0, 6000);
 
     console.log(`[parse-resume] sending to OpenAI, sample: ${cleanText.substring(0, 100)}`);
 
@@ -1274,7 +1274,7 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
       signal: AbortSignal.timeout(55000),
       body: JSON.stringify({
         model:       'gpt-4o',
-        max_tokens:  1500,
+        max_tokens:  2500,
         temperature: 0,
         messages: [
           {
@@ -1286,12 +1286,14 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
             content: `Extract the following fields from this resume text and return as JSON.
 
 IMPORTANT RULES:
-- first_name and last_name: Extract from the candidate's actual name on the resume (usually at the top or bottom as a standalone name line like "Wasim Khan"). Do NOT extract from email addresses or LinkedIn URLs.
-- phone: Extract the full phone number including country code if present. Look for patterns like +91-XXXXXXXXXX or mobile/phone labels.
+- first_name and last_name: Extract from the candidate's actual name on the resume. It may appear at the top, bottom, or in a header/footer. Do NOT extract from email addresses or LinkedIn URLs.
+- phone: CRITICAL — scan the ENTIRE text for phone numbers. They often appear near the name, in headers/footers, or at the top/bottom. Look for patterns like +91-XXXXXXXXXX, (+91) XXXXXXXXXX, or any 10+ digit number with optional country code. Return the digits only (e.g. "9766886605"). If country code found (e.g. +91), put "91" in phone_code.
+- city: Extract the candidate's city/location if mentioned near the name or contact details.
+- country: Extract or infer the country (e.g. "India" if city is Pune, Mumbai, etc.).
 - industry: You MUST map to one of these exact values only: accounting, administration, media, architecture, audit, aviation, banking, civil, compliance, customer_support, cybersecurity, data, engineering, erp_crm, finance, fraud, freshers, government, design, hse, healthcare, hospitality, hr, insurance, it, hardware_it, content, translation, legal, logistics, marine, marketing, mep, mining, oil_gas, operations, other, pharma, procurement, product, manufacturing, qa, r_and_d, retail, risk, sales, security, management, site_engineering, software, network_admin, education, telecom, transport, travel. Pick the closest match. For AML/KYC/Compliance roles use "compliance". For banking/financial services use "banking".
 - skills: Array of individual skill strings, max 10.
-- education: Array of objects with: degree (string), institution (string), graduation_year (number), field_of_study (string).
-- work_experience: Array of objects with: job_title, company, start_date (YYYY-MM), end_date (YYYY-MM or null), current (boolean), description (string, max 200 chars).
+- education: Array of ALL education entries. Each: degree (string), institution (string), graduation_year (number), field_of_study (string). Include every degree listed.
+- work_experience: CRITICAL — include ALL roles, not just the most recent. If someone held multiple titles at the same company, list each as a separate entry. Each: job_title, company, start_date (YYYY-MM), end_date (YYYY-MM or null), current (boolean), description (string, max 150 chars).
 - certifications: Array of objects with: name, issuing_org, year.
 
 Return this exact JSON structure:
