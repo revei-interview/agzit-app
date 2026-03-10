@@ -720,6 +720,20 @@ function extractCertUrl(raw) {
 function getVal(id) { return (document.getElementById(id)?.value || '').trim(); }
 function setVal(id, v) { const el = document.getElementById(id); if (el) el.value = v || ''; }
 
+// Extract first industry key from raw stored value (PHP serialized, JSON array, or plain string)
+function extractIndustryKey(raw) {
+  if (!raw) return '';
+  const s = String(raw).trim();
+  if (s.startsWith('a:')) {
+    const m = s.match(/s:\d+:"([^"]+)"/);
+    return m ? m[1] : '';
+  }
+  try {
+    const parsed = JSON.parse(s);
+    return Array.isArray(parsed) ? (parsed[0] || '') : String(parsed);
+  } catch (_) { return s; }
+}
+
 // ── Load profile ──────────────────────────────────────────────────────────────
 async function loadProfile() {
   try {
@@ -744,11 +758,14 @@ function populateForm(p) {
     'desired_role','soft_skills',
     'residential_address_line_1','residential_address_line_2',
     'residential_city','residential_state','residential_zip_code',
-    'compliance_domains','current_annual_ctc_with_currency',
+    'current_annual_ctc_with_currency',
     'profile_visibility','contact_visibility','resume_visibility','public_name_mode',
     'current_career_level',
   ];
   scalar.forEach(f => setVal(`f_${f}`, p[f]));
+
+  // compliance_domains: raw value may be PHP-serialized or JSON — extract the key
+  setVal('f_compliance_domains', extractIndustryKey(p.compliance_domains));
 
   // Country selects (set after options are populated)
   setVal('f_country_of_nationality', p.country_of_nationality);

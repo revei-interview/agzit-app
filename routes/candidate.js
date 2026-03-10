@@ -360,7 +360,7 @@ router.get('/profile', ...guard, async (req, res) => {
         // ── Professional summary
         professional_summary_bio:         meta.professional_summary_bio,
         total_work_experience:            meta.total_work_experience,
-        compliance_domains:               parseComplianceDomains(meta.compliance_domains),   // "Industry / Functional Area"
+        compliance_domains:               meta.compliance_domains,  // raw; parseIndustry() handles display client-side
         current_employment_status:        meta.current_employment_status,
         notice_period_in_days:            meta.notice_period_in_days,
         current_annual_ctc_with_currency: meta.current_annual_ctc_with_currency,
@@ -1001,7 +1001,7 @@ router.put('/profile', ...guard, async (req, res) => {
       'residential_city', 'residential_state', 'residential_zip_code',
       'country_of_nationality', 'residential_country', 'compliance_domains',
       'current_annual_ctc_with_currency', 'expected_annual_ctc_with_currency',
-      'preferred_work_type', 'work_level',
+      'preferred_work_type', 'work_level', 'current_career_level',
     ];
     for (const f of SCALAR_FIELDS) {
       if (b[f] !== undefined) await upsertPostMeta(profileId, f, b[f]);
