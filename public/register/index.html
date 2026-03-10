@@ -2028,6 +2028,29 @@ function restoreDraft() {
   set('s4-skills', d.s4_skills); set('s4-summary', d.s4_summary); set('s4-linkedin', d.s4_linkedin);
   set('achievements', d.achievements);
 
+  // Step 4: tools
+  if (d.tools && d.tools.length) {
+    document.querySelectorAll('.tool-entry').forEach(el => el.remove());
+    toolCount = 0;
+    d.tools.forEach(t => addToolEntry(t.tool_name));
+  }
+
+  // Step 4: languages
+  if (d.langs && d.langs.length) {
+    document.querySelectorAll('.lang-entry').forEach(el => el.remove());
+    langCount = 0;
+    d.langs.forEach(l => addLangEntry(l.language));
+  }
+
+  // Step 5: preferred locations
+  if (d.pref_locations && d.pref_locations.length) {
+    document.querySelectorAll('.prefloc-entry').forEach(el => el.remove());
+    prefLocCount = 0;
+    d.pref_locations.forEach(p => addPrefLocEntry({
+      city: p.preferred_city_name, country: p.preferred_country_name,
+    }));
+  }
+
   // Step 5
   if (d.profile_visibility) { const r = document.getElementById(d.profile_visibility === 'public' ? 'pv_public' : d.profile_visibility === 'verified_only' ? 'pv_verified' : 'pv_private'); if (r) r.checked = true; }
   if (d.email_visibility) { const r = document.querySelector(`input[name="email_visibility"][value="${d.email_visibility}"]`); if (r) r.checked = true; }
