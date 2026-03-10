@@ -2033,7 +2033,7 @@ function collectFormData() {
     current_ctc_currency: v('current_ctc_currency'), current_ctc_amount: v('current_ctc_amount'),
     expected_ctc_currency: v('expected_ctc_currency'), expected_ctc_amount: v('expected_ctc_amount'),
     pref_locations: getPrefLocData(),
-    resume_filename: window._resumeFile?.name || document.getElementById('final-file-name')?.textContent || '',
+    resume_filename: window._resumeFile?.name || document.getElementById('final-file-name')?.textContent || document.getElementById('file-name')?.textContent || '',
     _saved: new Date().toISOString(),
   };
 }
@@ -2124,10 +2124,16 @@ function restoreDraft() {
     }));
   }
 
-  // Step 5: resume filename (file itself can't persist in localStorage, show re-upload prompt)
-  if (d.resume_filename && !window._resumeFile) {
-    const fnEl = document.getElementById('final-file-name');
-    if (fnEl) fnEl.textContent = d.resume_filename + ' (please re-upload)';
+  // Restore resume filename display on both Step 0 and Step 5
+  if (d.resume_filename) {
+    const fn0 = document.getElementById('file-name');
+    const fd0 = document.getElementById('file-drop');
+    if (fn0) fn0.textContent = d.resume_filename;
+    if (fd0) fd0.classList.add('has-file');
+    const fn5 = document.getElementById('final-file-name');
+    const fd5 = document.getElementById('final-file-drop');
+    if (fn5) fn5.textContent = d.resume_filename;
+    if (fd5) fd5.classList.add('has-file');
   }
 
   // Step 5
