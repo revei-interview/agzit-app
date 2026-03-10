@@ -190,6 +190,7 @@
     if (origValueDescriptor && origValueDescriptor.set) {
       const origSet = origValueDescriptor.set;
       Object.defineProperty(select, 'value', {
+        configurable: true,
         get: function () { return origValueDescriptor.get.call(this); },
         set: function (v) {
           origSet.call(this, v);
