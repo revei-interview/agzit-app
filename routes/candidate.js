@@ -21,6 +21,46 @@ const upload = multer({
 
 const guard = [requireAuth, requireRole('dpr_candidate')];
 
+// ── TEMP: Admin cleanup endpoint (remove after use) ──────────────────────────
+router.post('/admin-cleanup', async (req, res) => {
+  const { email, secret } = req.body;
+  if (secret !== 'agzit-cleanup-2026') return res.status(403).json({ ok: false });
+  if (!email) return res.status(400).json({ ok: false, error: 'email required' });
+  try {
+    // Find WP user
+    const [[user]] = await pool.execute("SELECT ID FROM wp_users WHERE user_email = ?", [email]);
+    if (!user) return res.json({ ok: true, msg: 'User not found', email });
+    const uid = user.ID;
+    const results = {};
+
+    // Delete DPR posts + their postmeta
+    const [posts] = await pool.execute("SELECT ID FROM wp_posts WHERE post_author = ? AND post_type = 'dpr_profile'", [uid]);
+    for (const p of posts) {
+      await pool.execute("DELETE FROM wp_postmeta WHERE post_id = ?", [p.ID]);
+      await pool.execute("DELETE FROM wp_posts WHERE ID = ?", [p.ID]);
+    }
+    results.posts_deleted = posts.length;
+
+    // Delete resume files
+    const [rf] = await pool.execute("DELETE FROM agzit_resume_files WHERE user_id = ?", [uid]);
+    results.resume_files_deleted = rf.affectedRows;
+
+    // Delete usermeta: dpr_profile_post_id, resume_parsed_at
+    const [um] = await pool.execute("DELETE FROM wp_usermeta WHERE user_id = ? AND meta_key IN ('dpr_profile_post_id','resume_parsed_at')", [uid]);
+    results.usermeta_deleted = um.affectedRows;
+
+    // Delete sessions
+    const [sess] = await pool.execute("DELETE FROM agzit_sessions WHERE email = ?", [email]);
+    results.sessions_deleted = sess.affectedRows;
+
+    console.log('[admin-cleanup]', email, results);
+    res.json({ ok: true, email, wp_user_id: uid, results });
+  } catch (e) {
+    console.error('[admin-cleanup] error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // ── Unlock helpers (used by /resume/download for employer access checks) ─────
 
 function parseUnlockedMap(raw) {
