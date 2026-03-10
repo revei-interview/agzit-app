@@ -351,6 +351,8 @@ router.get('/profile', ...guard, async (req, res) => {
         expected_annual_ctc_with_currency: meta.expected_annual_ctc_with_currency,
         preferred_work_type:              meta.preferred_work_type,
         resume_upload:                    meta.resume_upload,
+        has_resume:                       meta.has_resume,
+        key_achievements:                 meta.key_achievements,
 
         // ── Repeaters
         work_experience:                  workExperience,
@@ -1563,7 +1565,7 @@ router.post('/dpr', requireAuth, async (req, res) => {
       return res.status(409).json({ ok: false, error: 'DPR profile already exists.' });
     }
 
-    const { personal = {}, career = [], education = [], certifications = [], skills = {} } = req.body;
+    const { personal = {}, career = [], education = [], certifications = [], skills = {}, job_preferences = {}, privacy = {} } = req.body;
     const s = v => String(v ?? '').trim();
 
     if (!s(personal.first_name) || !s(personal.last_name)) {
@@ -1604,28 +1606,26 @@ router.post('/dpr', requireAuth, async (req, res) => {
 
     // 5. Generate DPR ID
     const dateYmd  = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-    const country2 = (s(personal.country).slice(0, 2).toUpperCase()) || 'NA';
+    const country2 = (s(personal.nationality).slice(0, 2).toUpperCase()) || 'NA';
     const hash6    = crypto.createHash('sha256')
       .update(`DPR|${dateYmd}|${country2}|${postId}`)
       .digest('hex').slice(0, 6).toUpperCase();
     const dprId = `DPR-${dateYmd}-${country2}-${postId}-${hash6}`;
-
-    const { privacy = {} } = req.body;
 
     // 6. Write scalar postmeta
     const fieldsForCompleteness = [
       personal.first_name || personal.last_name,
       userEmail,
       personal.phone,
-      personal.city,
-      personal.country,
+      personal.residential_city || personal.city,
+      personal.residential_country || personal.country,
       personal.headline,
       personal.experience,
       personal.industry,
       skills.summary,
       skills.linkedin,
       skills.achievements,
-      personal.current_address,
+      personal.residential_address_line_1 || personal.current_address,
     ];
     const filledCount = fieldsForCompleteness.filter(v => v && String(v).trim() !== '').length;
     const profileCompleteness = String(Math.max(20, Math.round((filledCount / 12) * 100)));
@@ -1634,9 +1634,12 @@ router.post('/dpr', requireAuth, async (req, res) => {
       ['full_name',                          fullName],
       ['email_address',                      userEmail],
       ['phone_number',                       s(personal.phone)],
-      ['residential_city',                   s(personal.city)],
-      ['residential_country',                s(personal.country)],
-      ['residential_address_line_1',         s(personal.current_address)],
+      ['residential_city',                   s(personal.residential_city) || s(personal.city)],
+      ['residential_country',                s(personal.residential_country) || s(personal.country)],
+      ['residential_address_line_1',         s(personal.residential_address_line_1) || s(personal.current_address)],
+      ['residential_address_line_2',         s(personal.residential_address_line_2)],
+      ['residential_state',                  s(personal.residential_state)],
+      ['residential_zip_code',               s(personal.residential_zip_code)],
       ['gender',                             s(personal.gender)],
       ['date_of_birth',                      s(personal.dob)],
       ['country_of_nationality',             s(personal.nationality)],
@@ -1644,11 +1647,11 @@ router.post('/dpr', requireAuth, async (req, res) => {
       ['professional_summary_bio',           s(skills.summary)],
       ['total_work_experience',              String(parseInt(personal.experience) || 0)],
       ['compliance_domains',                 JSON.stringify([s(personal.industry)].filter(Boolean))],
-      ['current_employment_status',          s(personal.employment_status)],
-      ['notice_period_in_days',              s(personal.notice_period)],
-      ['current_annual_ctc_with_currency',   s(personal.current_ctc)],
-      ['expected_annual_ctc_with_currency',  s(personal.expected_ctc)],
-      ['desired_role',                       s(personal.desired_role)],
+      ['current_employment_status',          s(job_preferences.employment_status)],
+      ['notice_period_in_days',              s(job_preferences.notice_period)],
+      ['current_annual_ctc_with_currency',   s(job_preferences.current_ctc)],
+      ['expected_annual_ctc_with_currency',  s(job_preferences.expected_ctc)],
+      ['desired_role',                       s(job_preferences.desired_role)],
       ['key_achievements',                   s(skills.achievements)],
       ['soft_skills',                        s(skills.skills_list)],
       ['linkedin_url',                       s(skills.linkedin)],
@@ -1660,8 +1663,10 @@ router.post('/dpr', requireAuth, async (req, res) => {
       ['phone_visibility',                   s(privacy.phone_visibility)   || 'co_verified_only'],
       ['resume_visibility',                  s(privacy.resume_visibility)  || 're_verified_only'],
       ['public_name_mode',                   'initials'],
-      ['open_for_work_badge',                '1'],
-      ['open_to_relocate',                   '0'],
+      ['open_for_work_badge',                job_preferences.open_for_work_badge ? '1' : '0'],
+      ['open_to_relocate',                   job_preferences.open_to_relocate ? '1' : '0'],
+      ['work_level',                         s(job_preferences.work_level)],
+      ['preferred_work_type',                s(job_preferences.preferred_work_type)],
       ['profile_completeness',               profileCompleteness],
       ['profile_last_updated',               nowStr],
     ];
@@ -1737,6 +1742,22 @@ router.post('/dpr', requireAuth, async (req, res) => {
       }
     }
 
+    // 9b. Write preferred_location repeater
+    const prefLocRows = (Array.isArray(job_preferences.preferred_location) ? job_preferences.preferred_location : [])
+      .filter(p => s(p.preferred_city_name) || s(p.preferred_country_name))
+      .map(p => ({
+        preferred_city_name:    s(p.preferred_city_name),
+        preferred_country_name: s(p.preferred_country_name),
+      }));
+    await pool.execute('INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
+      [postId, 'preferred_location', String(prefLocRows.length)]);
+    for (let i = 0; i < prefLocRows.length; i++) {
+      for (const [k, v] of Object.entries(prefLocRows[i])) {
+        await pool.execute('INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
+          [postId, `preferred_location_${i}_${k}`, String(v ?? '')]);
+      }
+    }
+
     // 10. Publish post
     await pool.execute(
       `UPDATE wp_posts SET post_status = 'publish', post_modified = ?, post_modified_gmt = ? WHERE ID = ?`,
@@ -1789,6 +1810,7 @@ router.post('/dpr/:postId/resume', requireAuth, upload.single('resume'), async (
     );
 
     await upsertPostMeta(postId, 'has_resume',         '1');
+    await upsertPostMeta(postId, 'resume_upload',       String(postId));
     await upsertPostMeta(postId, 'resume_filename',     filename);
     await upsertPostMeta(postId, 'resume_uploaded_at',  nowStr);
 

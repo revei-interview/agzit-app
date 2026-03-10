@@ -794,12 +794,21 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
             <span>Public</span>
           </label>
           <label class="privacy-opt">
-            <input type="radio" name="profile_visibility" id="pv_verified" value="verified_only">
+            <input type="radio" name="profile_visibility" id="pv_private" value="private">
+            <span>Private</span>
+          </label>
+        </div>
+      </div>
+      <div class="privacy-group">
+        <div class="privacy-label">Who can view/download your resume</div>
+        <div class="privacy-options">
+          <label class="privacy-opt">
+            <input type="radio" name="resume_visibility" id="rv_verified" value="re_verified_only" checked>
             <span>Verified Employers Only</span>
           </label>
           <label class="privacy-opt">
-            <input type="radio" name="profile_visibility" id="pv_private" value="private">
-            <span>Private</span>
+            <input type="radio" name="resume_visibility" id="rv_public" value="re_public">
+            <span>Public</span>
           </label>
         </div>
       </div>
@@ -2046,6 +2055,7 @@ async function submitDPR() {
       profile_visibility: document.querySelector('input[name="profile_visibility"]:checked')?.value || 'public',
       email_visibility:   document.querySelector('input[name="email_visibility"]:checked')?.value   || 'co_public',
       phone_visibility:   document.querySelector('input[name="phone_visibility"]:checked')?.value   || 'co_verified_only',
+      resume_visibility:  document.querySelector('input[name="resume_visibility"]:checked')?.value  || 're_verified_only',
     },
     job_preferences: {
       open_for_work_badge:  document.getElementById('open_for_work').checked,
@@ -2138,6 +2148,7 @@ function collectFormData() {
     profile_visibility: document.querySelector('input[name="profile_visibility"]:checked')?.value,
     email_visibility: document.querySelector('input[name="email_visibility"]:checked')?.value,
     phone_visibility: document.querySelector('input[name="phone_visibility"]:checked')?.value,
+    resume_visibility: document.querySelector('input[name="resume_visibility"]:checked')?.value,
     employment_status: v('employment_status'), notice_period: v('notice_period'),
     desired_role: v('desired_role'), work_level: v('work_level'),
     preferred_work_type: v('preferred_work_type'),
@@ -2238,9 +2249,10 @@ function restoreDraft() {
   }
 
   // Step 5
-  if (d.profile_visibility) { const r = document.getElementById(d.profile_visibility === 'public' ? 'pv_public' : d.profile_visibility === 'verified_only' ? 'pv_verified' : 'pv_private'); if (r) r.checked = true; }
+  if (d.profile_visibility) { const r = document.getElementById(d.profile_visibility === 'public' ? 'pv_public' : 'pv_private'); if (r) r.checked = true; }
   if (d.email_visibility) { const r = document.querySelector(`input[name="email_visibility"][value="${d.email_visibility}"]`); if (r) r.checked = true; }
   if (d.phone_visibility) { const r = document.querySelector(`input[name="phone_visibility"][value="${d.phone_visibility}"]`); if (r) r.checked = true; }
+  if (d.resume_visibility) { const r = document.querySelector(`input[name="resume_visibility"][value="${d.resume_visibility}"]`); if (r) r.checked = true; }
   set('employment_status', d.employment_status); set('notice_period', d.notice_period);
   set('desired_role', d.desired_role); set('work_level', d.work_level);
   set('preferred_work_type', d.preferred_work_type);

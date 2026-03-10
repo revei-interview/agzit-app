@@ -1382,7 +1382,7 @@ function renderProfile(p) {
   }
 
   /* resume status (used in overview card and resume tab) */
-  const hasRes = !!(p.resume_upload);
+  const hasRes = !!(p.resume_upload || p.has_resume === '1');
 
   /* overview pills */
   const weC = (p.work_experience||[]).length, eduC = (p.education||[]).length, cerC = (p.certifications||[]).length;
@@ -1426,14 +1426,11 @@ function renderProfile(p) {
       ${fld('Full Name',      p.full_name)}
       ${fld('Email',          p.email_address)}
       ${fld('Phone',          cleanPhone(p.phone_number))}
-      ${fld('Gender',         p.gender)}
+      ${fld('Gender',         p.gender ? p.gender.charAt(0).toUpperCase() + p.gender.slice(1) : null)}
       ${fld('Date of Birth',  fmtDate(p.date_of_birth))}
       ${fld('Nationality',    p.country_of_nationality)}
-      ${fld('City',           p.residential_city)}
-      ${fld('Country',        p.residential_country)}
       ${p.residential_address_line_1 ? fld('Current Address', p.residential_address_line_1, false) : ''}
       ${fld('LinkedIn',       p.linkedin_url ? `<a href="${esc(p.linkedin_url)}" target="_blank" style="color:var(--blue);font-weight:700;">View Profile</a>` : null, true)}
-      ${fld('Profile Views',  p.dpr_id_view_count||'0')}
     </div>
 
     <div class="section-title">Professional Summary</div>
@@ -1454,9 +1451,9 @@ function renderProfile(p) {
     ${(p.work_experience||[]).length ? (p.work_experience.map(w => `
       <div class="rep-item">
         <div class="rep-title">${esc(w.job_title||'Role')}</div>
-        <div class="rep-sub">${esc(w.company_name||'')}${w.office_city ? ' &middot; ' + esc(w.office_city) : ''}${w.office_country ? ', ' + esc(w.office_country) : ''}</div>
-        <div class="rep-sub">${fmtDate(w.start_date)||''} &ndash; ${w.Currently_working==='1'?'Present':fmtDate(w.end_date)||'Present'} &middot; ${esc(w.employment_type||'')}</div>
-        ${w.key_responsibilities ? `<div class="rep-body">${esc(w.key_responsibilities)}</div>` : ''}
+        <div class="rep-sub">${esc(w.company_name||'')}</div>
+        <div class="rep-sub">${fmtDate(w.start_date)||''} &ndash; ${w.Currently_working==='1'?'Present':fmtDate(w.end_date)||'Present'}</div>
+        ${w.key_responsibilities ? `<div class="rep-body">${esc(w.key_responsibilities).replace(/\n/g, '<br>')}</div>` : ''}
       </div>`).join(''))
     : '<div style="font-size:13px;color:var(--muted);padding:8px 0;">No work experience added yet.</div>'}
 
@@ -1464,7 +1461,7 @@ function renderProfile(p) {
     ${(p.education||[]).length ? (p.education.map(e => `
       <div class="rep-item" style="border-left-color:var(--green);">
         <div class="rep-title">${esc(e.degree||'Degree')}</div>
-        <div class="rep-sub">${esc(e.institution_name||'')}${e.edu_city ? ' &middot; ' + esc(e.edu_city) : ''}${e.edu_country ? ', ' + esc(e.edu_country) : ''}</div>
+        <div class="rep-sub">${esc(e.institution_name||'')}</div>
         <div class="rep-sub">${fmtDate(e.edu_start_date)||''} &ndash; ${fmtDate(e.edu_end_date)||''}</div>
       </div>`).join(''))
     : '<div style="font-size:13px;color:var(--muted);padding:8px 0;">No education added yet.</div>'}
@@ -1491,7 +1488,7 @@ function renderProfile(p) {
 
 /* ── Resume renderer ──────────────────────────────────────────────────────── */
 function renderResume(p) {
-  const hasRes = !!(p.resume_upload);
+  const hasRes = !!(p.resume_upload || p.has_resume === '1');
   el('resume-status').innerHTML = hasRes
     ? `<div class="resume-uploaded">
         <div>
