@@ -245,7 +245,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
       <div class="p-line" id="pline3"></div>
       <div class="p-step">
         <div class="p-dot" id="pd4">4</div>
-        <div class="p-label" id="pl4">Skills</div>
+        <div class="p-label" id="pl4">Skills &amp; More</div>
       </div>
     </div>
     <span class="reg-step-counter" id="step-counter">Quick Start</span>
@@ -377,7 +377,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
               <option value="+852">+852 Hong Kong</option>
               <option value="+36">+36 Hungary</option>
               <option value="+354">+354 Iceland</option>
-              <option value="+91">+91 India</option>
+              <option value="+91" selected>+91 India</option>
               <option value="+62">+62 Indonesia</option>
               <option value="+98">+98 Iran</option>
               <option value="+964">+964 Iraq</option>
@@ -486,7 +486,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
               <option value="+380">+380 Ukraine</option>
               <option value="+971">+971 United Arab Emirates</option>
               <option value="+44">+44 United Kingdom</option>
-              <option value="+1" selected>+1 United States</option>
+              <option value="+1">+1 United States</option>
               <option value="+598">+598 Uruguay</option>
               <option value="+998">+998 Uzbekistan</option>
               <option value="+678">+678 Vanuatu</option>
@@ -508,36 +508,6 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
         <div class="field">
           <label>Country <span class="req">*</span></label>
           <select class="input agzit-select" id="s1-country">
-            <!-- Populated by JS -->
-          </select>
-        </div>
-      </div>
-      <div class="form-row col2">
-        <div class="field">
-          <label>Gender</label>
-          <select class="input agzit-select" id="gender">
-            <option value="">Select gender</option>
-            <option value="female">Female</option>
-            <option value="male">Male</option>
-            <option value="non_binary">Non-binary</option>
-            <option value="prefer_not_to_say">Prefer not to say</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Date of Birth</label>
-          <input class="input" type="date" id="dob">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="field">
-          <label>Current Address</label>
-          <input class="input" type="text" id="current_address" placeholder="e.g. 123 High Street, London, UK">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="field">
-          <label>Nationality</label>
-          <select class="input agzit-select" id="nationality">
             <!-- Populated by JS -->
           </select>
         </div>
@@ -680,6 +650,41 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
           <input class="input" type="text" id="desired_role" placeholder="e.g. Project Manager, Finance Analyst, Software Engineer">
         </div>
       </div>
+      <!-- Additional details divider -->
+      <div style="margin:24px 0 18px;padding-top:20px;border-top:1px solid var(--line);">
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);">Additional Details</span>
+        <span style="font-size:12px;color:var(--muted);margin-left:8px;">(optional)</span>
+      </div>
+      <div class="form-row col2">
+        <div class="field">
+          <label>Gender</label>
+          <select class="input agzit-select" id="gender">
+            <option value="">Select gender</option>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="non_binary">Non-binary</option>
+            <option value="prefer_not_to_say">Prefer not to say</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Date of Birth</label>
+          <input class="input" type="date" id="dob">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Nationality</label>
+          <select class="input agzit-select" id="nationality">
+            <!-- Populated by JS -->
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Current Address</label>
+          <input class="input" type="text" id="current_address" placeholder="e.g. 123 High Street, London, UK">
+        </div>
+      </div>
     </div>
     <div class="form-nav">
       <button class="btn btn-outline" onclick="goStep(0)">← Back</button>
@@ -693,7 +698,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
     <div class="card">
       <div class="card-title">Work Experience</div>
       <div id="career-entries"></div>
-      <button class="add-entry-btn" type="button" onclick="addCareerEntry()">+ Add another role</button>
+      <button class="add-entry-btn" type="button" onclick="addCareerEntry()">+ Add Another Position</button>
     </div>
     <div class="form-nav">
       <button class="btn btn-outline" onclick="goStep(1)">← Back</button>
@@ -706,12 +711,12 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
     <div class="card">
       <div class="card-title">Education</div>
       <div id="edu-entries"></div>
-      <button class="add-entry-btn" type="button" onclick="addEduEntry()">+ Add another degree</button>
+      <button class="add-entry-btn" type="button" onclick="addEduEntry()">+ Add Another Degree</button>
     </div>
     <div class="card">
       <div class="card-title">Certifications &amp; Licenses <span class="opt-label">Optional</span></div>
       <div id="cert-entries"></div>
-      <button class="add-entry-btn" type="button" onclick="addCertEntry()">+ Add another certification</button>
+      <button class="add-entry-btn" type="button" onclick="addCertEntry()">+ Add Another Certification</button>
     </div>
     <div class="form-nav">
       <button class="btn btn-outline" onclick="goStep(2)">← Back</button>
@@ -722,7 +727,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
   <!-- STEP 4: Skills + Submit -->
   <div id="step4" style="display:none;">
     <div class="card">
-      <div class="card-title">Skills &amp; Summary</div>
+      <div class="card-title">Skills &amp; More</div>
       <div class="form-row">
         <div class="field">
           <label>Key Skills <span class="req">*</span></label>
@@ -733,31 +738,24 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
       <div class="form-row">
         <div class="field">
           <label>Professional Summary <span class="req">*</span></label>
-          <textarea class="input" id="s4-summary" rows="5" placeholder="Write 3-5 sentences about your professional background, strengths, and career goals..."></textarea>
-          <div class="hint">This is the first thing employers and AI will see about you.</div>
+          <textarea class="input" id="s4-summary" rows="5" placeholder="Brief overview of your professional background, expertise, and career goals. 3–5 sentences recommended."></textarea>
         </div>
       </div>
-      <div class="form-row col2">
+      <div class="form-row">
         <div class="field">
           <label>LinkedIn URL</label>
-          <input class="input" type="url" id="s4-linkedin" placeholder="https://linkedin.com/in/yourname">
-        </div>
-        <div class="field">
-          <label>Portfolio / Website</label>
-          <input class="input" type="url" id="s4-portfolio" placeholder="https://yoursite.com">
+          <input class="input" type="text" id="s4-linkedin" placeholder="https://linkedin.com/in/your-profile">
         </div>
       </div>
-    </div>
-    <div class="card" style="margin-top:16px;">
-      <div class="card-title">Career Highlights</div>
       <div class="form-row">
         <div class="field">
           <label>Key Achievements <span class="opt-label">Optional</span></label>
-          <textarea class="input" id="achievements" rows="4" placeholder="e.g. Led a team of 8 analysts, reduced onboarding time by 40%, implemented new KYC process across 5 jurisdictions..."></textarea>
-          <div class="hint">3–5 notable achievements or impact statements from your career.</div>
+          <textarea class="input" id="achievements" rows="3" placeholder="e.g. Led a team of 50+ analysts · Reduced onboarding turnaround by 40%"></textarea>
         </div>
       </div>
     </div>
+    <!-- Hidden portfolio field — value kept for payload compatibility -->
+    <input type="hidden" id="s4-portfolio" value="">
     <div class="card" style="margin-top:16px;">
       <div class="card-title">Privacy Settings</div>
       <div class="privacy-group">
@@ -769,7 +767,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
           </label>
           <label class="privacy-opt">
             <input type="radio" name="profile_visibility" id="pv_private" value="private">
-            <span>Private</span>
+            <span>AGZIT Verified Employers Only</span>
           </label>
         </div>
       </div>
@@ -784,10 +782,6 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
             <input type="radio" name="email_visibility" id="ev_verified_only" value="co_verified_only">
             <span>Verified Employers Only</span>
           </label>
-          <label class="privacy-opt">
-            <input type="radio" name="email_visibility" id="ev_private" value="co_private">
-            <span>Private</span>
-          </label>
         </div>
       </div>
       <div class="privacy-group">
@@ -800,27 +794,6 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
           <label class="privacy-opt">
             <input type="radio" name="phone_visibility" id="phv_verified_only" value="co_verified_only" checked>
             <span>Verified Employers Only</span>
-          </label>
-          <label class="privacy-opt">
-            <input type="radio" name="phone_visibility" id="phv_private" value="co_private">
-            <span>Private</span>
-          </label>
-        </div>
-      </div>
-      <div class="privacy-group">
-        <div class="privacy-label">Who can download your resume</div>
-        <div class="privacy-options">
-          <label class="privacy-opt">
-            <input type="radio" name="resume_visibility" id="rv_public" value="public">
-            <span>Public</span>
-          </label>
-          <label class="privacy-opt">
-            <input type="radio" name="resume_visibility" id="rv_verified_only" value="re_verified_only" checked>
-            <span>Verified Employers Only</span>
-          </label>
-          <label class="privacy-opt">
-            <input type="radio" name="resume_visibility" id="rv_private" value="private">
-            <span>Private</span>
           </label>
         </div>
       </div>
@@ -985,8 +958,8 @@ function addCareerEntry(prefill) {
     </div>
     <div class="form-row">
       <div class="field">
-        <label>Key Responsibilities</label>
-        <textarea class="input entry-resp" rows="3" placeholder="Describe your main responsibilities..."></textarea>
+        <label>Job Description</label>
+        <textarea class="input entry-resp" rows="3" placeholder="Brief description of responsibilities and achievements"></textarea>
       </div>
     </div>`;
   document.getElementById('career-entries').appendChild(div);
@@ -1082,20 +1055,14 @@ function addEduEntry(prefill) {
         <input class="input edu-field" type="text" placeholder="e.g. Finance">
       </div>
     </div>
-    <div class="form-row">
-      <div class="field">
-        <label>Institution <span class="req">*</span></label>
-        <input class="input edu-institution" type="text" placeholder="University or college name">
-      </div>
-    </div>
     <div class="form-row col2">
       <div class="field">
-        <label>Start Year</label>
-        <select class="input edu-start-year">${yearOpts(1970, CUR_YEAR)}</select>
+        <label>Institution <span class="req">*</span></label>
+        <input class="input edu-institution" type="text" placeholder="e.g. University of Mumbai">
       </div>
       <div class="field">
-        <label>End Year</label>
-        <select class="input edu-end-year">${yearOpts(1970, CUR_YEAR + 2)}</select>
+        <label>Graduation Year</label>
+        <input class="input edu-grad-year" type="number" min="1970" max="2030" placeholder="e.g. 2020">
       </div>
     </div>`;
   document.getElementById('edu-entries').appendChild(div);
@@ -1105,8 +1072,8 @@ function addEduEntry(prefill) {
     if (prefill.degree)      div.querySelector('.edu-degree').value      = prefill.degree;
     if (prefill.field)       div.querySelector('.edu-field').value        = prefill.field || '';
     if (prefill.institution) div.querySelector('.edu-institution').value  = prefill.institution;
-    if (prefill.start_year)  div.querySelector('.edu-start-year').value   = String(prefill.start_year);
-    if (prefill.end_year)    div.querySelector('.edu-end-year').value     = String(prefill.end_year);
+    const gradYr = prefill.end_year || prefill.start_year;
+    if (gradYr)              div.querySelector('.edu-grad-year').value    = String(gradYr);
   }
   updateEntryNums('.edu-entry', 'Education');
 }
@@ -1116,9 +1083,6 @@ let certCount = 0;
 
 function addCertEntry(prefill) {
   const idx = certCount++;
-  const mo  = monthOpts();
-  const iyo = yearOpts(1990, CUR_YEAR);
-  const eyo = yearOpts(CUR_YEAR - 5, CUR_YEAR + 15);
 
   const div = document.createElement('div');
   div.className = 'entry-card cert-entry';
@@ -1134,34 +1098,14 @@ function addCertEntry(prefill) {
         <input class="input cert-name" type="text" placeholder="e.g. Project Management Professional (PMP)">
       </div>
       <div class="field">
-        <label>Issuing Organization</label>
-        <input class="input cert-issuer" type="text" placeholder="e.g. PMI, Microsoft, Google, NASSCOM">
-      </div>
-    </div>
-    <div class="form-row col2">
-      <div class="field">
-        <label>Credential ID</label>
-        <input class="input cert-cred-id" type="text" placeholder="Optional">
-      </div>
-      <div class="field">
-        <label>Issue Date</label>
-        <div class="month-year-row">
-          <select class="input cert-issue-month">${mo}</select>
-          <select class="input cert-issue-year">${iyo}</select>
-        </div>
+        <label>Issuing Body</label>
+        <input class="input cert-issuer" type="text" placeholder="e.g. PMI, Microsoft, Google">
       </div>
     </div>
     <div class="form-row">
       <div class="field">
-        <label>Expiry Date</label>
-        <div class="month-year-row end-group" id="cert-exp-grp-${idx}">
-          <select class="input cert-exp-month">${mo}</select>
-          <select class="input cert-exp-year">${eyo}</select>
-        </div>
-        <div class="check-row">
-          <input type="checkbox" class="cert-no-expiry" id="noexp-${idx}" onchange="toggleCertExpiry(this,${idx})">
-          <label for="noexp-${idx}">No expiry date</label>
-        </div>
+        <label>Year</label>
+        <input class="input cert-year" type="number" min="1990" max="2030" placeholder="e.g. 2022" style="max-width:160px;">
       </div>
     </div>`;
   document.getElementById('cert-entries').appendChild(div);
@@ -1169,27 +1113,10 @@ function addCertEntry(prefill) {
   if (prefill) {
     if (prefill.name)   div.querySelector('.cert-name').value   = prefill.name;
     if (prefill.issuer) div.querySelector('.cert-issuer').value = prefill.issuer || '';
-    const id = splitDate(prefill.issue_date);
-    if (id.month) div.querySelector('.cert-issue-month').value = id.month;
-    if (id.year)  div.querySelector('.cert-issue-year').value  = id.year;
-    if (!prefill.expiry_date) {
-      const cb = div.querySelector('.cert-no-expiry');
-      cb.checked = true;
-      toggleCertExpiry(cb, idx);
-    } else {
-      const ed = splitDate(prefill.expiry_date);
-      if (ed.month) div.querySelector('.cert-exp-month').value = ed.month;
-      if (ed.year)  div.querySelector('.cert-exp-year').value  = ed.year;
-    }
+    const yr = prefill.issue_year || (prefill.issue_date ? splitDate(prefill.issue_date).year : '');
+    if (yr) div.querySelector('.cert-year').value = yr;
   }
   updateEntryNums('.cert-entry', 'Certification');
-}
-
-function toggleCertExpiry(cb, idx) {
-  const grp = document.getElementById('cert-exp-grp-' + idx);
-  if (!grp) return;
-  grp.style.opacity = cb.checked ? '0.35' : '1';
-  grp.querySelectorAll('select').forEach(s => { s.disabled = cb.checked; });
 }
 
 /* ── Shared entry helpers ───────────────────────────────────────────────── */
@@ -1467,20 +1394,20 @@ function getEduData() {
     degree:      el.querySelector('.edu-degree').value,
     field:       el.querySelector('.edu-field').value.trim(),
     institution: el.querySelector('.edu-institution').value.trim(),
-    start_year:  el.querySelector('.edu-start-year').value,
-    end_year:    el.querySelector('.edu-end-year').value,
+    start_year:  '',
+    end_year:    el.querySelector('.edu-grad-year')?.value || '',
   }));
 }
 function getCertData() {
   return Array.from(document.querySelectorAll('.cert-entry')).map(el => ({
-    name:         el.querySelector('.cert-name').value.trim(),
-    issuer:       el.querySelector('.cert-issuer').value.trim(),
-    credential_id: el.querySelector('.cert-cred-id').value.trim(),
-    issue_month:  el.querySelector('.cert-issue-month').value,
-    issue_year:   el.querySelector('.cert-issue-year').value,
-    no_expiry:    el.querySelector('.cert-no-expiry').checked,
-    expiry_month: el.querySelector('.cert-exp-month').value,
-    expiry_year:  el.querySelector('.cert-exp-year').value,
+    name:          el.querySelector('.cert-name').value.trim(),
+    issuer:        el.querySelector('.cert-issuer').value.trim(),
+    credential_id: '',
+    issue_month:   '',
+    issue_year:    el.querySelector('.cert-year')?.value || '',
+    no_expiry:     true,
+    expiry_month:  '',
+    expiry_year:   '',
   }));
 }
 
