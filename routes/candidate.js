@@ -1224,6 +1224,18 @@ router.get('/vapi-context', ...guard, async (req, res) => {
 
 router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, res) => {
   try {
+    // ── One-time parse limit per user ──
+    const wpUid = req.user.wp_user_id;
+    if (wpUid) {
+      const [metaRows] = await pool.execute(
+        "SELECT meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'resume_parsed_at' LIMIT 1",
+        [wpUid]
+      );
+      if (metaRows.length > 0 && metaRows[0].meta_value) {
+        return res.status(429).json({ ok: false, error: 'Resume has already been parsed. You can edit the fields manually.' });
+      }
+    }
+
     if (!req.file) {
       return res.status(400).json({ ok: false, error: 'No file uploaded. Use field name "resume".' });
     }
@@ -1346,6 +1358,11 @@ ${cleanText}`,
       return res.status(502).json({ ok: false, error: 'AI returned invalid data. Please fill the form manually.' });
     }
     console.log('[parse-resume] parsed result:', JSON.stringify(parsed).substring(0, 500));
+
+    // Mark as parsed so user cannot parse again (cost control)
+    if (wpUid) {
+      try { await upsertUserMeta(wpUid, 'resume_parsed_at', new Date().toISOString()); } catch (_) {}
+    }
 
     return res.json({ ok: true, data: parsed });
   } catch (err) {

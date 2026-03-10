@@ -125,6 +125,9 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
 .btn-outline { background: transparent; color: var(--muted); border-color: var(--line); font-size: 14px; padding: 0 18px; flex-shrink: 0; }
 .btn-outline:hover { color: var(--ink); border-color: #B0B5CC; }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-save { background: var(--green); color: #fff; border-color: var(--green); font-size: 13px; padding: 0 16px; height: 42px; }
+.btn-save:hover { background: #096a3d; }
+.save-status { font-size: 11px; color: var(--green); text-align: center; margin-top: 6px; min-height: 16px; transition: opacity .3s; }
 .enc-note { font-size: 12px; color: var(--muted); text-align: center; margin-top: 12px; }
 
 /* Spinner */
@@ -673,8 +676,10 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
     </div>
     <div class="form-nav">
       <button class="btn btn-outline" onclick="goStep(0)">← Back</button>
+      <button class="btn btn-save" onclick="manualSave()">Save</button>
       <button class="btn btn-primary" onclick="goStep(2)">Next: Career Info →</button>
     </div>
+    <div class="save-status" id="save-status"></div>
     <p class="enc-note">Your data is encrypted and never shared.</p>
   </div>
 
@@ -687,6 +692,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
     </div>
     <div class="form-nav">
       <button class="btn btn-outline" onclick="goStep(1)">← Back</button>
+      <button class="btn btn-save" onclick="manualSave()">Save</button>
       <button class="btn btn-primary" onclick="goStep(3)">Next: Education →</button>
     </div>
   </div>
@@ -705,6 +711,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
     </div>
     <div class="form-nav">
       <button class="btn btn-outline" onclick="goStep(2)">← Back</button>
+      <button class="btn btn-save" onclick="manualSave()">Save</button>
       <button class="btn btn-primary" onclick="goStep(4)">Next: Skills →</button>
     </div>
   </div>
@@ -807,6 +814,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
     </div>
     <div class="form-nav">
       <button class="btn btn-outline" onclick="goStep(3)">← Back</button>
+      <button class="btn btn-save" onclick="manualSave()">Save</button>
       <button class="btn btn-primary" onclick="goStep(5)">Next: Job Preferences →</button>
     </div>
   </div>
@@ -1002,6 +1010,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
     </div>
     <div class="form-nav">
       <button class="btn btn-outline" onclick="goStep(4)">← Back</button>
+      <button class="btn btn-save" onclick="manualSave()">Save</button>
       <button class="btn btn-primary" id="submit-btn" onclick="submitDPR()">
         Save &amp; Submit <span class="spinner" id="submit-spinner"></span>
       </button>
@@ -1629,6 +1638,9 @@ async function parseResume() {
       prefillFromResume(data.data);
       banner.textContent = 'Resume parsed. Review your details and continue.';
       banner.className = 'parse-banner success show';
+      // Disable parse button permanently after success
+      btn.disabled = true;
+      btn.textContent = 'Resume Parsed';
       setTimeout(() => goStep(1), 1100);
     }
   } catch (e) {
@@ -1636,7 +1648,7 @@ async function parseResume() {
     banner.textContent = 'Resume parsing failed (' + (e.message || 'network error') + '). Please fill the form manually.';
     banner.className = 'parse-banner error show';
   } finally {
-    btn.disabled = false;
+    if (btn.textContent !== 'Resume Parsed') btn.disabled = false;
     spinner.style.display = 'none';
   }
 }
@@ -1645,6 +1657,7 @@ async function parseResume() {
 function goStep(n) {
   if (n > currentStep && currentStep > 0 && !validateCurrentStep()) return;
   currentStep = n;
+  saveDraft();
   for (let i = 0; i <= STEPS; i++) {
     const el = document.getElementById('step' + i);
     if (el) el.style.display = i === n ? 'block' : 'none';
@@ -1854,6 +1867,7 @@ async function submitDPR() {
           console.warn('[register] Resume upload failed (non-fatal):', e.message);
         }
       }
+      localStorage.removeItem(DRAFT_KEY);
       window.location.href = data.redirectTo || '/dashboard';
     }
   } catch (e) {
@@ -1879,6 +1893,143 @@ updateEntryNums('.cert-entry', 'Certification');
 fetch('/api/auth/me', { credentials: 'include' })
   .then(r => r.json())
   .then(d => { if (!d.ok) window.location.href = '/login?redirect_to=/register'; });
+
+/* ── Auto-save / Restore ──────────────────────────────────────────────── */
+const DRAFT_KEY = 'agzit_dpr_draft';
+
+function collectFormData() {
+  return {
+    step: currentStep,
+    // Step 1
+    s1_first: v('s1-first'), s1_last: v('s1-last'), s1_headline: v('s1-headline'),
+    s1_exp: v('s1-exp'), s1_phone_code: v('s1-phone-code'), s1_phone_num: v('s1-phone-num'),
+    s1_industry: v('s1-industry'), gender: v('gender'), dob: v('dob'),
+    nationality: v('nationality'),
+    addr_line1: v('addr_line1'), addr_line2: v('addr_line2'), addr_city: v('addr_city'),
+    addr_state: v('addr_state'), addr_zip: v('addr_zip'), addr_country: v('addr_country'),
+    // Step 2
+    career: getCareerData(),
+    // Step 3
+    education: getEduData(), certifications: getCertData(),
+    // Step 4
+    s4_skills: v('s4-skills'), s4_summary: v('s4-summary'), s4_linkedin: v('s4-linkedin'),
+    achievements: v('achievements'), tools: getToolData(), langs: getLangData(),
+    // Step 5
+    profile_visibility: document.querySelector('input[name="profile_visibility"]:checked')?.value,
+    email_visibility: document.querySelector('input[name="email_visibility"]:checked')?.value,
+    phone_visibility: document.querySelector('input[name="phone_visibility"]:checked')?.value,
+    employment_status: v('employment_status'), notice_period: v('notice_period'),
+    desired_role: v('desired_role'), work_level: v('work_level'),
+    preferred_work_type: v('preferred_work_type'),
+    open_for_work: document.getElementById('open_for_work')?.checked,
+    open_to_relocate: document.getElementById('open_to_relocate')?.checked,
+    current_ctc_currency: v('current_ctc_currency'), current_ctc_amount: v('current_ctc_amount'),
+    expected_ctc_currency: v('expected_ctc_currency'), expected_ctc_amount: v('expected_ctc_amount'),
+    pref_locations: getPrefLocData(),
+    _saved: new Date().toISOString(),
+  };
+}
+
+function saveDraft() {
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(collectFormData())); } catch (_) {}
+}
+
+function manualSave() {
+  saveDraft();
+  const el = document.getElementById('save-status');
+  if (el) {
+    el.textContent = 'Progress saved';
+    el.style.opacity = '1';
+    setTimeout(() => { el.style.opacity = '0'; }, 2000);
+  }
+}
+
+function restoreDraft() {
+  let d;
+  try { d = JSON.parse(localStorage.getItem(DRAFT_KEY)); } catch (_) { return; }
+  if (!d) return;
+
+  const set = (id, val) => { if (val) { const el = document.getElementById(id); if (el) el.value = val; } };
+
+  // Step 1
+  set('s1-first', d.s1_first); set('s1-last', d.s1_last); set('s1-headline', d.s1_headline);
+  set('s1-exp', d.s1_exp); set('s1-phone-code', d.s1_phone_code); set('s1-phone-num', d.s1_phone_num);
+  set('s1-industry', d.s1_industry); set('gender', d.gender); set('dob', d.dob);
+  set('nationality', d.nationality);
+  set('addr_line1', d.addr_line1); set('addr_line2', d.addr_line2); set('addr_city', d.addr_city);
+  set('addr_state', d.addr_state); set('addr_zip', d.addr_zip); set('addr_country', d.addr_country);
+
+  // Step 2: career entries
+  if (d.career && d.career.length) {
+    document.querySelectorAll('.career-entry').forEach(el => el.remove());
+    careerCount = 0;
+    d.career.forEach(c => addCareerEntry({
+      title: c.title, company: c.company, responsibilities: c.responsibilities,
+      start_date: [c.start_year, c.start_month].filter(Boolean).join('-'),
+      end_date: [c.end_year, c.end_month].filter(Boolean).join('-'),
+      currently_working: c.currently_working,
+    }));
+  }
+
+  // Step 3: education
+  if (d.education && d.education.length) {
+    document.querySelectorAll('.edu-entry').forEach(el => el.remove());
+    eduCount = 0;
+    d.education.forEach(e => addEduEntry({
+      degree: e.degree, field: e.field, institution: e.institution, end_year: e.end_year,
+    }));
+  }
+
+  // Step 3: certifications
+  if (d.certifications && d.certifications.length) {
+    document.querySelectorAll('.cert-entry').forEach(el => el.remove());
+    certCount = 0;
+    d.certifications.forEach(c => addCertEntry({
+      name: c.name, issuer: c.issuer, credential_id: c.credential_id,
+    }));
+  }
+
+  // Step 4
+  set('s4-skills', d.s4_skills); set('s4-summary', d.s4_summary); set('s4-linkedin', d.s4_linkedin);
+  set('achievements', d.achievements);
+
+  // Step 5
+  if (d.profile_visibility) { const r = document.getElementById(d.profile_visibility === 'public' ? 'pv_public' : d.profile_visibility === 'verified_only' ? 'pv_verified' : 'pv_private'); if (r) r.checked = true; }
+  if (d.email_visibility) { const r = document.querySelector(`input[name="email_visibility"][value="${d.email_visibility}"]`); if (r) r.checked = true; }
+  if (d.phone_visibility) { const r = document.querySelector(`input[name="phone_visibility"][value="${d.phone_visibility}"]`); if (r) r.checked = true; }
+  set('employment_status', d.employment_status); set('notice_period', d.notice_period);
+  set('desired_role', d.desired_role); set('work_level', d.work_level);
+  set('preferred_work_type', d.preferred_work_type);
+  if (d.open_for_work) document.getElementById('open_for_work').checked = true;
+  if (d.open_to_relocate) document.getElementById('open_to_relocate').checked = true;
+  set('current_ctc_currency', d.current_ctc_currency); set('current_ctc_amount', d.current_ctc_amount);
+  set('expected_ctc_currency', d.expected_ctc_currency); set('expected_ctc_amount', d.expected_ctc_amount);
+
+  // Restore step
+  if (d.step > 0) goStep(d.step);
+
+  console.log('[draft] Restored saved progress from', d._saved);
+}
+
+// Restore on page load
+restoreDraft();
+
+// Debounced auto-save on any input change
+let _saveTimer;
+document.addEventListener('input', () => { clearTimeout(_saveTimer); _saveTimer = setTimeout(saveDraft, 2000); });
+document.addEventListener('change', () => { clearTimeout(_saveTimer); _saveTimer = setTimeout(saveDraft, 1000); });
+
+// Clear draft on successful submit
+const _origSubmit = submitDPR;
+submitDPR = async function () {
+  await _origSubmit();
+  // If redirected, draft was cleared by navigation. If still here, don't clear.
+};
+
+// Clear draft when navigating away after success
+window.addEventListener('beforeunload', () => {
+  if (window.location.href.includes('/dashboard')) localStorage.removeItem(DRAFT_KEY);
+});
 </script>
 <script src="/shared/searchable-select.js"></script>
 </body>
