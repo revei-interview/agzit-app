@@ -51,9 +51,11 @@ router.post('/admin-cleanup', async (req, res) => {
     const [um] = await pool.execute("DELETE FROM wp_usermeta WHERE user_id = ? AND meta_key IN ('dpr_profile_post_id','resume_parsed_at')", [uid]);
     results.usermeta_deleted = um.affectedRows;
 
-    // Delete sessions
-    const [sess] = await pool.execute("DELETE FROM agzit_sessions WHERE email = ?", [email]);
-    results.sessions_deleted = sess.affectedRows;
+    // Delete sessions (table may not exist)
+    try {
+      const [sess] = await pool.execute("DELETE FROM agzit_sessions WHERE email = ?", [email]);
+      results.sessions_deleted = sess.affectedRows;
+    } catch (_) { results.sessions_deleted = 'table not found'; }
 
     console.log('[admin-cleanup]', email, results);
     res.json({ ok: true, email, wp_user_id: uid, results });
