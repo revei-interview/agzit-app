@@ -996,7 +996,7 @@ router.put('/profile', ...guard, async (req, res) => {
       'professional_summary_bio', 'total_work_experience',
       'current_employment_status', 'notice_period_in_days',
       'open_to_relocate', 'open_for_work_badge',
-      'desired_role', 'soft_skills',
+      'desired_role', 'soft_skills', 'key_achievements',
       'residential_address_line_1', 'residential_address_line_2',
       'residential_city', 'residential_state', 'residential_zip_code',
       'country_of_nationality', 'residential_country', 'compliance_domains',

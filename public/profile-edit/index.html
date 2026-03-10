@@ -384,7 +384,101 @@
       </div>
       <div class="field">
         <label class="label">Current Annual CTC</label>
-        <input type="text" id="f_current_annual_ctc_with_currency" placeholder="e.g. GBP 65,000">
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="f_current_ctc_currency" style="width:110px;flex-shrink:0;">
+            <option value="AED">AED</option>
+            <option value="AUD">AUD</option>
+            <option value="BDT">BDT</option>
+            <option value="BHD">BHD</option>
+            <option value="BRL">BRL</option>
+            <option value="CAD">CAD</option>
+            <option value="CHF">CHF</option>
+            <option value="CNY">CNY</option>
+            <option value="EGP">EGP</option>
+            <option value="EUR">EUR</option>
+            <option value="GBP">GBP</option>
+            <option value="HKD">HKD</option>
+            <option value="IDR">IDR</option>
+            <option value="ILS">ILS</option>
+            <option value="INR" selected>INR</option>
+            <option value="JPY">JPY</option>
+            <option value="KES">KES</option>
+            <option value="KWD">KWD</option>
+            <option value="LKR">LKR</option>
+            <option value="MAD">MAD</option>
+            <option value="MXN">MXN</option>
+            <option value="MYR">MYR</option>
+            <option value="NGN">NGN</option>
+            <option value="NOK">NOK</option>
+            <option value="NPR">NPR</option>
+            <option value="NZD">NZD</option>
+            <option value="OMR">OMR</option>
+            <option value="PHP">PHP</option>
+            <option value="PKR">PKR</option>
+            <option value="PLN">PLN</option>
+            <option value="QAR">QAR</option>
+            <option value="SAR">SAR</option>
+            <option value="SEK">SEK</option>
+            <option value="SGD">SGD</option>
+            <option value="THB">THB</option>
+            <option value="TRY">TRY</option>
+            <option value="TZS">TZS</option>
+            <option value="UAH">UAH</option>
+            <option value="USD">USD</option>
+            <option value="VND">VND</option>
+            <option value="ZAR">ZAR</option>
+          </select>
+          <input type="text" id="f_current_ctc_amount" style="flex:1;width:auto;" placeholder="e.g. 45,000">
+        </div>
+      </div>
+      <div class="field">
+        <label class="label">Expected CTC (Annual)</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="f_expected_ctc_currency" style="width:110px;flex-shrink:0;">
+            <option value="AED">AED</option>
+            <option value="AUD">AUD</option>
+            <option value="BDT">BDT</option>
+            <option value="BHD">BHD</option>
+            <option value="BRL">BRL</option>
+            <option value="CAD">CAD</option>
+            <option value="CHF">CHF</option>
+            <option value="CNY">CNY</option>
+            <option value="EGP">EGP</option>
+            <option value="EUR">EUR</option>
+            <option value="GBP">GBP</option>
+            <option value="HKD">HKD</option>
+            <option value="IDR">IDR</option>
+            <option value="ILS">ILS</option>
+            <option value="INR" selected>INR</option>
+            <option value="JPY">JPY</option>
+            <option value="KES">KES</option>
+            <option value="KWD">KWD</option>
+            <option value="LKR">LKR</option>
+            <option value="MAD">MAD</option>
+            <option value="MXN">MXN</option>
+            <option value="MYR">MYR</option>
+            <option value="NGN">NGN</option>
+            <option value="NOK">NOK</option>
+            <option value="NPR">NPR</option>
+            <option value="NZD">NZD</option>
+            <option value="OMR">OMR</option>
+            <option value="PHP">PHP</option>
+            <option value="PKR">PKR</option>
+            <option value="PLN">PLN</option>
+            <option value="QAR">QAR</option>
+            <option value="SAR">SAR</option>
+            <option value="SEK">SEK</option>
+            <option value="SGD">SGD</option>
+            <option value="THB">THB</option>
+            <option value="TRY">TRY</option>
+            <option value="TZS">TZS</option>
+            <option value="UAH">UAH</option>
+            <option value="USD">USD</option>
+            <option value="VND">VND</option>
+            <option value="ZAR">ZAR</option>
+          </select>
+          <input type="text" id="f_expected_ctc_amount" style="flex:1;width:auto;" placeholder="e.g. 55,000">
+        </div>
       </div>
       <div class="field">
         <label class="label">Current Career Level</label>
@@ -400,6 +494,10 @@
       <div class="field">
         <label class="label">Target Role</label>
         <input type="text" id="f_desired_role" placeholder="e.g. KYC Analyst">
+      </div>
+      <div class="field full">
+        <label class="label">Key Achievements</label>
+        <textarea id="f_key_achievements" placeholder="e.g. SPOT award 10 times, Led team of 50+"></textarea>
       </div>
     </div>
     <div style="margin-top:16px; display:grid; grid-template-columns:1fr 1fr; gap:16px;">
@@ -545,6 +643,41 @@
           <option value="full">Full Name</option>
           <option value="first_only">First Name Only</option>
           <option value="initials">Initials Only</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. Job Preferences -->
+  <div class="sec">
+    <div class="sec-hd">
+      <div class="sec-num">9</div>
+      <div>
+        <div class="sec-title">Job Preferences</div>
+        <span class="sec-sub">Work style and level preferences</span>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label class="label">Work Level</label>
+        <select id="f_work_level">
+          <option value="">Select level</option>
+          <option value="junior">Junior</option>
+          <option value="mid_level">Mid-Level</option>
+          <option value="senior">Senior</option>
+          <option value="lead">Lead</option>
+          <option value="manager">Manager</option>
+          <option value="director">Director</option>
+          <option value="csuite">C-Suite</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="label">Preferred Work Type</label>
+        <select id="f_preferred_work_type">
+          <option value="">Select type</option>
+          <option value="onsite">On-site</option>
+          <option value="remote">Remote</option>
+          <option value="hybrid">Hybrid</option>
         </select>
       </div>
     </div>
@@ -853,6 +986,11 @@ async function loadProfile() {
   }
 }
 
+function parseCTC(val) {
+  const [curr, ...rest] = (val || '').split(' ');
+  return { cur: curr || '', amt: rest.join(' ') };
+}
+
 function populateForm(p) {
   const scalar = [
     'full_name','email_address','phone_number','linkedin_url',
@@ -861,11 +999,21 @@ function populateForm(p) {
     'desired_role','soft_skills',
     'residential_address_line_1','residential_address_line_2',
     'residential_city','residential_state','residential_zip_code',
-    'current_annual_ctc_with_currency',
     'profile_visibility','contact_visibility','resume_visibility','public_name_mode',
-    'current_career_level',
+    'current_career_level','key_achievements','work_level','preferred_work_type',
   ];
   scalar.forEach(f => setVal(`f_${f}`, p[f]));
+
+  // CTC split fields
+  const curCTC = parseCTC(p.current_annual_ctc_with_currency);
+  const curSel = document.getElementById('f_current_ctc_currency');
+  if (curSel) curSel.value = curCTC.cur || 'INR';
+  setVal('f_current_ctc_amount', curCTC.amt);
+
+  const expCTC = parseCTC(p.expected_annual_ctc_with_currency);
+  const expSel = document.getElementById('f_expected_ctc_currency');
+  if (expSel) expSel.value = expCTC.cur || 'INR';
+  setVal('f_expected_ctc_amount', expCTC.amt);
 
   // compliance_domains: raw value may be PHP-serialized or JSON — extract the key
   setVal('f_compliance_domains', extractIndustryKey(p.compliance_domains));
@@ -1065,8 +1213,12 @@ async function saveProfile() {
     country_of_nationality:       getVal('f_country_of_nationality'),
     residential_country:          getVal('f_residential_country'),
     compliance_domains:           getVal('f_compliance_domains'),
-    current_annual_ctc_with_currency: getVal('f_current_annual_ctc_with_currency'),
+    current_annual_ctc_with_currency:  (getVal('f_current_ctc_currency')  + ' ' + getVal('f_current_ctc_amount')).trim(),
+    expected_annual_ctc_with_currency: (getVal('f_expected_ctc_currency') + ' ' + getVal('f_expected_ctc_amount')).trim(),
     current_career_level:         getVal('f_current_career_level'),
+    key_achievements:             getVal('f_key_achievements'),
+    work_level:                   getVal('f_work_level'),
+    preferred_work_type:          getVal('f_preferred_work_type'),
     profile_visibility:           getVal('f_profile_visibility'),
     contact_visibility:           getVal('f_contact_visibility'),
     resume_visibility:            getVal('f_resume_visibility'),
