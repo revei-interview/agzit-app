@@ -1831,6 +1831,52 @@ router.post('/dpr', requireAuth, async (req, res) => {
   }
 });
 
+// ── POST /api/candidate/resume ────────────────────────────────────────────────
+// Upload or replace resume from the dashboard. Stores in agzit_resume_files.
+// Auth: requireAuth + must have a DPR profile
+
+const RESUME_ALLOWED_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+];
+
+router.post('/resume', requireAuth, upload.single('resume'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded.' });
+
+    if (!RESUME_ALLOWED_TYPES.includes(req.file.mimetype)) {
+      return res.status(400).json({ ok: false, error: 'Only PDF and Word documents are accepted.' });
+    }
+
+    const profileId = await getProfileId(req.user.user_id);
+    if (!profileId) return res.status(404).json({ ok: false, error: 'Profile not found. Complete DPR registration first.' });
+
+    const filename = req.file.originalname || 'resume.pdf';
+    const mimetype = req.file.mimetype;
+    const filedata = req.file.buffer;
+    const nowStr   = new Date().toISOString().replace('T', ' ').slice(0, 19);
+
+    await pool.execute(
+      `INSERT INTO agzit_resume_files (post_id, user_id, filename, mimetype, filedata, uploaded_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE filename=VALUES(filename), mimetype=VALUES(mimetype),
+         filedata=VALUES(filedata), uploaded_at=VALUES(uploaded_at)`,
+      [profileId, req.user.user_id, filename, mimetype, filedata, nowStr]
+    );
+    await upsertPostMeta(profileId, 'has_resume',        '1');
+    await upsertPostMeta(profileId, 'resume_upload',      String(profileId));
+    await upsertPostMeta(profileId, 'resume_filename',    filename);
+    await upsertPostMeta(profileId, 'resume_uploaded_at', nowStr);
+
+    console.log(`[resume] Saved ${filename} for profile ${profileId}, ${req.file.size} bytes`);
+    return res.json({ ok: true, filename, path: '/api/candidate/download?type=resume' });
+  } catch (err) {
+    console.error('[resume]', err.message);
+    res.status(500).json({ ok: false, error: 'Server error.' });
+  }
+});
+
 // ── POST /api/candidate/dpr/:postId/resume ─────────────────────────────────
 // Uploads a resume PDF after DPR creation. Stores file in agzit_resume_files.
 // Auth: requireAuth
