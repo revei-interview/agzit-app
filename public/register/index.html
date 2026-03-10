@@ -1842,11 +1842,16 @@ async function parseResume() {
 
     if (!res.ok || !ct.includes('application/json')) {
       const text = await res.text();
-      console.error('[parse-resume] unexpected response:', res.status, text.slice(0, 200));
+      console.error('[parse-resume] unexpected response:', res.status, ct, text.slice(0, 500));
       if (res.status === 401 || res.status === 403) {
         banner.textContent = 'Session expired. Please refresh the page and try again.';
+      } else if (res.status === 429) {
+        banner.textContent = 'Resume already parsed. You can edit the fields manually.';
       } else {
-        banner.textContent = 'Resume parsing failed (server error). Please fill the form manually.';
+        // Try to extract error from HTML or text response
+        let serverMsg = '';
+        try { const j = JSON.parse(text); serverMsg = j.error || ''; } catch (_) {}
+        banner.textContent = serverMsg || ('Resume parsing failed (status ' + res.status + '). Please fill the form manually.');
       }
       banner.className = 'parse-banner error show';
       return;
