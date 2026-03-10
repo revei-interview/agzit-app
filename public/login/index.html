@@ -770,6 +770,30 @@ document.addEventListener('keydown', e => {
   else if (step3Visible) { e.preventDefault(); completeRegistration(); }
 });
 
+// ── Auth check: redirect if already logged in ────────────────────────────────
+(async function checkAlreadyAuthed() {
+  try {
+    const res  = await fetch('/api/auth/me', { credentials: 'include' });
+    const data = await res.json();
+    if (!data.ok || !data.user) return; // not logged in — show form as normal
+
+    const params     = new URLSearchParams(location.search);
+    const redirectTo = params.get('redirect_to') || params.get('next') || '';
+
+    // Allow redirect_to only to our own app origin
+    if (redirectTo && (redirectTo.startsWith('https://app.agzit.com') || redirectTo.startsWith('/'))) {
+      window.location.replace(redirectTo);
+      return;
+    }
+
+    // Default redirect by role
+    const role = data.user.role || '';
+    window.location.replace(role === 'verified_employer' ? '/employer' : '/dashboard');
+  } catch (e) {
+    // Network error — fall through and show form
+  }
+})();
+
 // ── Magic link boot (handles ?ml= token in URL) ─────────────────────────────
 (async function handleMagicLinkBoot() {
   const params = new URLSearchParams(location.search);
