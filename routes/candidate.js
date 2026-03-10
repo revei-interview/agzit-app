@@ -41,9 +41,11 @@ router.post('/admin-cleanup', async (req, res) => {
     }
     results.posts_deleted = posts.length;
 
-    // Delete resume files
-    const [rf] = await pool.execute("DELETE FROM agzit_resume_files WHERE user_id = ?", [uid]);
-    results.resume_files_deleted = rf.affectedRows;
+    // Delete resume files (table may not exist)
+    try {
+      const [rf] = await pool.execute("DELETE FROM agzit_resume_files WHERE user_id = ?", [uid]);
+      results.resume_files_deleted = rf.affectedRows;
+    } catch (_) { results.resume_files_deleted = 'table not found'; }
 
     // Delete usermeta: dpr_profile_post_id, resume_parsed_at
     const [um] = await pool.execute("DELETE FROM wp_usermeta WHERE user_id = ? AND meta_key IN ('dpr_profile_post_id','resume_parsed_at')", [uid]);
