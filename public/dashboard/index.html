@@ -851,6 +851,11 @@ function esc(s) {
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function capitaliseFirst(str) {
+  if (!str) return null;
+  return str.charAt(0).toUpperCase() + str.slice(1).replace(/_/g, ' ');
+}
+
 function fmtDate(d) {
   if (!d) return '';
   const t = Date.parse(d);
@@ -1434,7 +1439,7 @@ function renderProfile(p) {
       ${fld('Gender',         p.gender ? p.gender.charAt(0).toUpperCase() + p.gender.slice(1) : null)}
       ${fld('Date of Birth',  fmtDate(p.date_of_birth))}
       ${fld('Nationality',    p.country_of_nationality)}
-      ${p.residential_address_line_1 ? fld('Current Address', p.residential_address_line_1, false) : ''}
+      ${fld('Current Address', [p.residential_address_line_1, p.residential_city, p.residential_state, p.residential_zip_code, p.residential_country].filter(Boolean).join(', ') || null)}
       ${fld('LinkedIn',       p.linkedin_url ? `<a href="${esc(p.linkedin_url)}" target="_blank" style="color:var(--blue);font-weight:700;">View Profile</a>` : null, true)}
     </div>
 
@@ -1442,14 +1447,14 @@ function renderProfile(p) {
     <div class="field-grid">
       ${fld('Industry / Domain',   parseIndustry(p.compliance_domains))}
       ${fld('Total Experience',    p.total_work_experience ? p.total_work_experience + ' years' : null)}
-      ${fld('Employment Status',   p.current_employment_status)}
-      ${fld('Notice Period',       p.notice_period_in_days)}
+      ${fld('Employment Status',   capitaliseFirst(p.current_employment_status))}
+      ${fld('Notice Period',       capitaliseFirst(p.notice_period_in_days))}
       ${fld('Current CTC',         p.current_annual_ctc_with_currency)}
       ${fld('Expected CTC',        p.expected_annual_ctc_with_currency)}
       ${fld('Desired Role',        p.desired_role)}
       ${fld('Open to Relocate',    p.open_to_relocate === '1' ? 'Yes' : p.open_to_relocate === '0' ? 'No' : null)}
     </div>
-    ${p.professional_summary_bio ? `<div class="field-label" style="margin-top:12px;">Professional Summary</div><div class="field-val" style="margin-top:4px;font-size:13.5px;color:var(--soft);line-height:1.7;">${esc(p.professional_summary_bio)}</div>` : ''}
+    ${p.professional_summary_bio ? `<div class="field-label" style="margin-top:12px;">Professional Summary</div><p class="field-val" style="margin-top:4px;font-size:13.5px;color:var(--soft);line-height:1.7;white-space:pre-wrap;">${esc(p.professional_summary_bio)}</p>` : ''}
     ${p.key_achievements ? `<div class="field-label" style="margin-top:14px;">Key Achievements</div><div class="field-val" style="margin-top:4px;font-size:13.5px;color:var(--soft);line-height:1.7;">${esc(p.key_achievements)}</div>` : ''}
 
     <div class="section-title">Work Experience</div>
