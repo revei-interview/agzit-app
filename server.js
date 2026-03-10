@@ -209,16 +209,26 @@ async function initDB() {
   `);
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS agzit_resume_files (
-      id          INT AUTO_INCREMENT PRIMARY KEY,
-      post_id     INT NOT NULL,
-      user_id     INT NOT NULL,
-      filename    VARCHAR(255) NOT NULL,
-      mimetype    VARCHAR(100) NOT NULL,
-      filedata    LONGBLOB NOT NULL,
-      uploaded_at DATETIME NOT NULL,
-      UNIQUE KEY unique_post (post_id)
+      id              INT AUTO_INCREMENT PRIMARY KEY,
+      user_id         INT NOT NULL,
+      profile_post_id INT,
+      filename        VARCHAR(255),
+      mimetype        VARCHAR(100),
+      filedata        LONGBLOB,
+      uploaded_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_user_resume (user_id)
     )
   `);
+  // Migration: rename post_id → profile_post_id and fix unique key if old schema exists
+  try {
+    await pool.execute('ALTER TABLE agzit_resume_files CHANGE COLUMN post_id profile_post_id INT NULL');
+  } catch (_) { /* already migrated or fresh table */ }
+  try {
+    await pool.execute('ALTER TABLE agzit_resume_files DROP INDEX unique_post');
+  } catch (_) { /* already gone */ }
+  try {
+    await pool.execute('ALTER TABLE agzit_resume_files ADD UNIQUE KEY unique_user_resume (user_id)');
+  } catch (_) { /* already exists */ }
   console.log('[init] DB tables ensured');
 }
 

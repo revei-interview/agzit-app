@@ -322,7 +322,7 @@ router.get('/profile', ...guard, async (req, res) => {
     let resumeRow = null;
     try {
       const [[row]] = await pool.execute(
-        'SELECT filename FROM agzit_resume_files WHERE post_id = ? LIMIT 1', [profileId]
+        'SELECT filename FROM agzit_resume_files WHERE profile_post_id = ? LIMIT 1', [profileId]
       );
       resumeRow = row || null;
     } catch (_) { /* table may not exist yet */ }
@@ -1856,11 +1856,12 @@ router.post('/resume', requireAuth, upload.single('resume'), async (req, res) =>
     const nowStr   = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
     await pool.execute(
-      `INSERT INTO agzit_resume_files (post_id, user_id, filename, mimetype, filedata, uploaded_at)
+      `INSERT INTO agzit_resume_files (user_id, profile_post_id, filename, mimetype, filedata, uploaded_at)
        VALUES (?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE filename=VALUES(filename), mimetype=VALUES(mimetype),
+       ON DUPLICATE KEY UPDATE profile_post_id=VALUES(profile_post_id),
+         filename=VALUES(filename), mimetype=VALUES(mimetype),
          filedata=VALUES(filedata), uploaded_at=VALUES(uploaded_at)`,
-      [profileId, req.user.user_id, filename, mimetype, filedata, nowStr]
+      [req.user.user_id, profileId, filename, mimetype, filedata, nowStr]
     );
     await upsertPostMeta(profileId, 'has_resume',        '1');
     await upsertPostMeta(profileId, 'resume_upload',      String(profileId));
@@ -1895,13 +1896,14 @@ router.post('/dpr/:postId/resume', requireAuth, upload.single('resume'), async (
     const filedata  = req.file.buffer;
     const nowStr    = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
-    // UPSERT into agzit_resume_files (unique key on post_id)
+    // UPSERT into agzit_resume_files (unique key on user_id)
     await pool.execute(
-      `INSERT INTO agzit_resume_files (post_id, user_id, filename, mimetype, filedata, uploaded_at)
+      `INSERT INTO agzit_resume_files (user_id, profile_post_id, filename, mimetype, filedata, uploaded_at)
        VALUES (?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE filename=VALUES(filename), mimetype=VALUES(mimetype),
+       ON DUPLICATE KEY UPDATE profile_post_id=VALUES(profile_post_id),
+         filename=VALUES(filename), mimetype=VALUES(mimetype),
          filedata=VALUES(filedata), uploaded_at=VALUES(uploaded_at)`,
-      [postId, req.user.user_id, filename, mimetype, filedata, nowStr]
+      [req.user.user_id, postId, filename, mimetype, filedata, nowStr]
     );
 
     await upsertPostMeta(postId, 'has_resume',         '1');
