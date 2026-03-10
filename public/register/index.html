@@ -769,8 +769,12 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
             <span>Public</span>
           </label>
           <label class="privacy-opt">
-            <input type="radio" name="profile_visibility" id="pv_private" value="private">
+            <input type="radio" name="profile_visibility" id="pv_verified" value="verified_only">
             <span>Verified Employers Only</span>
+          </label>
+          <label class="privacy-opt">
+            <input type="radio" name="profile_visibility" id="pv_private" value="private">
+            <span>Private</span>
           </label>
         </div>
       </div>
@@ -933,7 +937,8 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
               <option value="VND">VND</option>
               <option value="ZAR">ZAR</option>
             </select>
-            <input class="input" type="number" id="current_ctc_amount" placeholder="Amount" min="0" style="flex:1;min-width:0;">
+            <input class="input" type="text" id="current_ctc_amount" placeholder="e.g. 7.5" style="flex:1;min-width:0;">
+            <span style="font-size:11px;color:var(--muted);white-space:nowrap;align-self:center;">LPA</span>
           </div>
         </div>
         <div class="field">
@@ -982,7 +987,8 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
               <option value="VND">VND</option>
               <option value="ZAR">ZAR</option>
             </select>
-            <input class="input" type="number" id="expected_ctc_amount" placeholder="Amount" min="0" style="flex:1;min-width:0;">
+            <input class="input" type="text" id="expected_ctc_amount" placeholder="e.g. 10" style="flex:1;min-width:0;">
+            <span style="font-size:11px;color:var(--muted);white-space:nowrap;align-self:center;">LPA</span>
           </div>
         </div>
       </div>
