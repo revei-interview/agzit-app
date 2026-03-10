@@ -265,7 +265,6 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
         <p class="step0-desc">Our AI reads your resume and fills in your profile details automatically. You can review and edit everything before submitting.</p>
       </div>
       <input type="file" id="resume-file" accept=".pdf" style="display:none">
-      <input type="hidden" id="resume-file-data">
       <div class="file-drop" id="file-drop" onclick="document.getElementById('resume-file').click()">
         <div class="file-drop-icon">
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
@@ -529,22 +528,24 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
           <input class="input" type="date" id="dob">
         </div>
       </div>
-      <div class="form-row col2">
+      <div class="form-row">
+        <div class="field">
+          <label>Current Address</label>
+          <input class="input" type="text" id="current_address" placeholder="e.g. 123 High Street, London, UK">
+        </div>
+      </div>
+      <div class="form-row">
         <div class="field">
           <label>Nationality</label>
           <select class="input agzit-select" id="nationality">
             <!-- Populated by JS -->
           </select>
         </div>
-        <div class="field">
-          <label>State / Province</label>
-          <input class="input" type="text" id="state" placeholder="e.g. California, Punjab">
-        </div>
       </div>
       <div class="form-row">
         <div class="field">
           <label>Professional Headline <span class="req">*</span></label>
-          <input class="input" type="text" id="s1-headline" placeholder="e.g. Senior Compliance Manager · 8 years experience">
+          <input class="input" type="text" id="s1-headline" placeholder="e.g. Senior Finance Manager · 8 years experience">
           <div class="hint">This appears at the top of your DPR profile.</div>
         </div>
       </div>
@@ -646,43 +647,37 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
       <div class="form-row col2">
         <div class="field">
           <label>Current CTC</label>
-          <input class="input" type="text" id="current_ctc" placeholder="e.g. 8 LPA or $80,000">
+          <div style="display:flex;gap:8px;">
+            <select class="input" id="current_ctc_currency" style="width:90px;flex-shrink:0;">
+              <option value="AED">AED</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+              <option value="INR" selected>INR</option>
+              <option value="SGD">SGD</option>
+              <option value="USD">USD</option>
+            </select>
+            <input class="input" type="number" id="current_ctc_amount" placeholder="Amount" min="0" style="flex:1;min-width:0;">
+          </div>
         </div>
         <div class="field">
           <label>Expected CTC</label>
-          <input class="input" type="text" id="expected_ctc" placeholder="e.g. 12 LPA or $100,000">
+          <div style="display:flex;gap:8px;">
+            <select class="input" id="expected_ctc_currency" style="width:90px;flex-shrink:0;">
+              <option value="AED">AED</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+              <option value="INR" selected>INR</option>
+              <option value="SGD">SGD</option>
+              <option value="USD">USD</option>
+            </select>
+            <input class="input" type="number" id="expected_ctc_amount" placeholder="Amount" min="0" style="flex:1;min-width:0;">
+          </div>
         </div>
       </div>
       <div class="form-row">
         <div class="field">
           <label>Desired Role</label>
-          <input class="input" type="text" id="desired_role" placeholder="e.g. Compliance Manager, Risk Analyst">
-        </div>
-      </div>
-      <div class="form-row col2">
-        <div class="field">
-          <label>Work Type</label>
-          <select class="input agzit-select" id="work_type">
-            <option value="">Select</option>
-            <option value="contract">Contract</option>
-            <option value="freelance">Freelance</option>
-            <option value="full_time">Full-time</option>
-            <option value="internship">Internship</option>
-            <option value="part_time">Part-time</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Career Level</label>
-          <select class="input agzit-select" id="career_level">
-            <option value="">Select</option>
-            <option value="c_suite">C-Suite / Executive</option>
-            <option value="director">Director</option>
-            <option value="entry">Entry Level</option>
-            <option value="lead">Lead / Principal</option>
-            <option value="manager">Manager</option>
-            <option value="mid">Mid Level</option>
-            <option value="senior">Senior Level</option>
-          </select>
+          <input class="input" type="text" id="desired_role" placeholder="e.g. Project Manager, Finance Analyst, Software Engineer">
         </div>
       </div>
     </div>
@@ -754,6 +749,16 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
       </div>
     </div>
     <div class="card" style="margin-top:16px;">
+      <div class="card-title">Career Highlights</div>
+      <div class="form-row">
+        <div class="field">
+          <label>Key Achievements <span class="opt-label">Optional</span></label>
+          <textarea class="input" id="achievements" rows="4" placeholder="e.g. Led a team of 8 analysts, reduced onboarding time by 40%, implemented new KYC process across 5 jurisdictions..."></textarea>
+          <div class="hint">3–5 notable achievements or impact statements from your career.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
       <div class="card-title">Privacy Settings</div>
       <div class="privacy-group">
         <div class="privacy-label">Who can find and view your profile</div>
@@ -769,18 +774,35 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
         </div>
       </div>
       <div class="privacy-group">
-        <div class="privacy-label">Who can see your email and phone number</div>
+        <div class="privacy-label">Who can see your email address</div>
         <div class="privacy-options">
           <label class="privacy-opt">
-            <input type="radio" name="contact_visibility" id="cv_public" value="public">
+            <input type="radio" name="email_visibility" id="ev_public" value="co_public" checked>
             <span>Public</span>
           </label>
           <label class="privacy-opt">
-            <input type="radio" name="contact_visibility" id="cv_verified_only" value="co_verified_only" checked>
+            <input type="radio" name="email_visibility" id="ev_verified_only" value="co_verified_only">
             <span>Verified Employers Only</span>
           </label>
           <label class="privacy-opt">
-            <input type="radio" name="contact_visibility" id="cv_private" value="private">
+            <input type="radio" name="email_visibility" id="ev_private" value="co_private">
+            <span>Private</span>
+          </label>
+        </div>
+      </div>
+      <div class="privacy-group">
+        <div class="privacy-label">Who can see your phone number</div>
+        <div class="privacy-options">
+          <label class="privacy-opt">
+            <input type="radio" name="phone_visibility" id="phv_public" value="co_public">
+            <span>Public</span>
+          </label>
+          <label class="privacy-opt">
+            <input type="radio" name="phone_visibility" id="phv_verified_only" value="co_verified_only" checked>
+            <span>Verified Employers Only</span>
+          </label>
+          <label class="privacy-opt">
+            <input type="radio" name="phone_visibility" id="phv_private" value="co_private">
             <span>Private</span>
           </label>
         </div>
@@ -1012,14 +1034,45 @@ function addEduEntry(prefill) {
     <div class="form-row col2">
       <div class="field">
         <label>Degree <span class="req">*</span></label>
-        <select class="input edu-degree">
-          <option value="">Select</option>
-          <option>High School</option>
+        <select class="input agzit-select edu-degree">
+          <option value="">Select degree</option>
+          <option>Associate's Degree</option>
+          <option>Bachelor of Arts (BA)</option>
+          <option>Bachelor of Business Administration (BBA)</option>
+          <option>Bachelor of Commerce (BCom)</option>
+          <option>Bachelor of Computer Applications (BCA)</option>
+          <option>Bachelor of Education (BEd)</option>
+          <option>Bachelor of Engineering (BE / BEng)</option>
+          <option>Bachelor of Laws (LLB)</option>
+          <option>Bachelor of Medicine (MBBS / MD)</option>
+          <option>Bachelor of Pharmacy (BPharm)</option>
+          <option>Bachelor of Science (BSc)</option>
+          <option>Bachelor of Technology (BTech)</option>
+          <option>Chartered Accountant (CA)</option>
+          <option>Chartered Financial Analyst (CFA)</option>
           <option>Diploma</option>
-          <option>Bachelor's</option>
-          <option>Master's</option>
-          <option>MBA</option>
-          <option>PhD</option>
+          <option>Doctor of Business Administration (DBA)</option>
+          <option>Doctor of Medicine (MD)</option>
+          <option>Doctor of Philosophy (PhD)</option>
+          <option>Executive MBA</option>
+          <option>High School / Secondary</option>
+          <option>Higher National Diploma (HND)</option>
+          <option>Integrated Master's (5-year)</option>
+          <option>Juris Doctor (JD)</option>
+          <option>Master of Arts (MA)</option>
+          <option>Master of Business Administration (MBA)</option>
+          <option>Master of Commerce (MCom)</option>
+          <option>Master of Computer Applications (MCA)</option>
+          <option>Master of Education (MEd)</option>
+          <option>Master of Engineering (MEng)</option>
+          <option>Master of Finance (MFin)</option>
+          <option>Master of Laws (LLM)</option>
+          <option>Master of Public Administration (MPA)</option>
+          <option>Master of Public Health (MPH)</option>
+          <option>Master of Science (MSc)</option>
+          <option>Master of Technology (MTech)</option>
+          <option>Post Graduate Diploma (PGD)</option>
+          <option>Post Graduate Programme (PGP)</option>
           <option>Professional Certification</option>
           <option>Other</option>
         </select>
@@ -1046,6 +1099,7 @@ function addEduEntry(prefill) {
       </div>
     </div>`;
   document.getElementById('edu-entries').appendChild(div);
+  if (window.initSearchableSelects) window.initSearchableSelects();
 
   if (prefill) {
     if (prefill.degree)      div.querySelector('.edu-degree').value      = prefill.degree;
@@ -1077,11 +1131,11 @@ function addCertEntry(prefill) {
     <div class="form-row col2">
       <div class="field">
         <label>Certification Name</label>
-        <input class="input cert-name" type="text" placeholder="e.g. CAMS">
+        <input class="input cert-name" type="text" placeholder="e.g. Project Management Professional (PMP)">
       </div>
       <div class="field">
         <label>Issuing Organization</label>
-        <input class="input cert-issuer" type="text" placeholder="e.g. ACAMS">
+        <input class="input cert-issuer" type="text" placeholder="e.g. PMI, Microsoft, Google, NASSCOM">
       </div>
     </div>
     <div class="form-row col2">
@@ -1182,7 +1236,21 @@ function prefillFromResume(data) {
   // Step 1
   sv('s1-first', data.first_name);
   sv('s1-last',  data.last_name);
-  if (data.phone) sv('s1-phone-num', data.phone);
+  if (data.phone) {
+    const phoneStr = String(data.phone).replace(/\s+/g, '');
+    const codeMatch = phoneStr.match(/^(\+\d{1,4})[-.\s]?(\d{6,})$/);
+    if (codeMatch) {
+      const codeEl = document.getElementById('s1-phone-code');
+      if (codeEl) {
+        for (let i = 0; i < codeEl.options.length; i++) {
+          if (codeEl.options[i].value === codeMatch[1]) { codeEl.selectedIndex = i; break; }
+        }
+      }
+      sv('s1-phone-num', codeMatch[2]);
+    } else {
+      sv('s1-phone-num', phoneStr.replace(/^\+\d{1,4}[-.\s]?/, '').replace(/^\+/, ''));
+    }
+  }
   sv('s1-city', data.city);
   if (data.country) setSel('s1-country', data.country);
   sv('s1-headline', data.headline);
@@ -1245,12 +1313,7 @@ document.getElementById('resume-file').addEventListener('change', function () {
     document.getElementById('file-name').textContent = file.name;
     document.getElementById('file-drop').classList.add('has-file');
     document.getElementById('parse-btn').disabled = false;
-    // Store file reference for post-DPR upload
     window._resumeFile = file;
-    // Also store base64 in hidden input
-    const reader = new FileReader();
-    reader.onload = e => { document.getElementById('resume-file-data').value = e.target.result; };
-    reader.readAsDataURL(file);
   }
 });
 
@@ -1424,33 +1487,33 @@ async function submitDPR() {
       phone:             (document.getElementById('s1-phone-code').value || '+1') + v('s1-phone-num'),
       city:              v('s1-city'),
       country:           v('s1-country'),
+      current_address:   v('current_address'),
       headline:          v('s1-headline'),
       experience:        parseInt(v('s1-exp')) || 0,
       industry:          v('s1-industry'),
       gender:            v('gender'),
       dob:               v('dob'),
       nationality:       v('nationality'),
-      state:             v('state'),
       employment_status: v('employment_status'),
       notice_period:     v('notice_period'),
-      current_ctc:       v('current_ctc'),
-      expected_ctc:      v('expected_ctc'),
+      current_ctc:       [v('current_ctc_currency'), v('current_ctc_amount')].filter(Boolean).join(' '),
+      expected_ctc:      [v('expected_ctc_currency'), v('expected_ctc_amount')].filter(Boolean).join(' '),
       desired_role:      v('desired_role'),
-      work_type:         v('work_type'),
-      career_level:      v('career_level'),
     },
     career:         getCareerData(),
     education:      getEduData(),
     certifications: getCertData(),
     skills: {
-      skills_list: v('s4-skills'),
-      summary:     v('s4-summary'),
-      linkedin:    v('s4-linkedin'),
-      portfolio:   v('s4-portfolio'),
+      skills_list:  v('s4-skills'),
+      summary:      v('s4-summary'),
+      linkedin:     v('s4-linkedin'),
+      portfolio:    v('s4-portfolio'),
+      achievements: v('achievements'),
     },
     privacy: {
       profile_visibility: document.querySelector('input[name="profile_visibility"]:checked')?.value || 'public',
-      contact_visibility: document.querySelector('input[name="contact_visibility"]:checked')?.value || 'co_verified_only',
+      email_visibility:   document.querySelector('input[name="email_visibility"]:checked')?.value   || 'co_public',
+      phone_visibility:   document.querySelector('input[name="phone_visibility"]:checked')?.value   || 'co_verified_only',
       resume_visibility:  document.querySelector('input[name="resume_visibility"]:checked')?.value  || 're_verified_only',
     },
   };

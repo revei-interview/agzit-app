@@ -210,8 +210,11 @@ router.get('/dashboard', ...guard, async (req, res) => {
         compliance_domains:   meta.compliance_domains,
         current_career_level: meta.current_career_level,
         profile_visibility:   meta.profile_visibility,
-        contact_visibility:   meta.contact_visibility,
+        email_visibility:     meta.email_visibility,
+        phone_visibility:     meta.phone_visibility,
         resume_visibility:    meta.resume_visibility,
+        current_address:      meta.residential_address_line_1,
+        key_achievements:     meta.key_achievements,
       } : null,
       entitlements: {
         sessions_20: parseInt(userMeta.mock_sessions_remaining_20) || 0,
@@ -322,8 +325,12 @@ router.get('/profile', ...guard, async (req, res) => {
 
         // ── Visibility
         profile_visibility:               meta.profile_visibility,
-        contact_visibility:               meta.contact_visibility,
+        email_visibility:                 meta.email_visibility,
+        phone_visibility:                 meta.phone_visibility,
         resume_visibility:                meta.resume_visibility,
+
+        // ── New fields
+        key_achievements:                 meta.key_achievements,
       },
     });
   } catch (err) {
@@ -518,12 +525,13 @@ router.patch('/account', ...guard, async (req, res) => {
 
 // ── PATCH /api/candidate/visibility ──────────────────────────────────────────
 // Toggle employer-facing visibility settings
-// Body: { profile_visibility?, contact_visibility?, resume_visibility? }
+// Body: { profile_visibility?, email_visibility?, phone_visibility?, resume_visibility? }
 
 router.patch('/visibility', ...guard, async (req, res) => {
   const ALLOWED_VALUES = {
     profile_visibility: ['public', 'private'],
-    contact_visibility: ['co_public', 'co_verified_only', 'co_private'],
+    email_visibility:   ['co_public', 'co_verified_only', 'co_private'],
+    phone_visibility:   ['co_public', 'co_verified_only', 'co_private'],
     resume_visibility:  ['re_public', 're_verified_only', 're_private'],
   };
 
@@ -1573,14 +1581,30 @@ router.post('/dpr', requireAuth, async (req, res) => {
     const { privacy = {} } = req.body;
 
     // 6. Write scalar postmeta
-    const careerLevel = s(personal.career_level) || 'mid';
+    const sNe = val => String(val ?? '').trim().length > 0;
+    const filledCount = [
+      sNe(personal.first_name) && sNe(personal.last_name),
+      sNe(personal.phone),
+      sNe(personal.city),
+      sNe(personal.country),
+      sNe(personal.current_address),
+      (parseInt(personal.experience) || 0) > 0,
+      sNe(personal.industry),
+      sNe(skills.summary),
+      sNe(skills.skills_list),
+      sNe(personal.employment_status),
+      sNe(personal.desired_role),
+      sNe(skills.achievements),
+    ].filter(Boolean).length;
+    const profileCompleteness = String(Math.max(20, Math.round((filledCount / 12) * 100)));
+
     const scalarMeta = [
       ['full_name',                          fullName],
       ['email_address',                      userEmail],
       ['phone_number',                       s(personal.phone)],
       ['residential_city',                   s(personal.city)],
       ['residential_country',                s(personal.country)],
-      ['residential_state',                  s(personal.state)],
+      ['residential_address_line_1',         s(personal.current_address)],
       ['gender',                             s(personal.gender)],
       ['date_of_birth',                      s(personal.dob)],
       ['country_of_nationality',             s(personal.nationality)],
@@ -1592,21 +1616,20 @@ router.post('/dpr', requireAuth, async (req, res) => {
       ['current_annual_ctc_with_currency',   s(personal.current_ctc)],
       ['expected_annual_ctc_with_currency',  s(personal.expected_ctc)],
       ['desired_role',                       s(personal.desired_role)],
-      ['preferred_work_type',                s(personal.work_type)],
-      ['current_career_level',               careerLevel],
-      ['work_level',                         careerLevel],
+      ['key_achievements',                   s(skills.achievements)],
       ['soft_skills',                        s(skills.skills_list)],
       ['linkedin_url',                       s(skills.linkedin)],
       ['portfolio_url',                      s(skills.portfolio)],
       ['dpr_id',                             dprId],
       ['dpr_status',                         'approved'],
       ['profile_visibility',                 s(privacy.profile_visibility) || 'public'],
-      ['contact_visibility',                 s(privacy.contact_visibility) || 'co_verified_only'],
+      ['email_visibility',                   s(privacy.email_visibility)   || 'co_public'],
+      ['phone_visibility',                   s(privacy.phone_visibility)   || 'co_verified_only'],
       ['resume_visibility',                  s(privacy.resume_visibility)  || 're_verified_only'],
       ['public_name_mode',                   'initials'],
       ['open_for_work_badge',                '1'],
       ['open_to_relocate',                   '0'],
-      ['profile_completeness',               '0'],
+      ['profile_completeness',               profileCompleteness],
       ['profile_last_updated',               nowStr],
     ];
     for (const [key, value] of scalarMeta) {
@@ -1704,7 +1727,7 @@ router.post('/dpr', requireAuth, async (req, res) => {
 });
 
 // ── POST /api/candidate/dpr/:postId/resume ─────────────────────────────────
-// Uploads a resume PDF after DPR creation. Stores base64 in wp_postmeta.
+// Uploads a resume PDF after DPR creation. Stores file in agzit_resume_files.
 // Auth: requireAuth
 
 router.post('/dpr/:postId/resume', requireAuth, upload.single('resume'), async (req, res) => {
@@ -1718,12 +1741,23 @@ router.post('/dpr/:postId/resume', requireAuth, upload.single('resume'), async (
     const profileId = await getProfileId(req.user.user_id);
     if (profileId !== postId) return res.status(403).json({ ok: false, error: 'Access denied.' });
 
-    const base64   = req.file.buffer.toString('base64');
-    const filename = req.file.originalname || 'resume.pdf';
+    const filename  = req.file.originalname || 'resume.pdf';
+    const mimetype  = req.file.mimetype     || 'application/pdf';
+    const filedata  = req.file.buffer;
+    const nowStr    = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
-    await upsertPostMeta(postId, 'resume_base64',   base64);
-    await upsertPostMeta(postId, 'resume_filename',  filename);
-    await upsertPostMeta(postId, 'has_resume',       '1');
+    // UPSERT into agzit_resume_files (unique key on post_id)
+    await pool.execute(
+      `INSERT INTO agzit_resume_files (post_id, user_id, filename, mimetype, filedata, uploaded_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE filename=VALUES(filename), mimetype=VALUES(mimetype),
+         filedata=VALUES(filedata), uploaded_at=VALUES(uploaded_at)`,
+      [postId, req.user.user_id, filename, mimetype, filedata, nowStr]
+    );
+
+    await upsertPostMeta(postId, 'has_resume',         '1');
+    await upsertPostMeta(postId, 'resume_filename',     filename);
+    await upsertPostMeta(postId, 'resume_uploaded_at',  nowStr);
 
     console.log(`[dpr/resume] Saved resume for post ${postId}, ${req.file.size} bytes`);
     return res.json({ ok: true });

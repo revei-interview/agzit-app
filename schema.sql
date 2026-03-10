@@ -76,6 +76,21 @@ CREATE TABLE IF NOT EXISTS agzit_magic_links (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
+-- 5) Resume files (LONGBLOB storage, one row per candidate post)
+
+CREATE TABLE IF NOT EXISTS agzit_resume_files (
+  id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  post_id      INT UNSIGNED NOT NULL,
+  user_id      INT UNSIGNED NOT NULL,
+  filename     VARCHAR(255) NOT NULL DEFAULT 'resume.pdf',
+  mimetype     VARCHAR(100) NOT NULL DEFAULT 'application/pdf',
+  filedata     LONGBLOB NOT NULL,
+  uploaded_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_resume (post_id),
+  INDEX idx_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
 -- ============================================================
 -- NOTES:
 -- * agzit_users is INDEPENDENT of wp_users.

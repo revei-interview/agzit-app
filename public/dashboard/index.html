@@ -733,10 +733,21 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
               </div>
               <div class="vis-form-row">
                 <div>
-                  <div class="vis-form-label">Contact Visibility</div>
-                  <div class="vis-form-desc">Who can see your email and phone number</div>
+                  <div class="vis-form-label">Email Visibility</div>
+                  <div class="vis-form-desc">Who can see your email address</div>
                 </div>
-                <select class="vis-select agzit-select" id="sel-contact">
+                <select class="vis-select agzit-select" id="sel-email">
+                  <option value="co_public">Public</option>
+                  <option value="co_verified_only">Verified Employers Only</option>
+                  <option value="co_private">Private</option>
+                </select>
+              </div>
+              <div class="vis-form-row">
+                <div>
+                  <div class="vis-form-label">Phone Visibility</div>
+                  <div class="vis-form-desc">Who can see your phone number</div>
+                </div>
+                <select class="vis-select agzit-select" id="sel-phone">
                   <option value="co_public">Public</option>
                   <option value="co_verified_only">Verified Employers Only</option>
                   <option value="co_private">Private</option>
@@ -864,6 +875,65 @@ function setSelectVal(id, val) {
 
 /* ── Career level normaliser (fixes legacy 'lLead' typo stored in DB) ─────── */
 function normCareerLevel(v) { return v === 'lLead' ? 'Lead' : (v || ''); }
+
+/* ── Industry display map ────────────────────────────────────────────────── */
+const INDUSTRY_DISPLAY = {
+  accounting:'Accounting / Taxation / Audit', administration:'Administration / Office Management',
+  media:'Advertising / Media / PR', architecture:'Architecture / Interior Design',
+  audit:'Audit & Assurance', aviation:'Aviation / Flight Operations / Cabin Crew',
+  banking:'Banking / Financial Services', civil:'Civil / Surveying',
+  compliance:'Compliance / Regulatory', customer_support:'Customer Support / Helpdesk',
+  cybersecurity:'Cybersecurity / InfoSec', data:'Data / Analytics / BI',
+  engineering:'Engineering (General)', erp_crm:'ERP / CRM (IT Software)',
+  finance:'Finance / Treasury', fraud:'Fraud / Anti-Fraud',
+  freshers:'Fresh Graduates / Trainees', government:'Government / Public Sector',
+  design:'Graphic / Web / Visual Design', hse:'Health / Safety / Environment (HSE)',
+  healthcare:'Healthcare / Medical', hospitality:'Hospitality / F&B',
+  hr:'Human Resources / People Ops', insurance:'Insurance / Underwriting',
+  it:'IT / Systems', hardware_it:'IT Hardware / Support',
+  content:'Journalism / Content / Editing', translation:'Language Translation',
+  legal:'Legal / Law / Advisory', supply_chain:'Logistics / Supply Chain',
+  marine:'Marine / Shipping / Offshore', marketing:'Marketing / Brand / Digital Marketing',
+  mech_electrical:'Mechanical / Electrical / Plumbing (MEP)', mining:'Mining / Drilling / Geology',
+  oil_gas:'Oil & Gas / Energy', operations:'Operations / Back Office',
+  other:'Other', pharma:'Pharmaceutical / Life Sciences',
+  procurement:'Procurement / Purchase / Vendor Management', product:'Product Management',
+  manufacturing:'Production / Manufacturing', qa:'Quality / Testing / QA / QC',
+  r_and_d:'Research & Development', retail:'Retail / Store Operations',
+  risk:'Risk Management', sales:'Sales / Business Development',
+  security:'Security Services', management:'Senior Management / Leadership',
+  site_engineering:'Site Engineering / Projects', software:'Software Development / Engineering',
+  network_admin:'System / Network Administration', education:'Teaching / Education / Training',
+  telecom:'Telecom / Communications Engineering', transport:'Transport / Driving',
+  travel:'Travel / Ticketing / Reservations',
+};
+function parseIndustry(raw) {
+  if (!raw) return '';
+  // PHP serialized: a:1:{i:0;s:10:"compliance";}
+  const phpMatches = raw.match(/s:\d+:"([^"]+)"/g);
+  if (phpMatches) {
+    return phpMatches.map(m => {
+      const key = m.match(/s:\d+:"([^"]+)"/)[1];
+      return INDUSTRY_DISPLAY[key] || key;
+    }).join(', ');
+  }
+  // JSON array: ["compliance"]
+  try {
+    const arr = JSON.parse(raw);
+    if (Array.isArray(arr)) return arr.map(k => INDUSTRY_DISPLAY[k] || k).join(', ');
+  } catch (_) {}
+  return INDUSTRY_DISPLAY[raw] || raw;
+}
+
+/* ── Phone prefix deduplication ──────────────────────────────────────────── */
+function cleanPhone(phone) {
+  if (!phone) return '';
+  const s = String(phone).trim();
+  // Detect repeated prefix like +91+91... or +919766886605 where the first digits repeat
+  const m = s.match(/^(\+\d{1,4})(\+\d{1,4})([\d\s\-().]+)$/);
+  if (m && m[1] === m[2]) return m[2] + m[3].trim();
+  return s;
+}
 
 /* ── Performance level helpers ────────────────────────────────────────────── */
 const PERF_BANDS = {
@@ -1040,10 +1110,9 @@ function render(d, pd, id) {
 
   /* overview details */
   el('ov-details').innerHTML = [
-    ['DPR ID',      prof.dpr_id],
-    ['Status',      statusLabel(prof.dpr_status)],
-    ['Industry',    prof.compliance_domains],
-    ['Career Level', normCareerLevel(prof.current_career_level)],
+    ['DPR ID',   prof.dpr_id],
+    ['Status',   statusLabel(prof.dpr_status)],
+    ['Industry', parseIndustry(prof.compliance_domains)],
   ].map(([k,v]) => v ? `<div class="info-row"><span class="info-key">${esc(k)}</span><span class="info-val">${esc(String(v))}</span></div>` : '').join('');
 
   /* overview scorecard mini */
@@ -1086,9 +1155,9 @@ function render(d, pd, id) {
   }
 
   /* ── Visibility sidebar card ─────────────────────────────────────────────── */
-  if (prof.profile_visibility || prof.contact_visibility || prof.resume_visibility) {
+  if (prof.profile_visibility || prof.email_visibility || prof.phone_visibility || prof.resume_visibility) {
     el('sb-vis-card').innerHTML = `<div class="card-title" style="margin-bottom:12px;">Visibility</div>` +
-      [['Profile', prof.profile_visibility],['Contact', prof.contact_visibility],['Resume', prof.resume_visibility]]
+      [['Profile', prof.profile_visibility],['Email', prof.email_visibility],['Phone', prof.phone_visibility],['Resume', prof.resume_visibility]]
       .map(([k,v]) => `<div class="vis-row"><span class="vis-row-label">${k}</span><span class="vis-val ${visCls(v)}">${visLabel(v)}</span></div>`)
       .join('') +
       `<div style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.55;">Controls what employers see on your public DPR page.</div>`;
@@ -1110,7 +1179,8 @@ function render(d, pd, id) {
   if (pd && pd.profile) {
     renderResume(pd.profile);
     setSelectVal('sel-profile', pd.profile.profile_visibility);
-    setSelectVal('sel-contact', pd.profile.contact_visibility);
+    setSelectVal('sel-email',   pd.profile.email_visibility);
+    setSelectVal('sel-phone',   pd.profile.phone_visibility);
     setSelectVal('sel-resume',  pd.profile.resume_visibility);
   }
 
@@ -1335,39 +1405,50 @@ function renderProfile(p) {
         <div style="font-size:12.5px;color:var(--muted);margin-top:3px;">Upload your resume via <strong>Update DPR Profile</strong>.</div>
       </div>`;
 
+  /* profile completeness bar */
+  const pctVal = parseInt(p.profile_completeness) || 0;
+  const pctBar = pctVal > 0 ? `
+    <div style="margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Profile Completeness</span>
+        <span style="font-size:13px;font-weight:700;color:var(--blue);">${pctVal}%</span>
+      </div>
+      <div style="height:5px;background:var(--surface);border-radius:999px;overflow:hidden;">
+        <div style="height:5px;background:var(--blue);border-radius:999px;width:${pctVal}%;transition:width .7s ease;"></div>
+      </div>
+    </div>` : '';
+
   /* profile tab */
-  const html = `
+  const html = pctBar + `
     <div class="section-title">Personal Information</div>
     <div class="field-grid">
       ${fld('DPR ID',         p.dpr_id)}
       ${fld('Full Name',      p.full_name)}
       ${fld('Email',          p.email_address)}
-      ${fld('Phone',          p.phone_number)}
+      ${fld('Phone',          cleanPhone(p.phone_number))}
       ${fld('Gender',         p.gender)}
       ${fld('Date of Birth',  fmtDate(p.date_of_birth))}
       ${fld('Nationality',    p.country_of_nationality)}
       ${fld('City',           p.residential_city)}
-      ${fld('State',          p.residential_state)}
       ${fld('Country',        p.residential_country)}
+      ${p.residential_address_line_1 ? fld('Current Address', p.residential_address_line_1, false) : ''}
       ${fld('LinkedIn',       p.linkedin_url ? `<a href="${esc(p.linkedin_url)}" target="_blank" style="color:var(--blue);font-weight:700;">View Profile</a>` : null, true)}
       ${fld('Profile Views',  p.dpr_id_view_count||'0')}
     </div>
 
     <div class="section-title">Professional Summary</div>
     <div class="field-grid">
-      ${fld('Industry / Domain',   p.compliance_domains)}
-      ${fld('Career Level',        normCareerLevel(p.current_career_level))}
+      ${fld('Industry / Domain',   parseIndustry(p.compliance_domains))}
       ${fld('Total Experience',    p.total_work_experience ? p.total_work_experience + ' years' : null)}
       ${fld('Employment Status',   p.current_employment_status)}
-      ${fld('Notice Period',       p.notice_period_in_days ? p.notice_period_in_days + ' days' : null)}
+      ${fld('Notice Period',       p.notice_period_in_days)}
       ${fld('Current CTC',         p.current_annual_ctc_with_currency)}
       ${fld('Expected CTC',        p.expected_annual_ctc_with_currency)}
       ${fld('Desired Role',        p.desired_role)}
-      ${fld('Work Level',          p.work_level)}
-      ${fld('Work Type',           p.preferred_work_type)}
       ${fld('Open to Relocate',    p.open_to_relocate === '1' ? 'Yes' : p.open_to_relocate === '0' ? 'No' : null)}
     </div>
     ${p.professional_summary_bio ? `<div class="field-label" style="margin-top:12px;">Professional Summary</div><div class="field-val" style="margin-top:4px;font-size:13.5px;color:var(--soft);line-height:1.7;">${esc(p.professional_summary_bio)}</div>` : ''}
+    ${p.key_achievements ? `<div class="field-label" style="margin-top:14px;">Key Achievements</div><div class="field-val" style="margin-top:4px;font-size:13.5px;color:var(--soft);line-height:1.7;">${esc(p.key_achievements)}</div>` : ''}
 
     <div class="section-title">Work Experience</div>
     ${(p.work_experience||[]).length ? (p.work_experience.map(w => `
@@ -1584,7 +1665,8 @@ window.saveVisibility = async function () {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         profile_visibility: el('sel-profile').value,
-        contact_visibility: el('sel-contact').value,
+        email_visibility:   el('sel-email').value,
+        phone_visibility:   el('sel-phone').value,
         resume_visibility:  el('sel-resume').value,
       }),
     });
