@@ -133,6 +133,53 @@ async function loadProfile(userId) {
   return { profileId, meta };
 }
 
+// ── Industry label map + parser ───────────────────────────────────────────────
+const INDUSTRY_LABEL = {
+  compliance:'Compliance / Regulatory', finance:'Finance / Treasury',
+  accounting:'Accounting / Taxation', banking:'Banking / Financial Services',
+  risk:'Risk Management', fraud:'Fraud / Anti-Fraud', audit:'Audit & Assurance',
+  legal:'Legal / Law', insurance:'Insurance', hr:'Human Resources',
+  administration:'Administration', sales:'Sales / Business Development',
+  marketing:'Marketing / Brand', product:'Product Management',
+  operations:'Operations', procurement:'Procurement',
+  supply_chain:'Logistics / Supply Chain', customer_support:'Customer Support',
+  data:'Data / Analytics', it:'IT / Systems', software:'Software Development',
+  cybersecurity:'Cybersecurity', erp_crm:'ERP / CRM', qa:'Quality / QA',
+  r_and_d:'Research & Development', engineering:'Engineering', telecom:'Telecom',
+  network_admin:'System / Network Administration', hardware_it:'IT Hardware / Support',
+  architecture:'Architecture', design:'Graphic / Web Design',
+  media:'Media / Journalism', content:'Content / Editing',
+  translation:'Language Translation', education:'Teaching / Education',
+  healthcare:'Healthcare / Medical', pharma:'Pharmaceutical',
+  manufacturing:'Production / Manufacturing', site_engineering:'Site Engineering',
+  civil:'Civil / Surveying', mech_electrical:'Mechanical / Electrical',
+  hse:'Health, Safety & Environment', aviation:'Aviation',
+  marine:'Marine / Shipping', oil_gas:'Oil & Gas / Energy',
+  mining:'Mining / Geology', security:'Security Services', retail:'Retail',
+  hospitality:'Hospitality / F&B', travel:'Travel / Ticketing',
+  transport:'Transport / Driving', government:'Government / Public Sector',
+  management:'Senior Management', freshers:'Fresh Graduates', other:'Other',
+};
+
+function parseComplianceDomains(raw) {
+  if (!raw) return '';
+  let keys = [];
+  const str = String(raw).trim();
+  if (str.startsWith('a:')) {
+    // PHP serialized: a:1:{i:0;s:10:"compliance";}
+    const matches = str.match(/s:\d+:"([^"]+)"/g) || [];
+    keys = matches.map(m => m.match(/s:\d+:"([^"]+)"/)[1]);
+  } else {
+    try {
+      const parsed = JSON.parse(str);
+      keys = Array.isArray(parsed) ? parsed : [str];
+    } catch (_) {
+      keys = [str];
+    }
+  }
+  return keys.map(k => INDUSTRY_LABEL[k] || k).filter(Boolean).join(', ');
+}
+
 // ── All interview session subfields (used in multiple routes) ─────────────────
 const SESSION_SUBFIELDS = [
   'session_id', 'started_at', 'session_type', 'interview_role',
@@ -207,7 +254,7 @@ router.get('/dashboard', ...guard, async (req, res) => {
         profile_completeness: meta.profile_completeness,
         dpr_id_view_count:    meta.dpr_id_view_count,
         open_for_work_badge:  meta.open_for_work_badge,
-        compliance_domains:   meta.compliance_domains,
+        compliance_domains:   parseComplianceDomains(meta.compliance_domains),
         current_career_level: meta.current_career_level,
         profile_visibility:   meta.profile_visibility,
         email_visibility:     meta.email_visibility,
@@ -287,7 +334,7 @@ router.get('/profile', ...guard, async (req, res) => {
         // ── Professional summary
         professional_summary_bio:         meta.professional_summary_bio,
         total_work_experience:            meta.total_work_experience,
-        compliance_domains:               meta.compliance_domains,   // "Industry / Functional Area"
+        compliance_domains:               parseComplianceDomains(meta.compliance_domains),   // "Industry / Functional Area"
         current_employment_status:        meta.current_employment_status,
         notice_period_in_days:            meta.notice_period_in_days,
         current_annual_ctc_with_currency: meta.current_annual_ctc_with_currency,
@@ -1581,21 +1628,21 @@ router.post('/dpr', requireAuth, async (req, res) => {
     const { privacy = {} } = req.body;
 
     // 6. Write scalar postmeta
-    const sNe = val => String(val ?? '').trim().length > 0;
-    const filledCount = [
-      sNe(personal.first_name) && sNe(personal.last_name),
-      sNe(personal.phone),
-      sNe(personal.city),
-      sNe(personal.country),
-      sNe(personal.current_address),
-      (parseInt(personal.experience) || 0) > 0,
-      sNe(personal.industry),
-      sNe(skills.summary),
-      sNe(skills.skills_list),
-      sNe(personal.employment_status),
-      sNe(personal.desired_role),
-      sNe(skills.achievements),
-    ].filter(Boolean).length;
+    const fieldsForCompleteness = [
+      personal.first_name || personal.last_name,
+      userEmail,
+      personal.phone,
+      personal.city,
+      personal.country,
+      personal.headline,
+      personal.experience,
+      personal.industry,
+      skills.summary,
+      skills.linkedin,
+      skills.achievements,
+      personal.current_address,
+    ];
+    const filledCount = fieldsForCompleteness.filter(v => v && String(v).trim() !== '').length;
     const profileCompleteness = String(Math.max(20, Math.round((filledCount / 12) * 100)));
 
     const scalarMeta = [
@@ -1608,6 +1655,7 @@ router.post('/dpr', requireAuth, async (req, res) => {
       ['gender',                             s(personal.gender)],
       ['date_of_birth',                      s(personal.dob)],
       ['country_of_nationality',             s(personal.nationality)],
+      ['professional_headline',              s(personal.headline)],
       ['professional_summary_bio',           s(skills.summary)],
       ['total_work_experience',              String(parseInt(personal.experience) || 0)],
       ['compliance_domains',                 JSON.stringify([s(personal.industry)].filter(Boolean))],
