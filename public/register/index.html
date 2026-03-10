@@ -1333,7 +1333,21 @@ async function parseResume() {
   fd.append('resume', fileInput.files[0]);
 
   try {
-    const res  = await fetch('/api/candidate/parse-resume', { method: 'POST', credentials: 'include', body: fd });
+    const res = await fetch('/api/candidate/parse-resume', { method: 'POST', credentials: 'include', body: fd });
+    const ct  = res.headers.get('content-type') || '';
+
+    if (!res.ok || !ct.includes('application/json')) {
+      const text = await res.text();
+      console.error('[parse-resume] unexpected response:', res.status, text.slice(0, 200));
+      if (res.status === 401 || res.status === 403) {
+        banner.textContent = 'Session expired. Please refresh the page and try again.';
+      } else {
+        banner.textContent = 'Resume parsing failed (server error). Please fill the form manually.';
+      }
+      banner.className = 'parse-banner error show';
+      return;
+    }
+
     const data = await res.json();
 
     if (!data.ok) {
@@ -1346,7 +1360,7 @@ async function parseResume() {
       setTimeout(() => goStep(1), 1100);
     }
   } catch (e) {
-    banner.textContent = 'Resume parsing timed out. Please fill the form manually or try again.';
+    banner.textContent = 'Resume parsing failed. Please fill the form manually — your progress is saved.';
     banner.className = 'parse-banner error show';
   } finally {
     btn.disabled = false;
