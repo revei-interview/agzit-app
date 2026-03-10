@@ -11,10 +11,7 @@ const crypto   = require('crypto');
 const https    = require('https');
 const jwt      = require('jsonwebtoken');
 const multer      = require('multer');
-const zlib        = require('zlib');
-const { promisify } = require('util');
-const inflateRaw  = promisify(zlib.inflateRaw);
-const inflate     = promisify(zlib.inflate);
+const pdfParse    = require('pdf-parse');
 
 // multer: in-memory storage, 5 MB limit, PDF only
 const upload = multer({
@@ -1278,62 +1275,18 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
   ]
 }`;
 
+    const pdfBuffer = req.file.buffer;
     let pdfText = '';
     try {
-      const buf    = req.file.buffer;
-      const pdfStr = buf.toString('binary');
-      const textParts = [];
-
-      // Find all streams in the PDF
-      const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
-      let match;
-      while ((match = streamRegex.exec(pdfStr)) !== null) {
-        const streamData = Buffer.from(match[1], 'binary');
-
-        // Try decompressing as zlib/deflate first (most PDFs use FlateDecode)
-        let decompressed = null;
-        try { decompressed = await inflate(streamData); } catch (e1) {
-          try { decompressed = await inflateRaw(streamData); } catch (e2) {
-            // Not compressed — use raw stream data
-            decompressed = streamData;
-          }
-        }
-
-        const streamText = decompressed.toString('latin1');
-
-        // Extract text from BT...ET blocks
-        const btBlocks = streamText.match(/BT[\s\S]*?ET/g) || [];
-        for (const block of btBlocks) {
-          // Handle (text) Tj
-          const tjMatches = block.match(/\(([^)\\]*(?:\\.[^)\\]*)*)\)\s*Tj/g) || [];
-          for (const m of tjMatches) {
-            textParts.push(m.replace(/^\(/, '').replace(/\)\s*Tj$/, '').replace(/\\(.)/g, '$1'));
-          }
-          // Handle [(text)] TJ
-          const tjArrayMatches = block.match(/\[([^\]]*)\]\s*TJ/g) || [];
-          for (const m of tjArrayMatches) {
-            const parts = m.match(/\(([^)]*)\)/g) || [];
-            textParts.push(parts.map(p => p.slice(1, -1)).join(''));
-          }
-        }
-
-        // If no BT/ET found but stream has readable text, grab it
-        if (btBlocks.length === 0 && /[a-zA-Z]{3,}/.test(streamText)) {
-          const readable = streamText.replace(/[^\x20-\x7E\n]/g, ' ').replace(/\s+/g, ' ').trim();
-          if (readable.length > 20) textParts.push(readable);
-        }
-      }
-
-      pdfText = textParts.join(' ').replace(/\s+/g, ' ').trim();
-    } catch (e) {
-      console.error('[parse-resume] extract error:', e.message);
-      return res.status(422).json({ ok: false, error: 'Could not read PDF. Please ensure it is a text-based PDF.' });
+      const pdfData = await pdfParse(pdfBuffer);
+      pdfText = pdfData.text || '';
+      console.log(`[parse-resume] pdf-parse extracted ${pdfText.length} chars`);
+    } catch (parseErr) {
+      console.error('[parse-resume] pdf-parse error:', parseErr.message);
+      return res.status(422).json({ ok: false, error: 'Could not read PDF. Please ensure it is a valid, non-corrupted PDF file.' });
     }
 
-    console.log('[parse-resume] extracted', pdfText.length, 'chars');
-
     if (pdfText.trim().length < 50) {
-      console.error('[parse-resume] too short, length:', pdfText.trim().length);
       return res.status(422).json({ ok: false, error: 'PDF appears to be empty or image-only. Please upload a text-based PDF.' });
     }
 
@@ -1347,7 +1300,7 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
       .join('\n')
       .slice(0, 2000);
 
-    console.log('[parse-resume] sending to OpenAI, chars:', cleanText.length, 'sample:', cleanText.slice(0, 100));
+    console.log(`[parse-resume] sending to OpenAI, sample: ${cleanText.substring(0, 100)}`);
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) throw new Error('OPENAI_API_KEY not configured');
