@@ -98,7 +98,7 @@ body { font-family: var(--f); background: var(--surface); color: var(--ink); -we
 .input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,68,194,0.08); }
 .input::placeholder { color: var(--muted); }
 select.input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237C83A0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 38px; cursor: pointer; -webkit-appearance: none; appearance: none; }
-textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12px 14px; }
+textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12px 14px; text-align: justify; }
 .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
 
 /* Error */
@@ -127,7 +127,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-save { background: var(--green); color: #fff; border-color: var(--green); font-size: 13px; padding: 0 16px; height: 42px; }
 .btn-save:hover { background: #096a3d; }
-.save-status { font-size: 11px; color: var(--green); text-align: center; margin-top: 6px; min-height: 16px; transition: opacity .3s; }
+.save-status { font-size: 11px; color: var(--green); text-align: center; margin-top: 6px; min-height: 16px; transition: opacity .3s; position: fixed; bottom: 16px; right: 20px; background: var(--green); color: #fff; padding: 8px 18px; border-radius: 8px; font-weight: 600; z-index: 999; pointer-events: none; opacity: 0; }
 .enc-note { font-size: 12px; color: var(--muted); text-align: center; margin-top: 12px; }
 
 /* Spinner */
@@ -281,6 +281,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
 </header>
 
 <div class="main">
+  <div class="save-status" id="save-status">Progress saved</div>
 
   <!-- Error -->
   <div class="msg-error" id="form-error"></div>
@@ -679,14 +680,13 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
       <button class="btn btn-save" onclick="manualSave()">Save</button>
       <button class="btn btn-primary" onclick="goStep(2)">Next: Career Info →</button>
     </div>
-    <div class="save-status" id="save-status"></div>
     <p class="enc-note">Your data is encrypted and never shared.</p>
   </div>
 
   <!-- STEP 2: Career (multi-entry) -->
   <div id="step2" style="display:none;">
     <div class="card">
-      <div class="card-title">Work Experience</div>
+      <div class="card-title">Work Experience <span class="opt-label">Optional for freshers</span></div>
       <div id="career-entries"></div>
       <button class="add-entry-btn" type="button" onclick="addCareerEntry()">+ Add Another Position</button>
     </div>
@@ -945,8 +945,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
               <option value="VND">VND</option>
               <option value="ZAR">ZAR</option>
             </select>
-            <input class="input" type="text" id="current_ctc_amount" placeholder="e.g. 7.5" style="flex:1;min-width:0;">
-            <span style="font-size:11px;color:var(--muted);white-space:nowrap;align-self:center;">LPA</span>
+            <input class="input" type="text" id="current_ctc_amount" placeholder="e.g. 45,000" style="flex:1;min-width:0;">
           </div>
         </div>
         <div class="field">
@@ -995,8 +994,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
               <option value="VND">VND</option>
               <option value="ZAR">ZAR</option>
             </select>
-            <input class="input" type="text" id="expected_ctc_amount" placeholder="e.g. 10" style="flex:1;min-width:0;">
-            <span style="font-size:11px;color:var(--muted);white-space:nowrap;align-self:center;">LPA</span>
+            <input class="input" type="text" id="expected_ctc_amount" placeholder="e.g. 55,000" style="flex:1;min-width:0;">
           </div>
         </div>
       </div>
@@ -1007,6 +1005,17 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
       </div>
       <div id="prefloc-entries"></div>
       <button class="add-entry-btn" type="button" onclick="addPrefLocEntry()">+ Add Location</button>
+    </div>
+    <!-- Resume Upload (mandatory) -->
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title">Upload Resume <span class="req">*</span></div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Upload your latest resume in PDF format. This will be shared with employers.</p>
+      <input type="file" id="final-resume-file" accept=".pdf" style="display:none">
+      <div class="file-drop" id="final-file-drop" onclick="document.getElementById('final-resume-file').click()" style="padding:20px;">
+        <div class="file-drop-label" style="font-size:14px;">Click to select your PDF resume</div>
+        <div class="file-drop-hint">Max 5 MB · PDF files only</div>
+        <div class="file-name" id="final-file-name"></div>
+      </div>
     </div>
     <div class="form-nav">
       <button class="btn btn-outline" onclick="goStep(4)">← Back</button>
@@ -1170,7 +1179,13 @@ function addCareerEntry(prefill) {
         <textarea class="input entry-resp" rows="5" placeholder="Key responsibilities and achievements"></textarea>
       </div>
     </div>`;
-  document.getElementById('career-entries').appendChild(div);
+  const careerContainer = document.getElementById('career-entries');
+  // Most recent first: new manual entries go to top; prefilled entries append in order
+  if (prefill) {
+    careerContainer.appendChild(div);
+  } else {
+    careerContainer.insertBefore(div, careerContainer.firstChild);
+  }
 
   if (prefill) {
     div.querySelector('.entry-title-input').value   = prefill.title   || '';
@@ -1274,7 +1289,12 @@ function addEduEntry(prefill) {
       </div>
     </div>
 `;
-  document.getElementById('edu-entries').appendChild(div);
+  const eduContainer = document.getElementById('edu-entries');
+  if (prefill) {
+    eduContainer.appendChild(div);
+  } else {
+    eduContainer.insertBefore(div, eduContainer.firstChild);
+  }
   if (window.initSearchableSelects) window.initSearchableSelects();
 
   if (prefill) {
@@ -1371,7 +1391,7 @@ function addToolEntry(prefill) {
   const div = document.createElement('div');
   div.className = 'inline-entry tool-entry';
   div.innerHTML = `
-    <input class="input tool-input" id="tool-${idx}" type="text" placeholder="e.g. SAP, Bloomberg, Salesforce, Excel">
+    <input class="input tool-input" id="tool-${idx}" type="text" placeholder="e.g. SAP">
     <button type="button" onclick="removeInlineEntry(this,'.tool-entry',updateToolVis)" class="entry-remove">Remove</button>`;
   document.getElementById('tool-entries').appendChild(div);
   if (prefill) div.querySelector('.tool-input').value = prefill;
@@ -1392,7 +1412,7 @@ function addLangEntry(prefill) {
   const div = document.createElement('div');
   div.className = 'inline-entry lang-entry';
   div.innerHTML = `
-    <input class="input lang-input" id="lang-${idx}" type="text" placeholder="e.g. English (Fluent), Hindi (Native), Arabic (Conversational)">
+    <input class="input lang-input" id="lang-${idx}" type="text" placeholder="e.g. English (Fluent)">
     <button type="button" onclick="removeInlineEntry(this,'.lang-entry',updateLangVis)" class="entry-remove">Remove</button>`;
   document.getElementById('lang-entries').appendChild(div);
   if (prefill) div.querySelector('.lang-input').value = prefill;
@@ -1598,6 +1618,16 @@ document.getElementById('resume-file').addEventListener('change', function () {
   }
 });
 
+// Final resume upload on Step 5
+document.getElementById('final-resume-file').addEventListener('change', function () {
+  const file = this.files[0];
+  if (file) {
+    document.getElementById('final-file-name').textContent = file.name;
+    document.getElementById('final-file-drop').classList.add('has-file');
+    window._resumeFile = file; // overwrite with latest
+  }
+});
+
 async function parseResume() {
   const fileInput = document.getElementById('resume-file');
   if (!fileInput.files[0]) return;
@@ -1701,13 +1731,14 @@ function validateCurrentStep() {
   }
 
   if (currentStep === 2) {
+    // Experience is optional (freshers may skip), but if entries have data, validate them
     const entries = document.querySelectorAll('.career-entry');
-    if (!entries.length) return err(errEl, 'Please add at least one career position.');
     const first = entries[0];
-    if (!first.querySelector('.entry-title-input').value.trim())   return err(errEl, 'Please enter your job title.');
-    if (!first.querySelector('.entry-company-input').value.trim()) return err(errEl, 'Please enter your company name.');
-    if (!first.querySelector('.entry-start-month').value)          return err(errEl, 'Please select a start month for your most recent role.');
-    if (!first.querySelector('.entry-start-year').value)           return err(errEl, 'Please select a start year for your most recent role.');
+    if (first && first.querySelector('.entry-title-input').value.trim()) {
+      if (!first.querySelector('.entry-company-input').value.trim()) return err(errEl, 'Please enter your company name.');
+      if (!first.querySelector('.entry-start-month').value)          return err(errEl, 'Please select a start month for your role.');
+      if (!first.querySelector('.entry-start-year').value)           return err(errEl, 'Please select a start year for your role.');
+    }
   }
 
   if (currentStep === 3) {
@@ -1721,6 +1752,10 @@ function validateCurrentStep() {
   if (currentStep === 4) {
     if (!v('s4-skills'))  return err(errEl, 'Please enter your key skills.');
     if (!v('s4-summary')) return err(errEl, 'Please write a professional summary.');
+  }
+
+  if (currentStep === 5) {
+    if (!window._resumeFile) return err(errEl, 'Please upload your resume (PDF) before submitting.');
   }
 
   return true;
