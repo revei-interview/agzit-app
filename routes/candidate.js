@@ -1872,8 +1872,8 @@ router.post('/resume', requireAuth, upload.single('resume'), async (req, res) =>
     console.log(`[resume] Saved ${filename} for profile ${profileId}, ${req.file.size} bytes`);
     return res.json({ ok: true, filename, path: '/api/candidate/download?type=resume' });
   } catch (err) {
-    console.error('[resume]', err.message);
-    res.status(500).json({ ok: false, error: 'Server error.' });
+    console.error('[resume]', err);
+    res.status(500).json({ ok: false, error: err.message || 'Server error.' });
   }
 });
 
@@ -1914,8 +1914,8 @@ router.post('/dpr/:postId/resume', requireAuth, upload.single('resume'), async (
     console.log(`[dpr/resume] Saved resume for post ${postId}, ${req.file.size} bytes`);
     return res.json({ ok: true });
   } catch (err) {
-    console.error('[dpr/resume]', err.message);
-    res.status(500).json({ ok: false, error: 'Server error.' });
+    console.error('[dpr/resume]', err);
+    res.status(500).json({ ok: false, error: err.message || 'Server error.' });
   }
 });
 

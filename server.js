@@ -207,6 +207,18 @@ async function initDB() {
       updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_resume_files (
+      id          INT AUTO_INCREMENT PRIMARY KEY,
+      post_id     INT NOT NULL,
+      user_id     INT NOT NULL,
+      filename    VARCHAR(255) NOT NULL,
+      mimetype    VARCHAR(100) NOT NULL,
+      filedata    LONGBLOB NOT NULL,
+      uploaded_at DATETIME NOT NULL,
+      UNIQUE KEY unique_post (post_id)
+    )
+  `);
   console.log('[init] DB tables ensured');
 }
 
