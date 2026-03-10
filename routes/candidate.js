@@ -1344,6 +1344,7 @@ router.post('/parse-resume', requireAuth, upload.single('resume'), async (req, r
       console.error('[parse-resume] JSON parse failed:', e.message, '| raw:', rawText?.slice(0, 500));
       return res.status(502).json({ ok: false, error: 'AI returned invalid data. Please fill the form manually.' });
     }
+    console.log('[parse-resume] parsed result:', JSON.stringify(parsed).substring(0, 500));
 
     return res.json({ ok: true, data: parsed });
   } catch (err) {

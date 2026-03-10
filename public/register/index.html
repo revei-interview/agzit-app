@@ -1488,121 +1488,102 @@ function splitDate(dateStr) {
 
 /* ── Prefill from parse-resume response ─────────────────────────────────── */
 function prefillFromResume(data) {
-  const sv = (id, val) => { const el = document.getElementById(id); if (el && val != null && val !== '') el.value = String(val); };
-  const setSel = (id, val) => {
-    const el = document.getElementById(id);
-    if (el && val) {
-      el.value = val;
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-  };
+  if (!data) return;
 
-  // Step 1
-  sv('s1-first', data.first_name);
-  sv('s1-last',  data.last_name);
-  if (data.phone) {
-    const phoneStr = String(data.phone).replace(/\s+/g, '');
-    const codeMatch = phoneStr.match(/^(\+\d{1,4})[-.\s]?(\d{6,})$/);
-    if (codeMatch) {
-      const codeEl = document.getElementById('s1-phone-code');
-      if (codeEl) {
-        for (let i = 0; i < codeEl.options.length; i++) {
-          if (codeEl.options[i].value === codeMatch[1]) { codeEl.selectedIndex = i; break; }
-        }
-      }
-      sv('s1-phone-num', codeMatch[2]);
-    } else {
-      sv('s1-phone-num', phoneStr.replace(/^\+\d{1,4}[-.\s]?/, '').replace(/^\+/, ''));
+  // ── STEP 1: Personal fields ──
+  const set = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
+
+  set('s1-first', data.first_name);
+  set('s1-last', data.last_name);
+  set('s1-headline', data.headline);
+  set('s1-exp', data.experience_years);
+  set('s1-phone-num', data.phone);
+  set('addr_line1', data.address_line1 || data.address);
+  set('addr_city', data.city);
+  set('addr_country', data.country);
+
+  // Phone code
+  if (data.phone_code) {
+    const codeEl = document.getElementById('s1-phone-code');
+    if (codeEl) {
+      const opt = Array.from(codeEl.options).find(o => o.value === data.phone_code || o.value.startsWith(data.phone_code));
+      if (opt) codeEl.value = opt.value;
     }
   }
-  sv('s1-headline', data.headline);
-  // OpenAI returns experience_years; fall back to years_experience if present
-  const expVal = data.experience_years != null ? data.experience_years : data.years_experience;
-  if (expVal != null) sv('s1-exp', expVal);
-  if (data.industry) setSel('s1-industry', data.industry);
 
-  // Step 4
-  sv('s4-linkedin', data.linkedin);
-  sv('s4-summary',  data.summary);
-  if (Array.isArray(data.skills) && data.skills.length) sv('s4-skills', data.skills.join(', '));
-
-  // Step 2: career entries
-  if (Array.isArray(data.work_experience) && data.work_experience.length) {
-    careerCount = 0;
-    document.getElementById('career-entries').innerHTML = '';
-    data.work_experience.slice(0, 6).forEach(w => {
-      try {
-        addCareerEntry({
-          title:             w.title,
-          company:           w.company,
-          start_date:        w.start_date,
-          end_date:          w.end_date,
-          currently_working: w.currently_working,
-          responsibilities:  w.responsibilities,
-        });
-      } catch (err) {
-        console.warn('[prefill] career entry error:', err.message);
-      }
-    });
-    updateEntryNums('.career-entry', 'Position');
+  // Industry — set the hidden input and trigger display
+  if (data.industry) {
+    const industryHidden = document.querySelector('#s1-industry-hidden, input[name="industry"], select#s1-industry');
+    if (industryHidden) industryHidden.value = data.industry;
+    // Also try setting via the agzit-select trigger text
+    const industryTrigger = document.querySelector('[data-select-id="s1-industry"] .agzit-select-trigger span, [data-agzit-select="s1-industry"] .trigger-text');
+    if (industryTrigger) {
+      // Find the option label that matches the value
+      const opts = document.querySelectorAll('[data-select-id="s1-industry"] [data-value], [data-agzit-select="s1-industry"] [data-value]');
+      const match = Array.from(opts).find(o => o.dataset.value === data.industry || o.dataset.value?.includes(data.industry));
+      if (match) { industryTrigger.textContent = match.textContent.trim(); if (industryHidden) industryHidden.value = match.dataset.value; }
+    }
   }
 
-  // Step 3: education entries
-  // addEduEntry() calls initSearchableSelects() globally, which crashes when it tries to
-  // redefine the .value property on already-initialised selects (Cannot redefine property: value).
-  // Fix: call addEduEntry() with no prefill arg (the card div is appended before the crash),
-  // catch the error, then set field values after a short delay once the DOM has settled.
-  if (Array.isArray(data.education) && data.education.length) {
-    const eduItems = data.education.slice(0, 4);
-    eduCount = 0;
-    document.getElementById('edu-entries').innerHTML = '';
-    eduItems.forEach(() => {
-      try {
-        addEduEntry(); // no prefill arg — values set below via setTimeout
-      } catch (err) {
-        console.warn('[prefill] edu entry init error:', err.message);
-      }
-    });
-    updateEntryNums('.edu-entry', 'Education');
-
-    // Set values after DOM settles to avoid the defineProperty crash
-    setTimeout(() => {
-      const cards = document.querySelectorAll('#edu-entries .edu-entry');
-      eduItems.forEach((e, idx) => {
-        const card = cards[idx];
-        if (!card) return;
-
-        // Degree: set native select value; also update ss-selected-text if the widget
-        // happened to initialise before the crash on this particular card.
-        if (e.degree) {
-          const degSel = card.querySelector('.edu-degree');
-          if (degSel) {
-            try { degSel.value = e.degree; } catch (err) { /* already crashed, ignore */ }
-            const ssText = card.querySelector('.ss-selected-text');
-            if (ssText) ssText.textContent = e.degree;
-          }
-        }
-
-        if (e.field)       { const el = card.querySelector('.edu-field');       if (el) el.value = e.field; }
-        if (e.institution) { const el = card.querySelector('.edu-institution'); if (el) el.value = e.institution; }
-        const gradYr = e.end_year || e.start_year;
-        if (gradYr)        { const el = card.querySelector('.edu-grad-year');   if (el) el.value = String(gradYr); }
-      });
-    }, 50);
+  // ── STEP 2: Skills (Step 4) ──
+  if (data.skills && data.skills.length) {
+    set('s4-skills', Array.isArray(data.skills) ? data.skills.join(', ') : data.skills);
   }
 
-  // Step 3: certifications
-  if (Array.isArray(data.certifications) && data.certifications.length) {
-    certCount = 0;
-    document.getElementById('cert-entries').innerHTML = '';
-    data.certifications.slice(0, 5).forEach(c => addCertEntry({
-      name:        c.name,
-      issuer:      c.issuer,
-      issue_year:  c.issue_date  ? splitDate(c.issue_date).year  : '',
-      expiry_year: c.expiry_date ? splitDate(c.expiry_date).year : '',
-    }));
-    updateEntryNums('.cert-entry', 'Certification');
+  // ── STEP 3: Profile details (Step 4) ──
+  set('s4-summary', data.summary || data.professional_summary);
+  set('s4-linkedin', data.linkedin || data.linkedin_url);
+  set('achievements', data.achievements || data.key_achievements);
+
+  // ── STEP 4: Work experience — populate EXISTING first entry only ──
+  // Do NOT call addWorkEntry (it crashes). Just fill the first existing entry.
+  if (data.work_experience && data.work_experience.length > 0) {
+    const we = data.work_experience[0];
+    set('jt-0', we.job_title || we.title);
+    set('cn-0', we.company || we.company_name);
+    set('jd-0', we.description || we.job_description);
+    if (we.employment_type) set('emp-type-0', we.employment_type);
+    if (we.start_month) set('sm-0', we.start_month);
+    if (we.start_year) set('sy-0', we.start_year);
+    if (we.current || !we.end_date) {
+      const currentCb = document.getElementById('current-0');
+      if (currentCb) { currentCb.checked = true; currentCb.dispatchEvent(new Event('change')); }
+    }
   }
+
+  // ── STEP 5: Education — populate EXISTING first entry only ──
+  if (data.education && data.education.length > 0) {
+    const ed = data.education[0];
+    // Set graduation year and field of study directly
+    set('edu-fos-0', ed.field_of_study || ed.field);
+    set('edu-inst-0', ed.institution || ed.institution_name);
+    set('edu-grad-0', ed.graduation_year || ed.year);
+    set('edu-city-0', ed.city || ed.institution_city);
+    set('edu-country-0', ed.country || ed.institution_country);
+    // Degree: set the hidden input directly without reinitialising the select
+    if (ed.degree) {
+      const degHidden = document.querySelector('[data-select-id="edu-deg-0"] input[type="hidden"], #edu-deg-0-hidden, select#edu-deg-0');
+      if (degHidden) degHidden.value = ed.degree;
+      const degTrigger = document.querySelector('[data-select-id="edu-deg-0"] .agzit-select-trigger span');
+      if (degTrigger) degTrigger.textContent = ed.degree;
+    }
+  }
+
+  // ── STEP 6: Certifications — populate EXISTING first entry only ──
+  if (data.certifications && data.certifications.length > 0) {
+    const cert = data.certifications[0];
+    set('cert-name-0', cert.name || cert.certification_name);
+    set('cert-org-0', cert.issuing_org || cert.organization);
+    set('cert-year-0', cert.year || cert.issue_year);
+  }
+
+  // ── STEP 7: Job preferences (Step 5) ──
+  set('desired_role', data.desired_role);
+  if (data.current_ctc) set('current_ctc_amount', data.current_ctc);
+  if (data.expected_ctc) set('expected_ctc_amount', data.expected_ctc);
+
+  // Navigate to Step 1 to show filled data
+  goStep(1);
 }
 
 /* ── Step 0: Parse resume ───────────────────────────────────────────────── */
