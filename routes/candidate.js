@@ -21,6 +21,48 @@ const upload = multer({
 
 const guard = [requireAuth, requireRole('dpr_candidate')];
 
+// ── TEMP: Diagnostic + cleanup (remove after use) ──
+router.post('/admin-debug', async (req, res) => {
+  const { email, secret, action } = req.body;
+  if (secret !== 'agzit-debug-2026') return res.status(403).json({ ok: false });
+  try {
+    // Find user IDs
+    const [[au]] = await pool.execute("SELECT id, wp_user_id, dpr_profile_id FROM agzit_users WHERE email = ?", [email]);
+    const [[wp]] = await pool.execute("SELECT ID FROM wp_users WHERE user_email = ?", [email]);
+    const results = { agzit_user: au || null, wp_user: wp || null };
+
+    if (wp) {
+      const [meta] = await pool.execute("SELECT meta_key, meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key IN ('resume_parsed_at','dpr_profile_post_id')", [wp.ID]);
+      results.wp_usermeta = meta;
+    }
+    if (au && au.wp_user_id && au.wp_user_id !== wp?.ID) {
+      // Also check with agzit_users.wp_user_id in case it differs
+      const [meta2] = await pool.execute("SELECT meta_key, meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'resume_parsed_at'", [au.wp_user_id]);
+      results.wp_usermeta_via_agzit = meta2;
+    }
+
+    // If action=cleanup, clear everything
+    if (action === 'cleanup') {
+      await pool.execute("UPDATE agzit_users SET dpr_profile_id = NULL WHERE email = ?", [email]);
+      if (wp) {
+        await pool.execute("DELETE FROM wp_usermeta WHERE user_id = ? AND meta_key IN ('dpr_profile_post_id','resume_parsed_at')", [wp.ID]);
+        const [posts] = await pool.execute("SELECT ID FROM wp_posts WHERE post_author = ? AND post_type = 'dpr_profile'", [wp.ID]);
+        for (const p of posts) {
+          await pool.execute("DELETE FROM wp_postmeta WHERE post_id = ?", [p.ID]);
+          await pool.execute("DELETE FROM wp_posts WHERE ID = ?", [p.ID]);
+        }
+        results.cleaned = { posts: posts.length };
+      }
+      // Also clean by agzit wp_user_id if different
+      if (au && au.wp_user_id) {
+        await pool.execute("DELETE FROM wp_usermeta WHERE user_id = ? AND meta_key = 'resume_parsed_at'", [au.wp_user_id]);
+        results.cleaned_agzit_wpuid = au.wp_user_id;
+      }
+    }
+    res.json({ ok: true, email, results });
+  } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 // ── Unlock helpers (used by /resume/download for employer access checks) ─────
 
 function parseUnlockedMap(raw) {
