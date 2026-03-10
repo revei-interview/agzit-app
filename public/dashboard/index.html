@@ -470,6 +470,8 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 .acc-input:focus { outline: none; border-color: var(--blue); }
 #acc-feedback.ok  { color: var(--green); }
 #acc-feedback.err { color: var(--red); }
+#jp-feedback.ok   { color: var(--green); }
+#jp-feedback.err  { color: var(--red); }
 
 /* ── Employer interviews ──────────────────────────────────────────────────── */
 .emp-band {
@@ -563,6 +565,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
           <div class="tabs-nav">
             <button class="tab-btn active" data-tab="overview">Overview</button>
             <button class="tab-btn" data-tab="profile">Profile</button>
+            <button class="tab-btn" data-tab="job">Job Pref</button>
             <button class="tab-btn" data-tab="scorecard">Scorecard</button>
             <button class="tab-btn" data-tab="interviews" id="tab-btn-interviews">Interviews</button>
             <button class="tab-btn" data-tab="resume">Resume</button>
@@ -686,6 +689,49 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
           <div class="tab-pane" id="tab-profile">
             <div id="profile-content">
               <p style="color:var(--muted);font-size:13px;">Loading profile…</p>
+            </div>
+          </div>
+
+          <!-- ── Job Preferences ───────────────────────────────────────── -->
+          <div class="tab-pane" id="tab-job">
+            <div style="max-width:480px;">
+              <div class="acc-field">
+                <label class="acc-label" for="jp-desired-role">Desired Role</label>
+                <input type="text" id="jp-desired-role" class="acc-input" placeholder="e.g. Compliance Analyst">
+              </div>
+              <div class="acc-field">
+                <label class="acc-label" for="jp-employment-status">Employment Status</label>
+                <select id="jp-employment-status" class="acc-input">
+                  <option value="">Select status</option>
+                  <option value="employed">Employed</option>
+                  <option value="unemployed">Unemployed</option>
+                  <option value="freelance">Freelance</option>
+                  <option value="on_notice">On Notice</option>
+                  <option value="contract">Contract</option>
+                </select>
+              </div>
+              <div class="acc-field">
+                <label class="acc-label" for="jp-notice-period">Notice Period</label>
+                <input type="text" id="jp-notice-period" class="acc-input" placeholder="e.g. 30 days, Immediate">
+              </div>
+              <div class="acc-field">
+                <label class="acc-label" for="jp-current-ctc">Current CTC</label>
+                <input type="text" id="jp-current-ctc" class="acc-input" placeholder="e.g. GBP 60,000">
+              </div>
+              <div class="acc-field">
+                <label class="acc-label" for="jp-expected-ctc">Expected CTC</label>
+                <input type="text" id="jp-expected-ctc" class="acc-input" placeholder="e.g. GBP 70,000">
+              </div>
+              <div class="acc-field">
+                <label class="acc-label" for="jp-relocate">Open to Relocate</label>
+                <select id="jp-relocate" class="acc-input">
+                  <option value="">Select</option>
+                  <option value="1">Yes</option>
+                  <option value="0">No</option>
+                </select>
+              </div>
+              <button class="btn-save" id="jp-save-btn" onclick="saveJobPref(event)">Save Preferences</button>
+              <div id="jp-feedback" style="font-size:12.5px;margin-top:10px;min-height:16px;"></div>
             </div>
           </div>
 
@@ -1194,6 +1240,18 @@ function render(d, pd, id) {
     if (window.initSearchableSelects) window.initSearchableSelects();
   }
 
+  /* ── Job Preferences tab ────────────────────────────────────────────────── */
+  if (pd && pd.profile) {
+    const p = pd.profile;
+    const setVal = (id, val) => { const e = el(id); if (e && val != null) e.value = val; };
+    setVal('jp-desired-role',       p.desired_role);
+    setVal('jp-employment-status',  p.current_employment_status);
+    setVal('jp-notice-period',      p.notice_period_in_days);
+    setVal('jp-current-ctc',        p.current_annual_ctc_with_currency);
+    setVal('jp-expected-ctc',       p.expected_annual_ctc_with_currency);
+    setVal('jp-relocate',           p.open_to_relocate);
+  }
+
   /* ── Account tab ────────────────────────────────────────────────────────── */
   el('acc-details').innerHTML = [
     ['Email',       user.email],
@@ -1688,6 +1746,36 @@ window.saveVisibility = async function () {
     fbEl.textContent = 'Network error. Please try again.'; fbEl.className = 'err';
   } finally {
     btn.disabled = false; btn.textContent = 'Save Settings';
+  }
+};
+
+/* ── Job Preferences save ────────────────────────────────────────────────── */
+window.saveJobPref = async function (event) {
+  const btn  = event.currentTarget;
+  const fb   = el('jp-feedback');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  fb.textContent = ''; fb.className = '';
+  try {
+    const body = {
+      desired_role:                   (el('jp-desired-role').value  || '').trim(),
+      current_employment_status:      el('jp-employment-status').value,
+      notice_period_in_days:          (el('jp-notice-period').value || '').trim(),
+      current_annual_ctc_with_currency:  (el('jp-current-ctc').value  || '').trim(),
+      expected_annual_ctc_with_currency: (el('jp-expected-ctc').value || '').trim(),
+      open_to_relocate:               el('jp-relocate').value,
+    };
+    const res  = await fetch('/api/candidate/profile', {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.ok) { fb.textContent = 'Preferences saved.'; fb.className = 'ok'; }
+    else { fb.textContent = data.error || 'Save failed.'; fb.className = 'err'; }
+  } catch (e) {
+    fb.textContent = 'Network error. Please try again.'; fb.className = 'err';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Save Preferences';
   }
 };
 
