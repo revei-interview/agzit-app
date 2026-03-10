@@ -734,6 +734,18 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
                 <input type="text" id="jp-expected-ctc" class="acc-input" placeholder="e.g. GBP 70,000">
               </div>
               <div class="acc-field">
+                <label class="acc-label" for="jp-work-type">Preferred Work Type</label>
+                <select id="jp-work-type" class="acc-input">
+                  <option value="">Select</option>
+                  <option value="full_time">Full Time</option>
+                  <option value="part_time">Part Time</option>
+                  <option value="contract">Contract</option>
+                  <option value="freelance">Freelance</option>
+                  <option value="remote">Remote</option>
+                  <option value="hybrid">Hybrid</option>
+                </select>
+              </div>
+              <div class="acc-field">
                 <label class="acc-label" for="jp-relocate">Open to Relocate</label>
                 <select id="jp-relocate" class="acc-input">
                   <option value="">Select</option>
@@ -1260,6 +1272,7 @@ function render(d, pd, id) {
     setVal('jp-notice-period',      p.notice_period_in_days);
     setVal('jp-current-ctc',        p.current_annual_ctc_with_currency);
     setVal('jp-expected-ctc',       p.expected_annual_ctc_with_currency);
+    setVal('jp-work-type',          p.preferred_work_type);
     setVal('jp-relocate',           p.open_to_relocate);
   }
 
@@ -1508,7 +1521,7 @@ function renderProfile(p) {
       ${fld('Gender',         p.gender ? p.gender.charAt(0).toUpperCase() + p.gender.slice(1) : null)}
       ${fld('Date of Birth',  fmtDate(p.date_of_birth))}
       ${fld('Nationality',    p.country_of_nationality)}
-      ${fld('Current Address', [p.residential_address_line_1, p.residential_city, p.residential_state, p.residential_zip_code, p.residential_country].filter(Boolean).join(', ') || null)}
+      ${fld('Current Address', [p.residential_address_line_1, p.residential_address_line_2, p.residential_city, p.residential_state, p.residential_zip_code, p.residential_country].filter(Boolean).join(', ') || null)}
       ${fld('LinkedIn',       p.linkedin_url ? `<a href="${esc(p.linkedin_url)}" target="_blank" style="color:var(--blue);font-weight:700;">View Profile</a>` : null, true)}
     </div>
 
@@ -1814,6 +1827,7 @@ window.saveJobPref = async function (event) {
       notice_period_in_days:          (el('jp-notice-period').value || '').trim(),
       current_annual_ctc_with_currency:  (el('jp-current-ctc').value  || '').trim(),
       expected_annual_ctc_with_currency: (el('jp-expected-ctc').value || '').trim(),
+      preferred_work_type:            el('jp-work-type').value,
       open_to_relocate:               el('jp-relocate').value,
     };
     const res  = await fetch('/api/candidate/profile', {
