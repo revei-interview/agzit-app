@@ -665,6 +665,29 @@ function buildModern(accent, p) {
     allSk.forEach(function(s) { left += '<div style="font-size:11.5px;color:#334155;padding:3px 0;border-bottom:1px solid #E2E8F0;">' + esc(s) + '</div>'; });
     left += '</div>';
   }
+  if (p.education && p.education.length) {
+    left += '<div style="margin-top:18px;">' + mHead('Education');
+    p.education.forEach(function(e) {
+      var per = fmtDate(e.start) + (e.end ? ' \u2013 ' + fmtDate(e.end) : '');
+      left += '<div style="margin-bottom:8px;">';
+      left += '<div style="font-size:11.5px;color:#334155;font-weight:600;">' + esc(e.degree) + '</div>';
+      left += '<div style="font-size:11.5px;color:#475569;">' + esc(e.institution) + '</div>';
+      if (per) left += '<div style="font-size:10.5px;color:#94A3B8;">' + esc(per) + '</div>';
+      left += '</div>';
+    });
+    left += '</div>';
+  }
+  if (p.certifications && p.certifications.length) {
+    left += '<div style="margin-top:18px;">' + mHead('Certifications');
+    p.certifications.forEach(function(c) {
+      left += '<div style="margin-bottom:6px;">';
+      left += '<div style="font-size:11.5px;color:#334155;font-weight:600;">' + esc(c.name) + '</div>';
+      if (c.issuer) left += '<div style="font-size:10.5px;color:#64748B;">' + esc(c.issuer) + '</div>';
+      if (c.date)   left += '<div style="font-size:10.5px;color:#94A3B8;">' + esc(fmtDate(c.date)) + '</div>';
+      left += '</div>';
+    });
+    left += '</div>';
+  }
   if (p.languages && p.languages.length) {
     left += '<div style="margin-top:18px;">' + mHead('Languages');
     p.languages.forEach(function(l) { left += '<div style="font-size:11.5px;color:#334155;padding:3px 0;">' + esc(l) + '</div>'; });
@@ -695,27 +718,8 @@ function buildModern(accent, p) {
       right += '</div>';
     });
   }
-  if (p.education && p.education.length) {
-    right += rHead('Education');
-    p.education.forEach(function(e) {
-      var per = fmtDate(e.start) + (e.end ? ' \u2013 ' + fmtDate(e.end) : '');
-      right += '<div style="margin-bottom:8px;display:flex;justify-content:space-between;">';
-      right += '<div><span class="jt">' + esc(e.degree) + '</span><div class="jc">' + esc(e.institution) + '</div></div>';
-      right += '<span style="font-size:11px;color:#94A3B8;">' + esc(per) + '</span>';
-      right += '</div>';
-    });
-  }
   var achHtml = renderAchievements(accent, p);
   if (achHtml) { right += rHead('Key Achievements'); right += achHtml; }
-  if (p.certifications && p.certifications.length) {
-    right += rHead('Certifications');
-    p.certifications.forEach(function(c) {
-      right += '<div style="margin-bottom:6px;"><span style="font-weight:600;">' + esc(c.name) + '</span>';
-      if (c.issuer) right += ' <span style="color:#64748B;">&middot; ' + esc(c.issuer) + '</span>';
-      if (c.date)   right += ' <span style="color:#94A3B8;">&middot; ' + esc(fmtDate(c.date)) + '</span>';
-      right += '</div>';
-    });
-  }
   right += buildPdfBtn(accent); right += buildFooter(); right += '</div>';
   return '<div style="display:flex;min-height:auto;">' + left + right + '</div>';
 }
