@@ -11,6 +11,7 @@ const { requireAuth, requireRole } = require('./middleware/auth');
 
 const app = express();
 app.set('trust proxy', 1); // Render sits behind a load balancer — trust first proxy hop for correct IP in rate limiting
+app.disable('x-powered-by'); // Don't advertise Express version
 
 // ── Security headers ────────────────────────────────────────────────────────
 app.use(helmet({
@@ -20,25 +21,33 @@ app.use(helmet({
 
 // ── Rate limiting ───────────────────────────────────────────────────────────
 const authLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 10,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests. Please wait a moment.' },
 });
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 60,
+  windowMs: 15 * 60 * 1000,
+  max: 300,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests. Please wait a moment.' },
 });
 const internalLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 30,
+  windowMs: 15 * 60 * 1000,
+  max: 120,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests. Please wait a moment.' },
+});
+// Strict limiter for AI-backed endpoints (parse-resume, ai-rewrite) — expensive + quota-limited
+const aiLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'AI feature rate limit reached. Please try again in an hour.' },
 });
 
 // ── Middleware ─────────────────────────────────────────────────────────────
@@ -61,8 +70,11 @@ app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
 app.use('/shared', express.static(path.join(__dirname, 'public/shared')));
 
 // ── API Routes ─────────────────────────────────────────────────────────────
-app.use('/api/auth',      authLimiter,     require('./routes/auth'));
-app.use('/api/candidate', apiLimiter,      require('./routes/candidate'));
+app.use('/api/auth',                          authLimiter, require('./routes/auth'));
+// AI endpoints get a stricter hourly limiter applied first
+app.use('/api/candidate/parse-resume',        aiLimiter);
+app.use('/api/candidate/resume/ai-rewrite',   aiLimiter);
+app.use('/api/candidate',                     apiLimiter,  require('./routes/candidate'));
 app.use('/api/employer',  apiLimiter,      require('./routes/employer'));
 app.use('/api/internal',  internalLimiter, require('./routes/internal'));
 app.use('/api/profile',   apiLimiter,      require('./routes/profile'));           // Public — no auth
@@ -161,6 +173,27 @@ app.use((req, res) => {
   res.status(404).sendFile(path.join(__dirname, 'public/error/index.html'));
 });
 
+// ── Global error handler — catches any next(err) or unhandled throw ─────────
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error('[unhandled error]', err.message, err.stack?.split('\n')[1]);
+  res.status(500).json({ ok: false, error: 'An unexpected error occurred.' });
+});
+
+// ── Startup environment validation ─────────────────────────────────────────
+{
+  const REQUIRED_ENV = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'JWT_SECRET'];
+  const missing = REQUIRED_ENV.filter(k => !process.env[k]);
+  if (missing.length) {
+    console.error('[startup] Missing required env vars:', missing.join(', '));
+    process.exit(1);
+  }
+  if (process.env.JWT_SECRET.length < 32) {
+    console.error('[startup] JWT_SECRET must be at least 32 characters');
+    process.exit(1);
+  }
+}
+
 // ── Background jobs ────────────────────────────────────────────────────────
 require('./jobs/session-cleanup');
 
@@ -229,6 +262,20 @@ async function initDB() {
   try {
     await pool.execute('ALTER TABLE agzit_resume_files ADD UNIQUE KEY unique_user_resume (user_id)');
   } catch (_) { /* already exists */ }
+
+  // Ensure performance indexes (ignore if already exist)
+  const INDEXES = [
+    'CREATE INDEX IF NOT EXISTS idx_otp_email     ON agzit_otp_codes     (email)',
+    'CREATE INDEX IF NOT EXISTS idx_otp_expires   ON agzit_otp_codes     (expires_at)',
+    'CREATE INDEX IF NOT EXISTS idx_ml_token      ON agzit_magic_links   (token)',
+    'CREATE INDEX IF NOT EXISTS idx_ml_user       ON agzit_magic_links   (user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_team_admin    ON agzit_employer_team (admin_user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_team_member   ON agzit_employer_team (member_user_id)',
+  ];
+  for (const sql of INDEXES) {
+    try { await pool.execute(sql); } catch (_) { /* already exists */ }
+  }
+
   console.log('[init] DB tables ensured');
 }
 

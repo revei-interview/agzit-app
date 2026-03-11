@@ -504,15 +504,11 @@ router.get('/magic-login', async (req, res) => {
     if (!token) return res.status(400).json({ ok: false, error: 'Invalid token.' });
 
     const [[link]] = await db.query(
-      'SELECT * FROM agzit_magic_links WHERE token = ? LIMIT 1',
+      'SELECT * FROM agzit_magic_links WHERE token = ? AND used_at IS NULL AND expires_at > NOW() LIMIT 1',
       [token]
     );
 
-    if (!link)          return res.status(404).json({ ok: false, error: 'Login link not found or already used.' });
-    if (link.used_at)   return res.status(410).json({ ok: false, error: 'This login link has already been used.' });
-    if (new Date() > new Date(link.expires_at)) {
-      return res.status(410).json({ ok: false, error: 'This login link has expired. Please request a new one.' });
-    }
+    if (!link) return res.status(410).json({ ok: false, error: 'Login link not found, already used, or expired. Please request a new one.' });
 
     // Mark as used
     await db.query('UPDATE agzit_magic_links SET used_at=NOW() WHERE id=?', [link.id]);
@@ -545,18 +541,12 @@ router.get('/accept-invite', async (req, res) => {
     if (!token) return res.status(400).json({ ok: false, error: 'Invalid token.' });
 
     const [[link]] = await db.query(
-      "SELECT * FROM agzit_magic_links WHERE token = ? AND purpose = 'team_invite' LIMIT 1",
+      "SELECT * FROM agzit_magic_links WHERE token = ? AND purpose = 'team_invite' AND used_at IS NULL AND expires_at > NOW() LIMIT 1",
       [token]
     );
 
     if (!link) {
-      return res.status(404).json({ ok: false, error: 'Invitation not found or already used.' });
-    }
-    if (link.used_at) {
-      return res.status(410).json({ ok: false, error: 'This invitation link has already been used. Please ask the admin to re-send the invite.' });
-    }
-    if (new Date() > new Date(link.expires_at)) {
-      return res.status(410).json({ ok: false, error: 'This invitation has expired. Please ask the admin to re-invite you.' });
+      return res.status(410).json({ ok: false, error: 'Invitation not found, already used, or expired. Please ask the admin to re-send the invite.' });
     }
 
     // Mark as used

@@ -5,12 +5,19 @@
 //   employer-interview-form-handler.code-snippets.php
 //   dpr-helpers-mask-unmask-check.code-snippets.php
 
-const express    = require('express');
-const router     = express.Router();
-const pool       = require('../config/db');
-const crypto     = require('crypto');
-const bcrypt     = require('bcryptjs');
+const express      = require('express');
+const router       = express.Router();
+const pool         = require('../config/db');
+const crypto       = require('crypto');
+const bcrypt       = require('bcryptjs');
+const sanitizeHtml = require('sanitize-html');
 const { BrevoClient, BrevoEnvironment } = require('@getbrevo/brevo');
+
+// Strip HTML tags from user-supplied text to prevent stored XSS.
+function sanitize(v) {
+  if (typeof v !== 'string') return '';
+  return sanitizeHtml(v.trim(), { allowedTags: [], allowedAttributes: {} });
+}
 function makeBrevoClient() {
   return new BrevoClient({ apiKey: process.env.BREVO_API_KEY, environment: BrevoEnvironment.Production });
 }
@@ -482,7 +489,7 @@ router.put('/profile', ...guardAny, async (req, res) => {
     const updates = [];
     for (const key of allowed) {
       if (Object.prototype.hasOwnProperty.call(body, key)) {
-        updates.push({ key, value: String(body[key] ?? '').trim() });
+        updates.push({ key, value: sanitize(String(body[key] ?? '')) });
       }
     }
     if (!updates.length) return res.status(400).json({ ok: false, error: 'No fields to update' });

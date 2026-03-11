@@ -2,16 +2,24 @@
 // All routes require: JWT auth + dpr_candidate role
 // Field names sourced directly from WordPress ACF snippet files.
 
-const express  = require('express');
-const router   = express.Router();
-const pool     = require('../config/db');
+const express      = require('express');
+const router       = express.Router();
+const pool         = require('../config/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const bcrypt   = require('bcryptjs');
-const crypto   = require('crypto');
-const https    = require('https');
-const jwt      = require('jsonwebtoken');
-const multer      = require('multer');
-const pdfParse    = require('pdf-parse');
+const bcrypt       = require('bcryptjs');
+const crypto       = require('crypto');
+const https        = require('https');
+const jwt          = require('jsonwebtoken');
+const multer       = require('multer');
+const pdfParse     = require('pdf-parse');
+const sanitizeHtml = require('sanitize-html');
+
+// Strip HTML tags from freeform text to prevent stored XSS.
+// Applied to textarea fields; short-text fields use trim-only s() helper.
+function sanitize(v) {
+  if (typeof v !== 'string') return '';
+  return sanitizeHtml(v.trim(), { allowedTags: [], allowedAttributes: {} });
+}
 
 // multer: in-memory storage, 5 MB limit, PDF only
 const upload = multer({
@@ -1003,8 +1011,15 @@ router.put('/profile', ...guard, async (req, res) => {
       'current_annual_ctc_with_currency', 'expected_annual_ctc_with_currency',
       'preferred_work_type', 'work_level', 'current_career_level',
     ];
+    // Textarea fields that accept freeform rich text — sanitize HTML tags
+    const TEXTAREA_FIELDS = new Set([
+      'professional_summary_bio', 'soft_skills', 'key_achievements',
+    ]);
     for (const f of SCALAR_FIELDS) {
-      if (b[f] !== undefined) await upsertPostMeta(profileId, f, b[f]);
+      if (b[f] !== undefined) {
+        const val = TEXTAREA_FIELDS.has(f) ? sanitize(b[f]) : s(b[f]);
+        await upsertPostMeta(profileId, f, val);
+      }
     }
 
     // ── Visibility fields (validated) ─────────────────────────────────────────
@@ -1029,8 +1044,8 @@ router.put('/profile', ...guard, async (req, res) => {
           start_date:           s(r.start_date),
           end_date:             s(r.end_date),
           Currently_working:    r.Currently_working ? '1' : '0', // capital C — exact ACF field name
-          key_responsibilities: s(r.key_responsibilities),
-          key_achievements:     s(r.key_achievements),
+          key_responsibilities: sanitize(r.key_responsibilities || ''),
+          key_achievements:     sanitize(r.key_achievements     || ''),
         }));
       await clearRepeaterMeta(profileId, 'work_experience');
       await writeRepeater(profileId, 'work_experience', rows);
@@ -1850,7 +1865,8 @@ router.post('/resume', requireAuth, upload.single('resume'), async (req, res) =>
     const profileId = await getProfileId(req.user.user_id);
     if (!profileId) return res.status(404).json({ ok: false, error: 'Profile not found. Complete DPR registration first.' });
 
-    const filename = req.file.originalname || 'resume.pdf';
+    const rawName  = (req.file.originalname || 'resume').replace(/[^a-zA-Z0-9._\- ]/g, '_');
+    const filename = rawName || 'resume.pdf';
     const mimetype = req.file.mimetype;
     const filedata = req.file.buffer;
     const nowStr   = new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -1884,6 +1900,10 @@ router.post('/dpr/:postId/resume', requireAuth, upload.single('resume'), async (
   try {
     if (!req.file) return res.status(400).json({ ok: false, error: 'No file uploaded.' });
 
+    if (!RESUME_ALLOWED_TYPES.includes(req.file.mimetype)) {
+      return res.status(400).json({ ok: false, error: 'Only PDF and Word documents are accepted.' });
+    }
+
     const postId = parseInt(req.params.postId);
     if (!postId) return res.status(400).json({ ok: false, error: 'Invalid post ID.' });
 
@@ -1891,8 +1911,10 @@ router.post('/dpr/:postId/resume', requireAuth, upload.single('resume'), async (
     const profileId = await getProfileId(req.user.user_id);
     if (profileId !== postId) return res.status(403).json({ ok: false, error: 'Access denied.' });
 
-    const filename  = req.file.originalname || 'resume.pdf';
-    const mimetype  = req.file.mimetype     || 'application/pdf';
+    // Sanitize filename: strip path components and keep only safe characters
+    const rawName = (req.file.originalname || 'resume').replace(/[^a-zA-Z0-9._\- ]/g, '_');
+    const filename  = rawName || 'resume.pdf';
+    const mimetype  = req.file.mimetype;
     const filedata  = req.file.buffer;
     const nowStr    = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
