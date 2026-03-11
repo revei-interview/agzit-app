@@ -949,8 +949,6 @@ async function writeRepeater(postId, prefix, rows) {
 
 const PROFILE_VISIBILITY_VALUES = {
   profile_visibility: ['public', 'private'],
-  email_visibility:   ['public', 'verified_only', 'private'],
-  phone_visibility:   ['public', 'verified_only', 'private'],
   resume_visibility:  ['public', 'verified_only', 'private'],
   public_name_mode:   ['full', 'first_only', 'initials'],
 };
@@ -1016,6 +1014,7 @@ router.put('/profile', ...guard, async (req, res) => {
       'current_annual_ctc_with_currency', 'expected_annual_ctc_with_currency',
       'preferred_work_type', 'work_level', 'current_career_level',
       'gender', 'date_of_birth',
+      'email_visibility', 'phone_visibility',
     ];
     // Textarea fields that accept freeform rich text — sanitize HTML tags
     const TEXTAREA_FIELDS = new Set([
@@ -1023,7 +1022,8 @@ router.put('/profile', ...guard, async (req, res) => {
     ]);
     for (const f of SCALAR_FIELDS) {
       if (b[f] !== undefined) {
-        const val = TEXTAREA_FIELDS.has(f) ? sanitize(b[f]) : s(b[f]);
+        let val = TEXTAREA_FIELDS.has(f) ? sanitize(b[f]) : s(b[f]);
+        if (f === 'soft_skills') val = val.split('http')[0].trim().replace(/,\s*$/, '');
         await upsertPostMeta(profileId, f, val);
       }
     }

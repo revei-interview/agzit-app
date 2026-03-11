@@ -633,7 +633,7 @@
         <select id="f_email_visibility">
           <option value="public">Public — visible to all</option>
           <option value="verified_only">Verified employers only</option>
-          <option value="private">Private — hidden</option>
+          <option value="not_shown">Not shown</option>
         </select>
       </div>
       <div class="field">
@@ -641,7 +641,7 @@
         <select id="f_phone_visibility">
           <option value="public">Public — visible to all</option>
           <option value="verified_only">Verified employers only</option>
-          <option value="private">Private — hidden</option>
+          <option value="not_shown">Not shown</option>
         </select>
       </div>
       <div class="field">
@@ -1054,13 +1054,20 @@ function populateForm(p) {
     'full_name','email_address','phone_number','linkedin_url',
     'professional_summary_bio','total_work_experience',
     'current_employment_status','notice_period_in_days',
-    'desired_role','soft_skills',
+    'desired_role',
     'residential_address_line_1','residential_address_line_2',
     'residential_city','residential_state','residential_zip_code',
-    'profile_visibility','email_visibility','phone_visibility','resume_visibility','public_name_mode',
+    'profile_visibility','public_name_mode',
     'key_achievements','work_level','preferred_work_type',
   ];
   scalar.forEach(f => setVal(`f_${f}`, p[f]));
+
+  // soft_skills — strip any embedded URLs before displaying
+  setVal('f_soft_skills', (p.soft_skills || '').split('http')[0].trim().replace(/,\s*$/, ''));
+
+  setVal('f_email_visibility',  (p.email_visibility  || 'verified_only').replace('co_', ''));
+  setVal('f_phone_visibility',  (p.phone_visibility  || 'verified_only').replace('co_', ''));
+  setVal('f_resume_visibility', (p.resume_visibility || 'verified_only').replace('re_', ''));
 
   // CTC split fields
   const curCTC = parseCTC(p.current_annual_ctc_with_currency);
