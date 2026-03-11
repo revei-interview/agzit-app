@@ -1077,13 +1077,15 @@ function statusStyle(s) {
 
 /* ── Visibility label helper ──────────────────────────────────────────────── */
 function visLabel(v) {
-  const m = { public:'Public', co_public:'Public', re_public:'Public', private:'Private', co_private:'Private', re_private:'Private', co_verified_only:'Verified Only', re_verified_only:'Verified Only' };
+  const m = { public:'Public', private:'Private', verified_only:'Verified Only',
+    co_public:'Public', re_public:'Public', co_private:'Private', re_private:'Private',
+    co_verified_only:'Verified Only', re_verified_only:'Verified Only' };
   return m[v] || v || '—';
 }
 function visCls(v) {
   if (!v) return 'vv-verified';
-  if (v.includes('public'))  return 'vv-public';
-  if (v.includes('private')) return 'vv-private';
+  if (v === 'public'  || v.includes('public'))  return 'vv-public';
+  if (v === 'private' || v.includes('private')) return 'vv-private';
   return 'vv-verified';
 }
 
@@ -1592,6 +1594,7 @@ function renderProfile(p) {
         <div class="rep-title">${esc(c.certification_name||'Certificate')}</div>
         <div class="rep-sub">${esc(c.issuing_organization||'')}${c.credential_id ? ' &middot; ID: ' + esc(c.credential_id) : ''}</div>
         <div class="rep-sub">${c.cert_issue_date ? 'Issued: ' + fmtDate(c.cert_issue_date) : ''}${c.cert_expiry_date ? ' &middot; Expires: ' + fmtDate(c.cert_expiry_date) : ''}</div>
+        ${c.certificate_url ? `<a href="${esc(c.certificate_url)}" target="_blank" rel="noopener" style="font-size:12px;font-weight:600;color:var(--blue);text-decoration:none;margin-top:4px;display:inline-block;">View Certificate</a>` : ''}
       </div>`).join(''))
     : '<div style="font-size:13px;color:var(--muted);padding:8px 0;">No certifications added yet.</div>'}
 

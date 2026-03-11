@@ -320,7 +320,7 @@
         <textarea id="f_professional_summary_bio" placeholder="Brief overview of your professional background and specialisation..."></textarea>
       </div>
       <div class="field">
-        <label class="label">Industry / Functional Area</label>
+        <label class="label">Industry / Domain</label>
         <select id="f_compliance_domains">
           <option value="">Select area</option>
           <option value="accounting">Accounting / Taxation / Audit</option>
@@ -509,18 +509,11 @@
         <textarea id="f_key_achievements" placeholder="e.g. SPOT award 10 times, Led team of 50+"></textarea>
       </div>
     </div>
-    <div style="margin-top:16px; display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+    <div style="margin-top:16px;">
       <label class="toggle-row" id="tog_open_relo" onclick="toggleField('open_to_relocate', 'tog_open_relo')">
         <div>
           <div class="toggle-lbl">Open to Relocate</div>
           <div class="toggle-desc">Willing to move for the right opportunity</div>
-        </div>
-        <div class="toggle-pill"></div>
-      </label>
-      <label class="toggle-row" id="tog_open_work" onclick="toggleField('open_for_work_badge', 'tog_open_work')">
-        <div>
-          <div class="toggle-lbl">Open for Work Badge</div>
-          <div class="toggle-desc">Show the "Open for Work" badge on your profile</div>
         </div>
         <div class="toggle-pill"></div>
       </label>
@@ -636,21 +629,38 @@
         </select>
       </div>
       <div class="field">
-        <label class="label">Contact Visibility</label>
-        <select id="f_contact_visibility">
-          <option value="co_public">Public — visible to all</option>
-          <option value="co_verified_only">Verified employers only</option>
-          <option value="co_private">Private — hidden</option>
+        <label class="label">Email Visibility</label>
+        <select id="f_email_visibility">
+          <option value="public">Public — visible to all</option>
+          <option value="verified_only">Verified employers only</option>
+          <option value="private">Private — hidden</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="label">Phone Visibility</label>
+        <select id="f_phone_visibility">
+          <option value="public">Public — visible to all</option>
+          <option value="verified_only">Verified employers only</option>
+          <option value="private">Private — hidden</option>
         </select>
       </div>
       <div class="field">
         <label class="label">Resume Visibility</label>
         <select id="f_resume_visibility">
-          <option value="re_public">Public — visible to all</option>
-          <option value="re_verified_only">Verified employers only</option>
-          <option value="re_private">Private — hidden</option>
+          <option value="public">Public — visible to all</option>
+          <option value="verified_only">Verified employers only</option>
+          <option value="private">Private — hidden</option>
         </select>
       </div>
+    </div>
+    <div style="margin-top:16px;">
+      <label class="toggle-row" id="f_open_for_work_badge" onclick="toggleField('open_for_work_badge', 'f_open_for_work_badge')">
+        <div>
+          <div class="toggle-lbl">Open for Work Badge</div>
+          <div class="toggle-desc">Show the "Open for Work" badge on your public profile</div>
+        </div>
+        <div class="toggle-pill"></div>
+      </label>
     </div>
   </div>
 
@@ -1047,7 +1057,7 @@ function populateForm(p) {
     'desired_role','soft_skills',
     'residential_address_line_1','residential_address_line_2',
     'residential_city','residential_state','residential_zip_code',
-    'profile_visibility','contact_visibility','resume_visibility','public_name_mode',
+    'profile_visibility','email_visibility','phone_visibility','resume_visibility','public_name_mode',
     'key_achievements','work_level','preferred_work_type',
   ];
   scalar.forEach(f => setVal(`f_${f}`, p[f]));
@@ -1076,7 +1086,7 @@ function populateForm(p) {
 
   // Toggles
   setToggle('open_to_relocate', 'tog_open_relo', p.open_to_relocate);
-  setToggle('open_for_work_badge', 'tog_open_work', p.open_for_work_badge);
+  setToggle('open_for_work_badge', 'f_open_for_work_badge', p.open_for_work_badge);
 
   // Work experience — sort by end_date descending; currently working first
   const _sortedWx = [...(p.work_experience || [])].sort((a, b) => {
@@ -1301,7 +1311,8 @@ async function saveProfile() {
     work_level:                   getVal('f_work_level'),
     preferred_work_type:          getVal('f_preferred_work_type'),
     profile_visibility:           getVal('f_profile_visibility'),
-    contact_visibility:           getVal('f_contact_visibility'),
+    email_visibility:             getVal('f_email_visibility'),
+    phone_visibility:             getVal('f_phone_visibility'),
     resume_visibility:            getVal('f_resume_visibility'),
     work_experience:              collectWx(),
     education:                    collectEdu(),

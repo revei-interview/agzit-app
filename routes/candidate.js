@@ -320,6 +320,7 @@ router.get('/profile', ...guard, async (req, res) => {
     ]);
     // Sort certifications: by cert_issue_date descending
     certifications.sort((a, b) => (b.cert_issue_date || '').localeCompare(a.cert_issue_date || ''));
+    certifications.forEach(c => { c.certificate_url = extractLinkUrl(c.certificate_pdf) || null; });
     const rawTools        = parseRepeater(meta, 'compliance_tools', ['tool_name', 'name']);
     const complianceTools = rawTools
       .map(r => ({ tool_name: r.tool_name || r.name || '' }))
@@ -329,9 +330,6 @@ router.get('/profile', ...guard, async (req, res) => {
       language_name: r.language || '',
       proficiency:   r.proficiency || '',
     })).filter(r => r.language_name);
-    const preferredLocation   = parseRepeater(meta, 'preferred_location',   [
-      'preferred_city_name', 'preferred_country_name',
-    ]);
 
     // Check agzit_resume_files for actual resume existence (fixes stale meta)
     let resumeRow = null;
@@ -391,7 +389,6 @@ router.get('/profile', ...guard, async (req, res) => {
         // ── Job preferences
         desired_role:                     meta.desired_role,
         work_level:                       meta.work_level,
-        preferred_location:               preferredLocation,
         expected_annual_ctc_with_currency: meta.expected_annual_ctc_with_currency,
         preferred_work_type:              meta.preferred_work_type,
         resume_upload:                    meta.resume_upload || (resumeRow ? String(profileId) : null),
@@ -417,7 +414,6 @@ router.get('/profile', ...guard, async (req, res) => {
 
         // ── Visibility
         profile_visibility:               meta.profile_visibility,
-        contact_visibility:               meta.contact_visibility,
         email_visibility:                 meta.email_visibility,
         phone_visibility:                 meta.phone_visibility,
         resume_visibility:                meta.resume_visibility,
@@ -953,8 +949,9 @@ async function writeRepeater(postId, prefix, rows) {
 
 const PROFILE_VISIBILITY_VALUES = {
   profile_visibility: ['public', 'private'],
-  contact_visibility: ['co_public', 'co_verified_only', 'co_private'],
-  resume_visibility:  ['re_public', 're_verified_only', 're_private'],
+  email_visibility:   ['public', 'verified_only', 'private'],
+  phone_visibility:   ['public', 'verified_only', 'private'],
+  resume_visibility:  ['public', 'verified_only', 'private'],
   public_name_mode:   ['full', 'first_only', 'initials'],
 };
 
