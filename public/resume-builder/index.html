@@ -546,7 +546,9 @@ function wrapPage(body, accent) {
     '  body { -webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:12pt; }' +
     '  .no-print { display:none !important; }' +
     '  .resume-footer { page-break-inside:avoid; }' +
-    '  .modern-sidebar { -webkit-print-color-adjust:exact;print-color-adjust:exact; }' +
+    '  .modern-sidebar { -webkit-print-color-adjust:exact;print-color-adjust:exact;width:34% !important;flex-shrink:0; }' +
+    '  .modern-wrap { display:flex !important; }' +
+    '  .modern-sidebar ~ div { flex:1 !important; }' +
     '  @page { size: A4 portrait; margin: 15mm 15mm 20mm 15mm; }' +
     '}' +
     '.page { max-width:800px;margin:0 auto;padding:32px 40px; }' +
@@ -721,7 +723,9 @@ function buildModern(accent, p) {
   var achHtml = renderAchievements(accent, p);
   if (achHtml) { right += rHead('Key Achievements'); right += achHtml; }
   right += buildPdfBtn(accent); right += buildFooter(); right += '</div>';
-  return '<div style="display:flex;min-height:auto;">' + left + right + '</div>';
+  // Left sidebar: Contact (659), Skills (664), Education (669), Certifications (681), Languages (692)
+  // Right column: Summary (703), Experience (707)
+  return '<div class="modern-wrap" style="display:flex;min-height:auto;">' + left + right + '</div>';
 }
 
 // ── TEMPLATE: Minimal ─────────────────────────────────────────────────────────
