@@ -141,6 +141,12 @@
       background: var(--blue-lt); border: 1px solid #C7D7F8;
       border-radius: 999px; padding: 3px 10px;
     }
+    .drag-handle {
+      color: var(--muted); cursor: grab; font-size: 18px; line-height: 1;
+      padding: 2px 6px; user-select: none; flex-shrink: 0; margin-right: 4px;
+    }
+    .drag-handle:active { cursor: grabbing; }
+    .wx-drag-over { border-top: 2px solid var(--blue) !important; }
     .del-btn {
       display: inline-flex; align-items: center; gap: 5px;
       font-size: 12px; font-weight: 600; color: var(--red);
@@ -481,17 +487,6 @@
         </div>
       </div>
       <div class="field">
-        <label class="label">Current Career Level</label>
-        <select id="f_current_career_level">
-          <option value="">Select level</option>
-          <option value="0-2 Years">0–2 Years (Entry Level)</option>
-          <option value="3-5 Years">3–5 Years (Analyst)</option>
-          <option value="6-8 Years">6–8 Years (Senior Analyst)</option>
-          <option value="9-12 Years">9–12 Years (Manager)</option>
-          <option value="12+ Years">12+ Years (Senior Manager / Director)</option>
-        </select>
-      </div>
-      <div class="field">
         <label class="label">Target Role</label>
         <input type="text" id="f_desired_role" placeholder="e.g. KYC Analyst">
       </div>
@@ -698,6 +693,7 @@ let wxRows   = [];
 let eduRows  = [];
 let certRows = [];
 let toolRows = [];
+let _wxDragIdx = null;
 
 // ── Countries list (ISO codes — must match register/index.html) ──────────────
 const COUNTRY_LIST = [
@@ -799,8 +795,30 @@ function addWx(data = {}) {
   const div = document.createElement('div');
   div.className = 'rep-item';
   div.id = `wx-${i}`;
+  div.draggable = true;
+  div.addEventListener('dragstart', e => { _wxDragIdx = i; e.dataTransfer.effectAllowed = 'move'; });
+  div.addEventListener('dragover',  e => {
+    e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+    document.querySelectorAll('#wx-list .rep-item').forEach(el => el.classList.remove('wx-drag-over'));
+    if (_wxDragIdx !== i) div.classList.add('wx-drag-over');
+  });
+  div.addEventListener('dragleave', () => div.classList.remove('wx-drag-over'));
+  div.addEventListener('drop', e => {
+    e.preventDefault();
+    document.querySelectorAll('#wx-list .rep-item').forEach(el => el.classList.remove('wx-drag-over'));
+    if (_wxDragIdx === null || _wxDragIdx === i) { _wxDragIdx = null; return; }
+    const dragEl = document.getElementById(`wx-${_wxDragIdx}`);
+    if (dragEl) document.getElementById('wx-list').insertBefore(dragEl, div);
+    _wxDragIdx = null;
+    renumberItems('wx', 'Position');
+  });
+  div.addEventListener('dragend', () => {
+    _wxDragIdx = null;
+    document.querySelectorAll('#wx-list .rep-item').forEach(el => el.classList.remove('wx-drag-over'));
+  });
   div.innerHTML = `
     <div class="rep-hd">
+      <span class="drag-handle" title="Drag to reorder">&#8942;</span>
       <span class="rep-badge">Position ${i + 1}</span>
       <button type="button" class="del-btn" onclick="removeRow('wx',${i})">&#10005; Remove</button>
     </div>
@@ -822,7 +840,7 @@ function addWx(data = {}) {
       <div class="field"><label class="label">Start Date</label>
         <input type="date" id="wx_${i}_start_date" value="${esc(toDateInput(data.start_date))}"></div>
       <div class="field"><label class="label">End Date</label>
-        <input type="date" id="wx_${i}_end_date" value="${esc(toDateInput(data.end_date))}" id="wx_${i}_end_date_wrap">
+        <input type="date" id="wx_${i}_end_date" value="${esc(toDateInput(data.end_date))}">
       </div>
       <div class="field full"><label class="label">Key Responsibilities</label>
         <textarea id="wx_${i}_key_responsibilities" placeholder="Describe your main duties and responsibilities...">${esc(data.key_responsibilities)}</textarea></div>
@@ -992,6 +1010,7 @@ function parseCTC(val) {
 }
 
 function populateForm(p) {
+  if (!p) return;
   const scalar = [
     'full_name','email_address','phone_number','linkedin_url',
     'professional_summary_bio','total_work_experience',
@@ -1000,7 +1019,7 @@ function populateForm(p) {
     'residential_address_line_1','residential_address_line_2',
     'residential_city','residential_state','residential_zip_code',
     'profile_visibility','contact_visibility','resume_visibility','public_name_mode',
-    'current_career_level','key_achievements','work_level','preferred_work_type',
+    'key_achievements','work_level','preferred_work_type',
   ];
   scalar.forEach(f => setVal(`f_${f}`, p[f]));
 
@@ -1026,8 +1045,20 @@ function populateForm(p) {
   setToggle('open_to_relocate', 'tog_open_relo', p.open_to_relocate);
   setToggle('open_for_work_badge', 'tog_open_work', p.open_for_work_badge);
 
-  // Work experience
-  (p.work_experience || []).forEach(row => addWx(row));
+  // Work experience — sort by end_date descending; currently working first
+  const _sortedWx = [...(p.work_experience || [])].sort((a, b) => {
+    const aCurr = a.Currently_working === '1';
+    const bCurr = b.Currently_working === '1';
+    if (aCurr && !bCurr) return -1;
+    if (!aCurr && bCurr) return 1;
+    const aEnd = a.end_date || '';
+    const bEnd = b.end_date || '';
+    if (!aEnd && !bEnd) return 0;
+    if (!aEnd) return 1;
+    if (!bEnd) return -1;
+    return new Date(bEnd) - new Date(aEnd);
+  });
+  _sortedWx.forEach(row => addWx(row));
 
   // Education
   (p.education || []).forEach(row => addEdu(row));
@@ -1215,7 +1246,6 @@ async function saveProfile() {
     compliance_domains:           getVal('f_compliance_domains'),
     current_annual_ctc_with_currency:  (getVal('f_current_ctc_currency')  + ' ' + getVal('f_current_ctc_amount')).trim(),
     expected_annual_ctc_with_currency: (getVal('f_expected_ctc_currency') + ' ' + getVal('f_expected_ctc_amount')).trim(),
-    current_career_level:         getVal('f_current_career_level'),
     key_achievements:             getVal('f_key_achievements'),
     work_level:                   getVal('f_work_level'),
     preferred_work_type:          getVal('f_preferred_work_type'),

@@ -1702,12 +1702,6 @@ function renderProfile(p) {
     <div class="field-grid">
       ${fld('Industry / Domain',   parseIndustry(p.compliance_domains))}
       ${fld('Total Experience',    p.total_work_experience ? p.total_work_experience + ' years' : null)}
-      ${fld('Employment Status',   capitaliseFirst(p.current_employment_status))}
-      ${fld('Notice Period',       capitaliseFirst(p.notice_period_in_days))}
-      ${fld('Current CTC',         p.current_annual_ctc_with_currency)}
-      ${fld('Expected CTC',        p.expected_annual_ctc_with_currency)}
-      ${fld('Desired Role',        p.desired_role)}
-      ${fld('Open to Relocate',    p.open_to_relocate === '1' ? 'Yes' : p.open_to_relocate === '0' ? 'No' : null)}
     </div>
     ${p.professional_summary_bio ? `<div class="field-label" style="margin-top:12px;">Professional Summary</div><p class="field-val" style="margin-top:4px;font-size:13.5px;color:var(--soft);line-height:1.7;white-space:pre-wrap;">${esc(p.professional_summary_bio)}</p>` : ''}
     ${p.key_achievements ? `<div class="field-label" style="margin-top:14px;">Key Achievements</div><div class="field-val" style="margin-top:4px;font-size:13.5px;color:var(--soft);line-height:1.7;">${esc(p.key_achievements)}</div>` : ''}
@@ -1716,12 +1710,12 @@ function renderProfile(p) {
     ${(p.work_experience||[]).length ? ([...(p.work_experience||[])].sort((a, b) => {
       if (a.Currently_working === '1' && b.Currently_working !== '1') return -1;
       if (b.Currently_working === '1' && a.Currently_working !== '1') return 1;
-      const da = a.start_date ? new Date(a.start_date) : null;
-      const db = b.start_date ? new Date(b.start_date) : null;
-      if (!da && !db) return 0;
-      if (!da) return 1;
-      if (!db) return -1;
-      return db - da;
+      const aEnd = a.end_date || '';
+      const bEnd = b.end_date || '';
+      if (!aEnd && !bEnd) return 0;
+      if (!aEnd) return 1;
+      if (!bEnd) return -1;
+      return new Date(bEnd) - new Date(aEnd);
     }).map(w => `
       <div class="rep-item">
         <div class="rep-title">${esc(w.job_title||'Role')}</div>

@@ -320,7 +320,10 @@ router.get('/profile', ...guard, async (req, res) => {
     ]);
     // Sort certifications: by cert_issue_date descending
     certifications.sort((a, b) => (b.cert_issue_date || '').localeCompare(a.cert_issue_date || ''));
-    const complianceTools     = parseRepeater(meta, 'compliance_tools',     ['tool_name']);
+    const rawTools        = parseRepeater(meta, 'compliance_tools', ['tool_name', 'name']);
+    const complianceTools = rawTools
+      .map(r => ({ tool_name: r.tool_name || r.name || '' }))
+      .filter(r => r.tool_name);
     const languageProficiency = parseRepeater(meta, 'language_proficiency', ['language']);
     const preferredLocation   = parseRepeater(meta, 'preferred_location',   [
       'preferred_city_name', 'preferred_country_name',

@@ -1242,6 +1242,8 @@ function addCareerEntry(prefill) {
   // Re-sort on date/currently-working change
   div.querySelector('.entry-start-year').addEventListener('change', sortCareerEntries);
   div.querySelector('.entry-start-month').addEventListener('change', sortCareerEntries);
+  div.querySelector('.entry-end-year').addEventListener('change', sortCareerEntries);
+  div.querySelector('.entry-end-month').addEventListener('change', sortCareerEntries);
   div.querySelector('.entry-current').addEventListener('change', sortCareerEntries);
   updateEntryNums('.career-entry', 'Position');
 }
@@ -1495,12 +1497,12 @@ function sortCareerEntries() {
     // Currently working always on top
     if (aWorking && !bWorking) return -1;
     if (!aWorking && bWorking) return 1;
-    // Compare by start year+month descending (most recent first)
-    const aY = parseInt(a.querySelector('.entry-start-year')?.value) || 0;
-    const bY = parseInt(b.querySelector('.entry-start-year')?.value) || 0;
+    // Compare by end year+month descending (most recent first)
+    const aY = parseInt(a.querySelector('.entry-end-year')?.value) || 0;
+    const bY = parseInt(b.querySelector('.entry-end-year')?.value) || 0;
     if (aY !== bY) return bY - aY;
-    const aM = parseInt(a.querySelector('.entry-start-month')?.value) || 0;
-    const bM = parseInt(b.querySelector('.entry-start-month')?.value) || 0;
+    const aM = parseInt(a.querySelector('.entry-end-month')?.value) || 0;
+    const bM = parseInt(b.querySelector('.entry-end-month')?.value) || 0;
     return bM - aM;
   });
   entries.forEach(el => container.appendChild(el));
