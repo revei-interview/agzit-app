@@ -308,7 +308,7 @@ router.get('/profile', ...guard, async (req, res) => {
     });
 
     const education = parseRepeater(meta, 'education', [
-      'degree', 'institution_name', 'edu_country', 'edu_city',
+      'degree', 'institution_name',
       'edu_start_date', 'edu_end_date',
     ]);
     // Sort education: by edu_end_date descending (most recent graduation first)
@@ -417,6 +417,7 @@ router.get('/profile', ...guard, async (req, res) => {
 
         // ── Visibility
         profile_visibility:               meta.profile_visibility,
+        contact_visibility:               meta.contact_visibility,
         email_visibility:                 meta.email_visibility,
         phone_visibility:                 meta.phone_visibility,
         resume_visibility:                meta.resume_visibility,
@@ -1066,8 +1067,6 @@ router.put('/profile', ...guard, async (req, res) => {
         .map(r => ({
           degree:           s(r.degree),
           institution_name: s(r.institution_name),
-          edu_country:      s(r.edu_country),
-          edu_city:         s(r.edu_city),
           edu_start_date:   s(r.edu_start_date),
           edu_end_date:     s(r.edu_end_date),
         }));

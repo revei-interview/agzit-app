@@ -611,7 +611,6 @@ select.jp-input {
             <button class="tab-btn" data-tab="profile">Profile</button>
             <button class="tab-btn" data-tab="scorecard">Scorecard</button>
             <button class="tab-btn" data-tab="interviews" id="tab-btn-interviews">Interviews</button>
-            <button class="tab-btn" data-tab="resume">Resume</button>
             <button class="tab-btn" data-tab="job">Job Preferences</button>
             <button class="tab-btn" data-tab="account">Account</button>
           </div>
@@ -759,141 +758,10 @@ select.jp-input {
             </div>
           </div>
 
-          <!-- ── Resume ────────────────────────────────────────────────── -->
-          <div class="tab-pane" id="tab-resume">
-            <div id="resume-status" style="margin-bottom:22px;"></div>
-            <div class="divider"></div>
-            <div class="card-title" style="margin-bottom:16px;">Employer Visibility Settings</div>
-            <p style="font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.6;">
-              Control what employers see when they view your DPR profile.
-            </p>
-            <div id="vis-form">
-              <div class="vis-form-row">
-                <div>
-                  <div class="vis-form-label">Profile Visibility</div>
-                  <div class="vis-form-desc">Who can find and view your profile</div>
-                </div>
-                <select class="vis-select agzit-select" id="sel-profile">
-                  <option value="public">Public</option>
-                  <option value="private">Private</option>
-                </select>
-              </div>
-              <div class="vis-form-row">
-                <div>
-                  <div class="vis-form-label">Email Visibility</div>
-                  <div class="vis-form-desc">Who can see your email address</div>
-                </div>
-                <select class="vis-select agzit-select" id="sel-email">
-                  <option value="co_public">Public</option>
-                  <option value="co_verified_only">Verified Employers Only</option>
-                  <option value="co_private">Private</option>
-                </select>
-              </div>
-              <div class="vis-form-row">
-                <div>
-                  <div class="vis-form-label">Phone Visibility</div>
-                  <div class="vis-form-desc">Who can see your phone number</div>
-                </div>
-                <select class="vis-select agzit-select" id="sel-phone">
-                  <option value="co_public">Public</option>
-                  <option value="co_verified_only">Verified Employers Only</option>
-                  <option value="co_private">Private</option>
-                </select>
-              </div>
-              <div class="vis-form-row">
-                <div>
-                  <div class="vis-form-label">Resume Visibility</div>
-                  <div class="vis-form-desc">Who can download your resume</div>
-                </div>
-                <select class="vis-select agzit-select" id="sel-resume">
-                  <option value="re_public">Public</option>
-                  <option value="re_verified_only">Verified Employers Only</option>
-                  <option value="re_private">Private</option>
-                </select>
-              </div>
-            </div>
-            <button class="btn-save" id="vis-save" onclick="saveVisibility()">Save Settings</button>
-            <div id="vis-feedback"></div>
-          </div>
-
           <!-- ── Job Preferences ───────────────────────────────────────── -->
           <div class="tab-pane" id="tab-job">
-            <div class="jp-card">
-              <div class="jp-heading">Job Preferences</div>
-              <hr class="jp-divider">
-              <div class="jp-grid">
-                <div class="jp-field">
-                  <label class="jp-label" for="jp-desired-role">Desired Role</label>
-                  <input type="text" id="jp-desired-role" class="jp-input" placeholder="e.g. Data Analyst">
-                </div>
-                <div class="jp-field">
-                  <label class="jp-label" for="jp-work-level">Work Level</label>
-                  <select id="jp-work-level" class="jp-input">
-                    <option value="">Select level</option>
-                    <option value="junior">Junior</option>
-                    <option value="mid">Mid-Level</option>
-                    <option value="senior">Senior</option>
-                    <option value="lead">Lead</option>
-                    <option value="manager">Manager</option>
-                    <option value="director">Director</option>
-                    <option value="csuite">C-Suite</option>
-                  </select>
-                </div>
-                <div class="jp-field">
-                  <label class="jp-label" for="jp-employment-status">Employment Status</label>
-                  <select id="jp-employment-status" class="jp-input">
-                    <option value="">Select status</option>
-                    <option value="employed">Employed</option>
-                    <option value="unemployed">Unemployed</option>
-                    <option value="freelance">Freelance</option>
-                    <option value="on_notice">On Notice</option>
-                    <option value="contract">Contract</option>
-                  </select>
-                </div>
-                <div class="jp-field">
-                  <label class="jp-label" for="jp-notice-period">Notice Period</label>
-                  <input type="text" id="jp-notice-period" class="jp-input" placeholder="e.g. Immediate, 30 days">
-                </div>
-                <div class="jp-field">
-                  <label class="jp-label" for="jp-work-type">Preferred Work Type</label>
-                  <select id="jp-work-type" class="jp-input">
-                    <option value="">Select type</option>
-                    <option value="onsite">On-site</option>
-                    <option value="remote">Remote</option>
-                    <option value="hybrid">Hybrid</option>
-                  </select>
-                </div>
-                <div class="jp-field">
-                  <label class="jp-label" for="jp-relocate">Open to Relocate</label>
-                  <select id="jp-relocate" class="jp-input">
-                    <option value="">Select</option>
-                    <option value="1">Yes</option>
-                    <option value="0">No</option>
-                  </select>
-                </div>
-                <div class="jp-field">
-                  <label class="jp-label" for="jp-current-ctc-amount">Current CTC</label>
-                  <div class="jp-ctc-split">
-                    <select id="jp-current-ctc-currency" class="agzit-select" data-width="140">
-                      <option value="">Currency</option>
-                    </select>
-                    <input type="text" id="jp-current-ctc-amount" class="jp-input jp-ctc-amount" placeholder="Amount">
-                  </div>
-                </div>
-                <div class="jp-field">
-                  <label class="jp-label" for="jp-expected-ctc-amount">Expected CTC</label>
-                  <div class="jp-ctc-split">
-                    <select id="jp-expected-ctc-currency" class="agzit-select" data-width="140">
-                      <option value="">Currency</option>
-                    </select>
-                    <input type="text" id="jp-expected-ctc-amount" class="jp-input jp-ctc-amount" placeholder="Amount">
-                  </div>
-                </div>
-              </div>
-              <div class="jp-footer">
-                <button class="jp-save-btn" id="jp-save-btn" onclick="saveJobPref(event)">Save Preferences</button>
-                <div id="jp-feedback" style="font-size:12.5px;margin-top:10px;min-height:16px;"></div>
-              </div>
+            <div id="job-prefs-content">
+              <p style="color:var(--muted);font-size:13px;">Loading…</p>
             </div>
           </div>
 
@@ -1418,36 +1286,13 @@ function render(d, pd, id) {
   /* ── Profile tab ─────────────────────────────────────────────────────────── */
   renderProfile(pd ? pd.profile : null);
 
-  /* ── Resume tab ──────────────────────────────────────────────────────────── */
+  /* ── Visibility sidebar ──────────────────────────────────────────────────── */
   if (pd && pd.profile) {
-    renderResume(pd.profile);
-    setSelectVal('sel-profile', pd.profile.profile_visibility);
-    setSelectVal('sel-email',   pd.profile.email_visibility);
-    setSelectVal('sel-phone',   pd.profile.phone_visibility);
-    setSelectVal('sel-resume',  pd.profile.resume_visibility);
-    // Re-sync sidebar banner from full profile data (source of truth)
     updateVisibilitySidebar(pd.profile.profile_visibility, pd.profile.email_visibility, pd.profile.phone_visibility, pd.profile.resume_visibility);
-    // Re-init searchable selects so display text matches
-    if (window.initSearchableSelects) window.initSearchableSelects();
   }
 
   /* ── Job Preferences tab ────────────────────────────────────────────────── */
-  if (pd && pd.profile) {
-    const p = pd.profile;
-    const setVal = (id, val) => { const e = el(id); if (e && val != null) e.value = val; };
-    setVal('jp-desired-role',       p.desired_role);
-    setVal('jp-work-level',         p.work_level);
-    setVal('jp-employment-status',  p.current_employment_status);
-    setVal('jp-notice-period',      p.notice_period_in_days);
-    setVal('jp-work-type',          p.preferred_work_type);
-    setVal('jp-relocate',           p.open_to_relocate);
-    const curCTC = parseCTC(p.current_annual_ctc_with_currency);
-    el('jp-current-ctc-currency').value = curCTC.currency;
-    el('jp-current-ctc-amount').value   = curCTC.amount;
-    const expCTC = parseCTC(p.expected_annual_ctc_with_currency);
-    el('jp-expected-ctc-currency').value = expCTC.currency;
-    el('jp-expected-ctc-amount').value   = expCTC.amount;
-  }
+  if (pd && pd.profile) renderJobPrefs(pd.profile);
 
   /* ── Account tab ────────────────────────────────────────────────────────── */
   el('acc-details').innerHTML = [
@@ -1756,69 +1601,6 @@ function renderProfile(p) {
     ${(p.language_proficiency||[]).filter(l=>l.language_name).length ? '<div class="field-label" style="margin-bottom:6px;">Languages</div><div style="font-size:13px;color:var(--soft);">' + (p.language_proficiency||[]).filter(l=>l.language_name).map(l=>esc(l.language_name)+(l.proficiency?' ('+esc(l.proficiency.charAt(0).toUpperCase()+l.proficiency.slice(1))+')':'')).join(' &bull; ') + '</div>' : ''}
   `;
   el('profile-content').innerHTML = html;
-
-  /* resume tab */
-  renderResume(p);
-}
-
-/* ── Resume renderer ──────────────────────────────────────────────────────── */
-function renderResume(p) {
-  const hasRes = !!(p.has_resume === '1' || p.resume_upload);
-  const fname  = p.resume_filename || (hasRes ? 'resume.pdf' : '');
-  const statusHtml = hasRes
-    ? `<div class="resume-uploaded">
-        <div>
-          <div style="font-weight:700;color:var(--green);font-size:14px;">Resume uploaded</div>
-          <div style="font-size:12.5px;color:var(--muted);margin-top:3px;">${esc(fname)}</div>
-        </div>
-        <a href="/api/candidate/download?type=resume" target="_blank" class="resume-download">Download</a>
-      </div>`
-    : `<div class="resume-missing">
-        <div style="font-weight:700;color:#991B1B;font-size:14px;">No resume uploaded</div>
-        <div style="font-size:12.5px;color:var(--muted);margin-top:4px;">Upload your CV in PDF or Word format (max 5 MB).</div>
-      </div>`;
-
-  el('resume-status').innerHTML = statusHtml + `
-    <div class="resume-upload-wrap">
-      <input type="file" id="resume-file-input" accept=".pdf,.doc,.docx" style="display:none;">
-      <button class="resume-upload-btn" id="resume-upload-btn"
-              onclick="document.getElementById('resume-file-input').click()">
-        ${hasRes ? 'Replace Resume' : 'Upload Resume'}
-      </button>
-      <span id="resume-upload-feedback"></span>
-    </div>`;
-
-  const inp = document.getElementById('resume-file-input');
-  if (inp) inp.onchange = (e) => { if (e.target.files[0]) uploadResume(e.target.files[0], p); };
-}
-
-/* ── Resume upload handler ─────────────────────────────────────────────────── */
-async function uploadResume(file, currentProfile) {
-  const btn = el('resume-upload-btn');
-  const fb  = el('resume-upload-feedback');
-  if (btn) { btn.disabled = true; btn.textContent = 'Uploading…'; }
-  if (fb)  { fb.textContent = ''; fb.className = ''; }
-
-  try {
-    const fd = new FormData();
-    fd.append('resume', file);
-    const res  = await fetch('/api/candidate/resume', { method: 'POST', credentials: 'include', body: fd });
-    const data = await res.json();
-    if (data.ok) {
-      // Re-render with updated state (replaces DOM incl. btn/fb)
-      renderResume(Object.assign({}, currentProfile, {
-        has_resume: '1', resume_upload: '1', resume_filename: data.filename,
-      }));
-      const newFb = el('resume-upload-feedback');
-      if (newFb) { newFb.textContent = 'Uploaded successfully.'; newFb.className = 'ok'; }
-    } else {
-      if (btn) { btn.disabled = false; btn.textContent = currentProfile.has_resume === '1' ? 'Replace Resume' : 'Upload Resume'; }
-      if (fb)  { fb.textContent = data.error || 'Upload failed.'; fb.className = 'err'; }
-    }
-  } catch (_) {
-    if (btn) { btn.disabled = false; btn.textContent = currentProfile.has_resume === '1' ? 'Replace Resume' : 'Upload Resume'; }
-    if (fb)  { fb.textContent = 'Network error. Please try again.'; fb.className = 'err'; }
-  }
 }
 
 /* ── Field helper ─────────────────────────────────────────────────────────── */
@@ -1966,68 +1748,31 @@ function renderEmployerInterviews(list) {
   el('interviews-content').insertAdjacentHTML('beforeend', html);
 }
 
-/* ── Visibility save ──────────────────────────────────────────────────────── */
-window.saveVisibility = async function () {
-  const btn  = el('vis-save');
-  const fbEl = el('vis-feedback');
-  btn.disabled = true; btn.textContent = 'Saving…';
-  fbEl.textContent = ''; fbEl.className = '';
-  try {
-    const res = await fetch('/api/candidate/visibility', {
-      method: 'PATCH', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        profile_visibility: el('sel-profile').value,
-        email_visibility:   el('sel-email').value,
-        phone_visibility:   el('sel-phone').value,
-        resume_visibility:  el('sel-resume').value,
-      }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      fbEl.textContent = 'Settings saved.'; fbEl.className = 'ok';
-      // Update sidebar banner to stay in sync
-      updateVisibilitySidebar(el('sel-profile').value, el('sel-email').value, el('sel-phone').value, el('sel-resume').value);
-    }
-    else { fbEl.textContent = data.error || 'Save failed.'; fbEl.className = 'err'; }
-  } catch (e) {
-    fbEl.textContent = 'Network error. Please try again.'; fbEl.className = 'err';
-  } finally {
-    btn.disabled = false; btn.textContent = 'Save Settings';
-  }
-};
-
-/* ── Job Preferences save ────────────────────────────────────────────────── */
-window.saveJobPref = async function (event) {
-  const btn  = event.currentTarget;
-  const fb   = el('jp-feedback');
-  btn.disabled = true; btn.textContent = 'Saving…';
-  fb.textContent = ''; fb.className = '';
-  try {
-    const body = {
-      desired_role:                      (el('jp-desired-role').value  || '').trim(),
-      work_level:                        el('jp-work-level').value,
-      current_employment_status:         el('jp-employment-status').value,
-      notice_period_in_days:             (el('jp-notice-period').value || '').trim(),
-      preferred_work_type:               el('jp-work-type').value,
-      open_to_relocate:                  el('jp-relocate').value,
-      current_annual_ctc_with_currency:  buildCTC('jp-current-ctc-currency',  'jp-current-ctc-amount'),
-      expected_annual_ctc_with_currency: buildCTC('jp-expected-ctc-currency', 'jp-expected-ctc-amount'),
-    };
-    const res  = await fetch('/api/candidate/profile', {
-      method: 'PUT', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (data.ok) { fb.textContent = 'Preferences saved.'; fb.className = 'ok'; }
-    else { fb.textContent = data.error || 'Save failed.'; fb.className = 'err'; }
-  } catch (e) {
-    fb.textContent = 'Network error. Please try again.'; fb.className = 'err';
-  } finally {
-    btn.disabled = false; btn.textContent = 'Save Preferences';
-  }
-};
+/* ── Job Preferences (read-only) ─────────────────────────────────────────── */
+function renderJobPrefs(p) {
+  const LEVEL  = {junior:'Junior',mid:'Mid-Level',senior:'Senior',lead:'Lead',manager:'Manager',director:'Director',csuite:'C-Suite'};
+  const EMP    = {employed:'Employed',unemployed:'Unemployed',freelance:'Freelance',on_notice:'On Notice',contract:'Contract'};
+  const TYPE   = {onsite:'On-site',remote:'Remote',hybrid:'Hybrid'};
+  const html = `
+    <div class="jp-card">
+      <div class="jp-heading">Job Preferences</div>
+      <hr class="jp-divider">
+      <div class="jp-grid">
+        ${fld('Desired Role',        p.desired_role)}
+        ${fld('Work Level',          LEVEL[p.work_level] || p.work_level)}
+        ${fld('Employment Status',   EMP[p.current_employment_status] || p.current_employment_status)}
+        ${fld('Notice Period',       p.notice_period_in_days)}
+        ${fld('Preferred Work Type', TYPE[p.preferred_work_type] || p.preferred_work_type)}
+        ${fld('Open to Relocate',    p.open_to_relocate === '1' ? 'Yes' : p.open_to_relocate === '0' ? 'No' : '')}
+        ${fld('Current CTC',         p.current_annual_ctc_with_currency)}
+        ${fld('Expected CTC',        p.expected_annual_ctc_with_currency)}
+      </div>
+      <div class="jp-footer">
+        <a href="/profile-edit" class="jp-save-btn" style="text-decoration:none;display:inline-block;">Edit Job Preferences</a>
+      </div>
+    </div>`;
+  el('job-prefs-content').innerHTML = html;
+}
 
 /* ── Modal helpers ────────────────────────────────────────────────────────── */
 window.openModal  = id => { const m = el(id); if(m){ m.classList.add('open'); document.body.style.overflow='hidden'; } };

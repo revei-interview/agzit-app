@@ -651,14 +651,6 @@
           <option value="re_private">Private — hidden</option>
         </select>
       </div>
-      <div class="field">
-        <label class="label">Name Display Mode</label>
-        <select id="f_public_name_mode">
-          <option value="full">Full Name</option>
-          <option value="first_only">First Name Only</option>
-          <option value="initials">Initials Only</option>
-        </select>
-      </div>
     </div>
   </div>
 
@@ -893,10 +885,6 @@ function addEdu(data = {}) {
         <input type="text" id="edu_${i}_degree" value="${esc(data.degree)}" placeholder="e.g. Bachelor of Laws"></div>
       <div class="field"><label class="label">Institution Name</label>
         <input type="text" id="edu_${i}_institution_name" value="${esc(data.institution_name)}" placeholder="e.g. University of London"></div>
-      <div class="field"><label class="label">Country</label>
-        <input type="text" id="edu_${i}_edu_country" value="${esc(data.edu_country)}" placeholder="e.g. United Kingdom"></div>
-      <div class="field"><label class="label">City</label>
-        <input type="text" id="edu_${i}_edu_city" value="${esc(data.edu_city)}" placeholder="e.g. London"></div>
       <div class="field"><label class="label">Start Date</label>
         <input type="date" id="edu_${i}_edu_start_date" value="${esc(toDateInput(data.edu_start_date))}"></div>
       <div class="field"><label class="label">End Date</label>
@@ -942,7 +930,7 @@ function addTool(data = {}) {
   div.id = `tool-${i}`;
   div.style.cssText = 'display:flex;gap:10px;align-items:center;margin-top:10px;';
   div.innerHTML = `
-    <input type="text" id="tool_${i}_tool_name" value="${esc(data.tool_name)}" placeholder="e.g. World-Check, Refinitiv, Salesforce" style="flex:1">
+    <input type="text" id="tool_${i}_tool_name" value="${esc(data.tool_name)}" style="flex:1">
     <button type="button" class="del-btn" onclick="removeRow('tool',${i})" style="white-space:nowrap">&#10005;</button>`;
   document.getElementById('tools-list').appendChild(div);
 }
@@ -954,7 +942,7 @@ function addLang(data = {}) {
   div.id = `lang-${i}`;
   div.style.cssText = 'display:flex;gap:10px;align-items:center;margin-top:10px;';
   div.innerHTML = `
-    <input type="text" id="lang_${i}_language_name" value="${esc(data.language_name)}" placeholder="e.g. Hindi, French, Arabic" style="flex:1">
+    <input type="text" id="lang_${i}_language_name" value="${esc(data.language_name)}" style="flex:1">
     <select id="lang_${i}_proficiency" style="width:160px;flex-shrink:0;">
       <option value="">Proficiency</option>
       <option value="native"${data.proficiency==='native'?' selected':''}>Native</option>
@@ -1111,10 +1099,15 @@ function populateForm(p) {
   // Certifications
   (p.certifications || []).forEach(row => addCert(row));
 
-  // Tools
-  (p.compliance_tools || []).forEach(row => addTool(row));
+  // Tools — clear before repopulate to avoid duplicate rows
+  document.getElementById('tools-list').innerHTML = '';
+  toolRows = [];
+  const toolsData = p.compliance_tools || [];
+  if (toolsData.length === 0) { addTool({}); } else { toolsData.forEach(row => addTool(row)); }
 
-  // Languages
+  // Languages — clear before repopulate
+  document.getElementById('lang-list').innerHTML = '';
+  langRows = [];
   (p.language_proficiency || []).forEach(row => addLang(row));
 
   // Resume
@@ -1237,8 +1230,6 @@ function collectEdu() {
     return {
       degree:           getVal(`edu_${i}_degree`),
       institution_name: getVal(`edu_${i}_institution_name`),
-      edu_country:      getVal(`edu_${i}_edu_country`),
-      edu_city:         getVal(`edu_${i}_edu_city`),
       edu_start_date:   getVal(`edu_${i}_edu_start_date`),
       edu_end_date:     getVal(`edu_${i}_edu_end_date`),
     };
@@ -1312,7 +1303,6 @@ async function saveProfile() {
     profile_visibility:           getVal('f_profile_visibility'),
     contact_visibility:           getVal('f_contact_visibility'),
     resume_visibility:            getVal('f_resume_visibility'),
-    public_name_mode:             getVal('f_public_name_mode'),
     work_experience:              collectWx(),
     education:                    collectEdu(),
     certifications:               collectCert(),
