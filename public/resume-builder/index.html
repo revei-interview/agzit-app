@@ -550,11 +550,11 @@ function wrapPage(body, accent) {
     '  @page { size: A4 portrait; margin: 15mm 15mm 20mm 15mm; }' +
     '}' +
     '.page { max-width:800px;margin:0 auto;padding:32px 40px; }' +
-    '.sec { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:' + accent + ';border-bottom:1.5px solid ' + accent + ';padding-bottom:4px;margin-bottom:10px;margin-top:18px; }' +
+    '.sec { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:' + accent + ';border-bottom:1.5px solid ' + accent + ';padding-bottom:4px;margin-bottom:10px;margin-top:20px; }' +
     '.jt  { font-weight:700;font-size:13px;color:#0A1A3A; }' +
     '.jc  { font-size:12.5px;color:#475569;font-weight:600; }' +
-    '.jd  { font-size:12px;color:#334155;margin-top:4px;line-height:1.55; }' +
-    '.sk  { display:inline-block;padding:3px 10px;background:#F1F5F9;border-radius:12px;font-size:11.5px;color:#334155;margin:3px 4px 3px 0; }' +
+    '.jd  { font-size:12px;color:#334155;margin-top:4px;line-height:1.55;text-align:justify; }' +
+    '.sk  { display:inline-block;padding:3px 10px;background:#F1F5F9;border-radius:12px;font-size:11.5px;color:#334155;margin:3px 4px 3px 0;max-width:100%; }' +
     '</style>' +
     '</head><body>' +
     body +
@@ -595,7 +595,7 @@ function buildClassic(accent, p) {
   function cSec(t) { return '<div class="sec">' + t + '</div>'; }
   if (p.summary) {
     h += cSec('Professional Summary');
-    h += '<p style="font-size:12.5px;color:#334155;line-height:1.6;">' + esc(p.summary) + '</p>';
+    h += '<p style="font-size:12.5px;color:#334155;line-height:1.6;text-align:justify;">' + esc(p.summary) + '</p>';
   }
   if (p.work_exp && p.work_exp.length) {
     h += cSec('Work Experience');
@@ -629,7 +629,7 @@ function buildClassic(accent, p) {
   var allSk = parseSkills(p.soft_skills).concat(p.tools || []);
   if (allSk.length) {
     h += cSec('Skills &amp; Tools');
-    h += '<div>' + allSk.map(function(s) { return '<span class="sk">' + esc(s) + '</span>'; }).join('') + '</div>';
+    h += '<div style="display:flex;flex-wrap:wrap;">' + allSk.map(function(s) { return '<span class="sk">' + esc(s) + '</span>'; }).join('') + '</div>';
   }
   var achHtml = renderAchievements(accent, p);
   if (achHtml) { h += cSec('Key Achievements'); h += '<div style="margin-top:2px;">' + achHtml + '</div>'; }
@@ -645,7 +645,7 @@ function buildClassic(accent, p) {
   }
   if (p.languages && p.languages.length) {
     h += cSec('Languages');
-    h += '<div>' + p.languages.map(function(l) { return '<span class="sk">' + esc(l) + '</span>'; }).join('') + '</div>';
+    h += '<div style="display:flex;flex-wrap:wrap;">' + p.languages.map(function(l) { return '<span class="sk">' + esc(l) + '</span>'; }).join('') + '</div>';
   }
   h += buildPdfBtn(accent); h += buildFooter(); h += '</div>';
   return h;
@@ -671,14 +671,14 @@ function buildModern(accent, p) {
     left += '</div>';
   }
   left += '</div>';
-  function rHead(t) { return '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:' + accent + ';margin-top:14px;margin-bottom:8px;">' + t + '</div>'; }
+  function rHead(t) { return '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:' + accent + ';margin-top:20px;margin-bottom:8px;">' + t + '</div>'; }
   var right = '<div style="flex:1;padding:24px 22px;">';
   right += '<div style="margin-bottom:16px;padding-bottom:14px;border-bottom:2px solid ' + accent + ';">';
   right += '<div style="font-size:24px;font-weight:800;color:#0A1A3A;">' + esc(p.name) + '</div>';
   right += '</div>';
   if (p.summary) {
     right += rHead('Summary');
-    right += '<p style="font-size:12px;color:#334155;line-height:1.6;margin-bottom:14px;">' + esc(p.summary) + '</p>';
+    right += '<p style="font-size:12px;color:#334155;line-height:1.6;margin-bottom:14px;text-align:justify;">' + esc(p.summary) + '</p>';
   }
   if (p.work_exp && p.work_exp.length) {
     right += rHead('Experience');
@@ -690,7 +690,7 @@ function buildModern(accent, p) {
       right += '<div class="jc">' + esc(w.company) + (loc ? ' &middot; ' + esc(loc) : '') + '</div>';
       if (w.description) {
         var lines = w.description.split(/\n|\u2022/).map(function(l) { return l.trim(); }).filter(Boolean);
-        right += '<div class="jd">' + lines.map(function(l) { return '&bull; ' + esc(l); }).join('<br>') + '</div>';
+        right += '<div class="jd" style="text-align:justify;">' + lines.map(function(l) { return '&bull; ' + esc(l); }).join('<br>') + '</div>';
       }
       right += '</div>';
     });
@@ -729,9 +729,9 @@ function buildMinimal(accent, p) {
   h += '<div style="font-size:11px;color:#94A3B8;margin-top:8px;">' + ct.map(esc).join('  |  ') + '</div>';
   h += '<div style="height:2px;background:' + accent + ';margin-top:14px;width:40px;"></div></div>';
   function ms(title, content) {
-    return '<div style="margin-bottom:20px;"><div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:' + accent + ';margin-bottom:10px;">' + title + '</div>' + content + '</div>';
+    return '<div style="margin-bottom:20px;margin-top:20px;"><div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:' + accent + ';margin-bottom:10px;">' + title + '</div>' + content + '</div>';
   }
-  if (p.summary) h += ms('Profile', '<p style="font-size:12.5px;color:#334155;line-height:1.65;">' + esc(p.summary) + '</p>');
+  if (p.summary) h += ms('Profile', '<p style="font-size:12.5px;color:#334155;line-height:1.65;text-align:justify;">' + esc(p.summary) + '</p>');
   if (p.work_exp && p.work_exp.length) {
     var wc = '';
     p.work_exp.forEach(function(w) {
@@ -740,7 +740,7 @@ function buildMinimal(accent, p) {
       wc += '<div style="display:flex;justify-content:space-between;"><span style="font-weight:600;font-size:12.5px;">' + esc(w.title) + ', ' + esc(w.company) + '</span><span style="font-size:11px;color:#94A3B8;">' + esc(per) + '</span></div>';
       if (w.description) {
         var lines = w.description.split(/\n|\u2022/).map(function(l) { return l.trim(); }).filter(Boolean);
-        wc += '<div style="font-size:12px;color:#475569;margin-top:3px;">' + lines.map(function(l) { return '\u2013 ' + esc(l); }).join('<br>') + '</div>';
+        wc += '<div style="font-size:12px;color:#475569;margin-top:3px;text-align:justify;">' + lines.map(function(l) { return '\u2013 ' + esc(l); }).join('<br>') + '</div>';
       }
       wc += '</div>';
     });
@@ -783,11 +783,11 @@ function buildExecutive(accent, p) {
   h += '<div style="font-size:11px;opacity:.65;margin-top:10px;">' + ct.map(esc).join('  &middot;  ') + '</div>';
   h += '</div>';
   function es(title) {
-    return '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:' + accent + ';border-bottom:1px solid ' + accent + ';padding-bottom:4px;margin:18px 0 12px;">' + title + '</div>';
+    return '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:' + accent + ';border-bottom:1px solid ' + accent + ';padding-bottom:4px;margin:20px 0 12px;">' + title + '</div>';
   }
   if (p.summary) {
     h += es('Executive Summary');
-    h += '<p style="font-size:12.5px;color:#334155;line-height:1.6;margin-bottom:18px;">' + esc(p.summary) + '</p>';
+    h += '<p style="font-size:12.5px;color:#334155;line-height:1.6;margin-bottom:18px;text-align:justify;">' + esc(p.summary) + '</p>';
   }
   if (p.work_exp && p.work_exp.length) {
     h += es('Professional Experience');
@@ -799,7 +799,7 @@ function buildExecutive(accent, p) {
       h += '<div style="font-size:12px;color:' + accent + ';font-weight:600;">' + esc(w.company) + (loc ? ' &middot; ' + esc(loc) : '') + '</div>';
       if (w.description) {
         var lines = w.description.split(/\n|\u2022/).map(function(l) { return l.trim(); }).filter(Boolean);
-        h += '<ul style="margin:5px 0 0 16px;font-size:12px;color:#334155;">' + lines.map(function(l) { return '<li style="margin-bottom:2px;">' + esc(l) + '</li>'; }).join('') + '</ul>';
+        h += '<ul style="margin:5px 0 0 16px;font-size:12px;color:#334155;text-align:justify;">' + lines.map(function(l) { return '<li style="margin-bottom:2px;">' + esc(l) + '</li>'; }).join('') + '</ul>';
       }
       h += '</div>';
     });
@@ -816,7 +816,7 @@ function buildExecutive(accent, p) {
   var allSk = parseSkills(p.soft_skills).concat(p.tools || []);
   if (allSk.length) {
     h += es('Core Competencies');
-    h += '<div>' + allSk.map(function(s) { return '<span class="sk">' + esc(s) + '</span>'; }).join('') + '</div>';
+    h += '<div style="display:flex;flex-wrap:wrap;">' + allSk.map(function(s) { return '<span class="sk">' + esc(s) + '</span>'; }).join('') + '</div>';
   }
   var achHtml = renderAchievements(accent, p);
   if (achHtml) { h += es('Key Achievements'); h += achHtml; }
@@ -831,7 +831,7 @@ function buildExecutive(accent, p) {
   }
   if (p.languages && p.languages.length) {
     h += es('Languages');
-    h += '<div>' + p.languages.map(function(l) { return '<span class="sk">' + esc(l) + '</span>'; }).join('') + '</div>';
+    h += '<div style="display:flex;flex-wrap:wrap;">' + p.languages.map(function(l) { return '<span class="sk">' + esc(l) + '</span>'; }).join('') + '</div>';
   }
   h += buildPdfBtn(accent); h += buildFooter(); h += '</div>';
   return h;
@@ -855,11 +855,11 @@ function buildImpact(accent, p) {
     p.languages.forEach(function(l) { side += '<div style="font-size:10.5px;opacity:.85;padding:2px 0;">' + esc(l) + '</div>'; });
   }
   side += '</div>';
-  function iSec(t) { return '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:' + accent + ';margin-bottom:8px;">' + t + '</div>'; }
+  function iSec(t) { return '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:' + accent + ';margin-top:20px;margin-bottom:8px;">' + t + '</div>'; }
   var main = '<div style="flex:1;padding:28px 24px;">';
   if (p.summary) {
     main += iSec('Profile');
-    main += '<p style="font-size:12px;color:#334155;line-height:1.6;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #E2E8F0;">' + esc(p.summary) + '</p>';
+    main += '<p style="font-size:12px;color:#334155;line-height:1.6;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #E2E8F0;text-align:justify;">' + esc(p.summary) + '</p>';
   }
   if (p.work_exp && p.work_exp.length) {
     main += iSec('Experience');
@@ -870,7 +870,7 @@ function buildImpact(accent, p) {
       main += '<div style="font-size:12px;color:' + accent + ';font-weight:600;">' + esc(w.company) + '</div>';
       if (w.description) {
         var lines = w.description.split(/\n|\u2022/).map(function(l) { return l.trim(); }).filter(Boolean);
-        main += '<div style="font-size:11.5px;color:#475569;margin-top:3px;">' + lines.map(function(l) { return '&bull; ' + esc(l); }).join('<br>') + '</div>';
+        main += '<div style="font-size:11.5px;color:#475569;margin-top:3px;text-align:justify;">' + lines.map(function(l) { return '&bull; ' + esc(l); }).join('<br>') + '</div>';
       }
       main += '</div>';
     });
@@ -914,10 +914,10 @@ function buildHorizon(accent, p) {
   html += '<div style="height:4px;background:linear-gradient(90deg,' + accent + ' 0%,transparent 100%);"></div>';
   html += '<div style="padding:28px 40px;">';
   if (p.summary) {
-    html += '<div style="font-size:12.5px;color:#334155;line-height:1.65;padding:16px;background:#F8FAFC;border-left:3px solid ' + accent + ';border-radius:0 8px 8px 0;margin-bottom:24px;">' + esc(p.summary) + '</div>';
+    html += '<div style="font-size:12.5px;color:#334155;line-height:1.65;padding:16px;background:#F8FAFC;border-left:3px solid ' + accent + ';border-radius:0 8px 8px 0;margin-bottom:24px;text-align:justify;">' + esc(p.summary) + '</div>';
   }
   function hSec(t) {
-    return '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:' + accent + ';margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid ' + accent + ';">' + t + '</div>';
+    return '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:' + accent + ';margin-top:20px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid ' + accent + ';">' + t + '</div>';
   }
   if (p.work_exp && p.work_exp.length) {
     html += hSec('Experience');
@@ -931,7 +931,7 @@ function buildHorizon(accent, p) {
       html += '<div style="font-size:12.5px;color:' + accent + ';font-weight:600;margin-bottom:4px;">' + esc(w.company) + (loc ? ' \u00b7 <span style="color:#64748B;font-weight:400;">' + esc(loc) + '</span>' : '') + '</div>';
       if (w.description) {
         var lines = w.description.split(/\n|\u2022/).map(function(l) { return l.trim(); }).filter(Boolean);
-        html += '<div style="font-size:12px;color:#475569;line-height:1.6;">';
+        html += '<div style="font-size:12px;color:#475569;line-height:1.6;text-align:justify;">';
         lines.forEach(function(l) { html += '\u2022 ' + esc(l) + '<br>'; });
         html += '</div>';
       }
@@ -949,7 +949,7 @@ function buildHorizon(accent, p) {
   }
   if (allSk.length) {
     html += hSec('Skills &amp; Tools');
-    html += '<div>' + allSk.map(function(s) { return '<span style="display:inline-block;padding:3px 10px;background:#F1F5F9;border-radius:12px;font-size:11.5px;color:#334155;margin:3px 4px 3px 0;">' + esc(s) + '</span>'; }).join('') + '</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;">' + allSk.map(function(s) { return '<span style="display:inline-block;padding:3px 10px;background:#F1F5F9;border-radius:12px;font-size:11.5px;color:#334155;margin:3px 4px 3px 0;">' + esc(s) + '</span>'; }).join('') + '</div>';
   }
   var achHtml = renderAchievements(accent, p);
   if (achHtml) { html += hSec('Key Achievements'); html += achHtml; }
@@ -964,7 +964,7 @@ function buildHorizon(accent, p) {
   }
   if (p.languages && p.languages.length) {
     html += hSec('Languages');
-    html += '<div>' + p.languages.map(function(l) { return '<span style="display:inline-block;padding:3px 10px;background:#F1F5F9;border-radius:12px;font-size:11.5px;color:#334155;margin:3px 4px 3px 0;">' + esc(l) + '</span>'; }).join('') + '</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;">' + p.languages.map(function(l) { return '<span style="display:inline-block;padding:3px 10px;background:#F1F5F9;border-radius:12px;font-size:11.5px;color:#334155;margin:3px 4px 3px 0;">' + esc(l) + '</span>'; }).join('') + '</div>';
   }
   html += buildPdfBtn(accent); html += buildFooter();
   html += '</div></div>';
