@@ -549,6 +549,9 @@ function wrapPage(body, accent) {
     '  .modern-sidebar { -webkit-print-color-adjust:exact;print-color-adjust:exact;width:34% !important;flex-shrink:0; }' +
     '  .modern-wrap { display:flex !important; }' +
     '  .modern-sidebar ~ div { flex:1 !important; }' +
+    '  .impact-wrap { display:flex !important; }' +
+    '  .impact-sidebar { -webkit-print-color-adjust:exact;print-color-adjust:exact;width:30% !important;flex-shrink:0; }' +
+    '  .impact-sidebar ~ div { flex:1 !important; }' +
     '  @page { size: A4 portrait; margin: 15mm 15mm 20mm 15mm; }' +
     '}' +
     '.page { max-width:800px;margin:0 auto;padding:32px 40px; }' +
@@ -848,7 +851,7 @@ function buildExecutive(accent, p) {
 // ── TEMPLATE: Impact (coloured sidebar) ──────────────────────────────────────
 function buildImpact(accent, p) {
   var allSk = parseSkills(p.soft_skills).concat(p.tools || []);
-  var side = '<div style="width:30%;background:' + accent + ';padding:28px 16px;color:#fff;">';
+  var side = '<div class="impact-sidebar" style="width:30%;background:' + accent + ';padding:28px 16px;color:#fff;">';
   side += '<div style="font-size:17px;font-weight:800;margin-bottom:16px;word-break:break-word;">' + esc(p.name) + '</div>';
   side += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:.6;margin-bottom:8px;">Contact</div>';
   if (p.email)    side += '<div style="font-size:10.5px;opacity:.85;margin-bottom:4px;word-break:break-all;">' + esc(p.email) + '</div>';
@@ -857,6 +860,27 @@ function buildImpact(accent, p) {
   if (allSk.length) {
     side += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:.6;margin:16px 0 8px;">Skills &amp; Tools</div>';
     allSk.forEach(function(s) { side += '<div style="font-size:10.5px;opacity:.85;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.15);">' + esc(s) + '</div>'; });
+  }
+  // Impact: Education & Certs moved to left sidebar
+  if (p.education && p.education.length) {
+    side += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:.6;margin:16px 0 8px;">Education</div>';
+    p.education.forEach(function(e) {
+      var per = fmtDate(e.start) + (e.end ? ' \u2013 ' + fmtDate(e.end) : '');
+      side += '<div style="margin-bottom:6px;">';
+      side += '<div style="font-size:10.5px;opacity:.85;font-weight:600;">' + esc(e.degree) + '</div>';
+      side += '<div style="font-size:10.5px;opacity:.85;">' + esc(e.institution) + '</div>';
+      if (per) side += '<div style="font-size:9.5px;opacity:.6;">' + esc(per) + '</div>';
+      side += '</div>';
+    });
+  }
+  if (p.certifications && p.certifications.length) {
+    side += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:.6;margin:16px 0 8px;">Certifications</div>';
+    p.certifications.forEach(function(c) {
+      side += '<div style="margin-bottom:5px;">';
+      side += '<div style="font-size:10.5px;opacity:.85;font-weight:600;">' + esc(c.name) + '</div>';
+      if (c.issuer) side += '<div style="font-size:9.5px;opacity:.6;">' + esc(c.issuer) + '</div>';
+      side += '</div>';
+    });
   }
   if (p.languages && p.languages.length) {
     side += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:.6;margin:16px 0 8px;">Languages</div>';
@@ -883,29 +907,10 @@ function buildImpact(accent, p) {
       main += '</div>';
     });
   }
-  if (p.education && p.education.length) {
-    main += '<div style="margin-top:12px;">' + iSec('Education');
-    p.education.forEach(function(e) {
-      var per = fmtDate(e.start) + (e.end ? ' \u2013 ' + fmtDate(e.end) : '');
-      main += '<div style="margin-bottom:8px;display:flex;justify-content:space-between;">';
-      main += '<div><div style="font-weight:600;font-size:12px;">' + esc(e.degree) + '</div><div style="font-size:11.5px;color:#64748B;">' + esc(e.institution) + '</div></div>';
-      main += '<span style="font-size:10.5px;color:#94A3B8;">' + esc(per) + '</span></div>';
-    });
-    main += '</div>';
-  }
   var achHtml = renderAchievements(accent, p);
   if (achHtml) { main += '<div style="margin-top:12px;">' + iSec('Key Achievements') + achHtml + '</div>'; }
-  if (p.certifications && p.certifications.length) {
-    main += '<div style="margin-top:12px;">' + iSec('Certifications');
-    p.certifications.forEach(function(c) {
-      main += '<div style="margin-bottom:5px;font-size:12px;"><span style="font-weight:600;">' + esc(c.name) + '</span>';
-      if (c.issuer) main += ' <span style="color:#94A3B8;">&middot; ' + esc(c.issuer) + '</span>';
-      main += '</div>';
-    });
-    main += '</div>';
-  }
   main += buildPdfBtn(accent); main += buildFooter(); main += '</div>';
-  return '<div style="display:flex;min-height:auto;">' + side + main + '</div>';
+  return '<div class="impact-wrap" style="display:flex;min-height:auto;">' + side + main + '</div>';
 }
 
 // ── TEMPLATE: Horizon (full-width header) ─────────────────────────────────────
