@@ -1753,7 +1753,7 @@ function renderProfile(p) {
     <div class="section-title">Skills &amp; Tools</div>
     ${p.soft_skills ? `<div class="field-label" style="margin-bottom:6px;">Skills</div><div style="font-size:13px;color:var(--soft);line-height:1.7;margin-bottom:12px;">${esc(p.soft_skills)}</div>` : ''}
     ${(p.compliance_tools||[]).length ? `<div class="field-label" style="margin-bottom:6px;">Tools &amp; Software</div><div class="pills" style="margin-bottom:12px;">${(p.compliance_tools||[]).filter(t=>t.tool_name).map(t=>`<span class="pill">${esc(t.tool_name)}</span>`).join('')}</div>` : ''}
-    ${(p.language_proficiency||[]).length ? `<div class="field-label" style="margin-bottom:6px;">Languages</div><div class="pills">${(p.language_proficiency||[]).filter(l=>l.language).map(l=>`<span class="pill">${esc(l.language)}</span>`).join('')}</div>` : ''}
+    ${(p.language_proficiency||[]).filter(l=>l.language_name).length ? '<div class="field-label" style="margin-bottom:6px;">Languages</div><div style="font-size:13px;color:var(--soft);">' + (p.language_proficiency||[]).filter(l=>l.language_name).map(l=>esc(l.language_name)+(l.proficiency?' ('+esc(l.proficiency.charAt(0).toUpperCase()+l.proficiency.slice(1))+')':'')).join(' &bull; ') + '</div>' : ''}
   `;
   el('profile-content').innerHTML = html;
 

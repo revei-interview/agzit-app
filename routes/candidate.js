@@ -324,7 +324,11 @@ router.get('/profile', ...guard, async (req, res) => {
     const complianceTools = rawTools
       .map(r => ({ tool_name: r.tool_name || r.name || '' }))
       .filter(r => r.tool_name);
-    const languageProficiency = parseRepeater(meta, 'language_proficiency', ['language']);
+    const rawLangs = parseRepeater(meta, 'language_proficiency', ['language', 'proficiency']);
+    const languageProficiency = rawLangs.map(r => ({
+      language_name: r.language || '',
+      proficiency:   r.proficiency || '',
+    })).filter(r => r.language_name);
     const preferredLocation   = parseRepeater(meta, 'preferred_location',   [
       'preferred_city_name', 'preferred_country_name',
     ]);
@@ -1013,6 +1017,7 @@ router.put('/profile', ...guard, async (req, res) => {
       'country_of_nationality', 'residential_country', 'compliance_domains',
       'current_annual_ctc_with_currency', 'expected_annual_ctc_with_currency',
       'preferred_work_type', 'work_level', 'current_career_level',
+      'gender', 'date_of_birth',
     ];
     // Textarea fields that accept freeform rich text — sanitize HTML tags
     const TEXTAREA_FIELDS = new Set([
@@ -1098,8 +1103,8 @@ router.put('/profile', ...guard, async (req, res) => {
     // ── Languages repeater ────────────────────────────────────────────────────
     if (Array.isArray(b.language_proficiency)) {
       const rows = b.language_proficiency
-        .filter(r => s(r.language))
-        .map(r => ({ language: s(r.language) }));
+        .filter(r => s(r.language_name))
+        .map(r => ({ language: s(r.language_name), proficiency: s(r.proficiency) }));
       await clearRepeaterMeta(profileId, 'language_proficiency');
       await writeRepeater(profileId, 'language_proficiency', rows);
     }

@@ -261,6 +261,20 @@
         <input type="text" id="f_phone_number" placeholder="+44 7700 900000">
       </div>
       <div class="field">
+        <label class="label">Gender</label>
+        <select id="f_gender">
+          <option value="">Select</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="non_binary">Non-Binary</option>
+          <option value="prefer_not_to_say">Prefer not to say</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="label">Date of Birth</label>
+        <input type="date" id="f_dob">
+      </div>
+      <div class="field">
         <label class="label">Country of Nationality</label>
         <select id="f_country_of_nationality"></select>
       </div>
@@ -597,6 +611,11 @@
       <div id="tools-list"></div>
       <button type="button" class="add-btn" onclick="addTool()">+ Add Tool</button>
     </div>
+    <div style="margin-top:24px;">
+      <div class="label" style="margin-bottom:10px;">Language Proficiency</div>
+      <div id="lang-list"></div>
+      <button type="button" class="add-btn" onclick="addLang()">+ Add Language</button>
+    </div>
   </div>
 
   <!-- 8. Visibility & Settings -->
@@ -693,6 +712,7 @@ let wxRows   = [];
 let eduRows  = [];
 let certRows = [];
 let toolRows = [];
+let langRows = [];
 let _wxDragIdx = null;
 
 // ── Countries list (ISO codes — must match register/index.html) ──────────────
@@ -927,6 +947,26 @@ function addTool(data = {}) {
   document.getElementById('tools-list').appendChild(div);
 }
 
+function addLang(data = {}) {
+  const i = langRows.length;
+  langRows.push(data);
+  const div = document.createElement('div');
+  div.id = `lang-${i}`;
+  div.style.cssText = 'display:flex;gap:10px;align-items:center;margin-top:10px;';
+  div.innerHTML = `
+    <input type="text" id="lang_${i}_language_name" value="${esc(data.language_name)}" placeholder="e.g. Hindi, French, Arabic" style="flex:1">
+    <select id="lang_${i}_proficiency" style="width:160px;flex-shrink:0;">
+      <option value="">Proficiency</option>
+      <option value="native"${data.proficiency==='native'?' selected':''}>Native</option>
+      <option value="fluent"${data.proficiency==='fluent'?' selected':''}>Fluent</option>
+      <option value="professional"${data.proficiency==='professional'?' selected':''}>Professional</option>
+      <option value="conversational"${data.proficiency==='conversational'?' selected':''}>Conversational</option>
+      <option value="basic"${data.proficiency==='basic'?' selected':''}>Basic</option>
+    </select>
+    <button type="button" class="del-btn" onclick="removeRow('lang',${i})" style="white-space:nowrap">&#10005;</button>`;
+  document.getElementById('lang-list').appendChild(div);
+}
+
 // ── Remove row ─────────────────────────────────────────────────────────────────
 function removeRow(prefix, i) {
   const el = document.getElementById(`${prefix}-${i}`);
@@ -935,6 +975,7 @@ function removeRow(prefix, i) {
   if (prefix === 'edu')  eduRows[i]  = null;
   if (prefix === 'cert') certRows[i] = null;
   if (prefix === 'tool') toolRows[i] = null;
+  if (prefix === 'lang') langRows[i] = null;
   renumberItems(prefix, prefix === 'wx' ? 'Position' : prefix === 'edu' ? 'Education' : prefix === 'cert' ? 'Certificate' : 'Tool');
 }
 
@@ -1037,6 +1078,10 @@ function populateForm(p) {
   // compliance_domains: raw value may be PHP-serialized or JSON — extract the key
   setVal('f_compliance_domains', extractIndustryKey(p.compliance_domains));
 
+  // Gender and Date of Birth
+  setVal('f_gender', p.gender);
+  setVal('f_dob', p.date_of_birth ? String(p.date_of_birth).split('T')[0] : '');
+
   // Country selects (set after options are populated)
   setVal('f_country_of_nationality', p.country_of_nationality);
   setVal('f_residential_country', p.residential_country);
@@ -1068,6 +1113,9 @@ function populateForm(p) {
 
   // Tools
   (p.compliance_tools || []).forEach(row => addTool(row));
+
+  // Languages
+  (p.language_proficiency || []).forEach(row => addLang(row));
 
   // Resume
   renderResumeSection(p);
@@ -1218,6 +1266,16 @@ function collectTools() {
   }).filter(r => r.tool_name);
 }
 
+function collectLang() {
+  return Array.from(document.querySelectorAll('#lang-list > div')).map(el => {
+    const i = el.id.replace('lang-', '');
+    return {
+      language_name: getVal(`lang_${i}_language_name`),
+      proficiency:   getVal(`lang_${i}_proficiency`),
+    };
+  }).filter(r => r.language_name);
+}
+
 async function saveProfile() {
   const btn = document.getElementById('btn-save');
   btn.disabled = true;
@@ -1228,6 +1286,8 @@ async function saveProfile() {
     email_address:                getVal('f_email_address'),
     phone_number:                 getVal('f_phone_number'),
     linkedin_url:                 getVal('f_linkedin_url'),
+    gender:                       getVal('f_gender'),
+    date_of_birth:                getVal('f_dob'),
     professional_summary_bio:     getVal('f_professional_summary_bio'),
     total_work_experience:        getVal('f_total_work_experience'),
     current_employment_status:    getVal('f_current_employment_status'),
@@ -1257,6 +1317,7 @@ async function saveProfile() {
     education:                    collectEdu(),
     certifications:               collectCert(),
     compliance_tools:             collectTools(),
+    language_proficiency:         collectLang(),
   };
 
   try {
@@ -1291,6 +1352,15 @@ function showToast(msg, type = '') {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 populateCountrySelects();
+
+// Set DOB max to today minus 16 years
+(function () {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 16);
+  const el = document.getElementById('f_dob');
+  if (el) el.max = d.toISOString().split('T')[0];
+})();
+
 loadProfile();
 </script>
 </body>
