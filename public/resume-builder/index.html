@@ -418,12 +418,9 @@ function showPolishPurchaseModal() {
     '<div style="font-size:40px;margin-bottom:12px;">&#10024;</div>' +
     '<div style="font-size:18px;font-weight:700;color:#0A1A3A;margin-bottom:8px;">No AI Polish Credits</div>' +
     '<p style="font-size:14px;color:#64748B;line-height:1.6;margin-bottom:20px;">You have used all your AI Polish credits.<br>Purchase 3 more uses for <strong>$5</strong>.</p>' +
-    '<a href="https://agzit.com/?p=20640" target="_blank" style="display:inline-block;padding:12px 32px;background:#1A44C2;color:#fff;border-radius:10px;font-weight:700;text-decoration:none;font-size:14px;">Buy Now — $5</a>' +
-    '<div style="margin-top:16px;font-size:12px;color:#94A3B8;">After purchase, enter your order ID below:</div>' +
-    '<div style="margin-top:10px;display:flex;gap:8px;justify-content:center;max-width:360px;margin-left:auto;margin-right:auto;">' +
-    '<input type="text" id="polish-order-id" placeholder="WooCommerce Order ID" style="flex:1;padding:8px 12px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px;">' +
-    '<button onclick="verifyPolishPurchase()" style="padding:8px 16px;background:#0B7A47;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">Verify</button>' +
-    '</div>' +
+    '<a href="https://agzit.com/?p=20640" target="_blank" style="display:inline-block;padding:12px 32px;background:#1A44C2;color:#fff;border-radius:10px;font-weight:700;text-decoration:none;font-size:14px;">Buy Now &mdash; $5</a>' +
+    '<p style="margin-top:20px;font-size:13px;color:#64748B;line-height:1.6;">After completing payment, return to this page &mdash; your credits will be available automatically within a few seconds.</p>' +
+    '<button onclick="checkPolishCredits()" id="polish-check-btn" style="margin-top:12px;padding:10px 24px;background:#0B7A47;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;">I\'ve completed payment &mdash; Check Now</button>' +
     '<div id="polish-verify-msg" style="margin-top:8px;font-size:12px;min-height:16px;"></div>' +
     '</div>';
   document.getElementById('ai-apply-btn').style.display = 'none';
@@ -431,26 +428,25 @@ function showPolishPurchaseModal() {
   document.body.style.overflow = 'hidden';
 }
 
-async function verifyPolishPurchase() {
-  var orderId = (document.getElementById('polish-order-id').value || '').trim();
+async function checkPolishCredits() {
+  var btn = document.getElementById('polish-check-btn');
   var msg = document.getElementById('polish-verify-msg');
-  if (!orderId) { msg.innerHTML = '<span style="color:#DC2626;">Please enter an order ID</span>'; return; }
-  msg.innerHTML = '<span style="color:#64748B;">Verifying...</span>';
+  btn.disabled = true; btn.textContent = 'Checking...';
+  msg.innerHTML = '';
   try {
-    var r = await fetch('/api/candidate/ai-polish/verify-purchase', {
-      method: 'POST', credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order_id: orderId })
-    });
+    var r = await fetch('/api/candidate/ai-polish/credits', { credentials: 'include' });
     var d = await r.json();
-    if (d.ok) {
-      msg.innerHTML = '<span style="color:#0B7A47;">&#10003; Credits added! You now have 3 AI Polish uses.</span>';
-      setTimeout(function() { aiModalClose(); }, 1500);
+    var credits = d.ok ? d.credits_remaining : 0;
+    if (credits > 0) {
+      msg.innerHTML = '<span style="color:#0B7A47;">&#10003; ' + credits + ' credit' + (credits !== 1 ? 's' : '') + ' found!</span>';
+      setTimeout(function() { aiModalClose(); showPolishModal(credits); }, 1200);
     } else {
-      msg.innerHTML = '<span style="color:#DC2626;">' + (d.error || 'Verification failed') + '</span>';
+      msg.innerHTML = '<span style="color:#DC2626;">No credits found yet. Please complete payment first, then wait a few seconds and try again.</span>';
+      btn.disabled = false; btn.textContent = "I've completed payment \u2014 Check Now";
     }
   } catch (e) {
     msg.innerHTML = '<span style="color:#DC2626;">Network error. Please try again.</span>';
+    btn.disabled = false; btn.textContent = "I've completed payment \u2014 Check Now";
   }
 }
 
