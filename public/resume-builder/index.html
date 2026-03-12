@@ -476,7 +476,8 @@ function aiApply() {
     if (s.type === 'summary') {
       PROFILE.summary = s.suggested;
     } else if (s.type === 'job' && s.index !== undefined) {
-      PROFILE.work_exp[s.index].description = s.suggested;
+      // Strip leading bullet markers from each AI-generated line before saving
+      PROFILE.work_exp[s.index].description = s.suggested.split('\n').map(function(l) { return cleanBullet(l); }).filter(Boolean).join('\n');
     }
   });
   document.getElementById('ai-modal').style.display = 'none';
@@ -503,6 +504,7 @@ function fmtDate(d) {
 }
 function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 function escHtml(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function cleanBullet(t) { return (t || '').replace(/^[\u2022\-\u2013\*]\s*/, '').trim(); }
 function parseSkills(raw) {
   if (!raw) return [];
   return raw.split(/[,\n\u2022]+/).map(function(s) { return s.trim(); }).filter(Boolean);
@@ -614,7 +616,7 @@ function buildClassic(accent, p) {
       h += '</div>';
       h += '<div class="jc">' + esc(w.company) + (loc ? ' &middot; ' + esc(loc) : '') + '</div>';
       if (w.description) {
-        var lines = w.description.split(/\n|\u2022/).map(function(l) { return l.trim(); }).filter(Boolean);
+        var lines = w.description.split(/\n|\u2022/).map(function(l) { return cleanBullet(l); }).filter(Boolean);
         h += '<div class="jd">' + lines.map(function(l) { return '&bull; ' + esc(l); }).join('<br>') + '</div>';
       }
       h += '</div>';
@@ -717,7 +719,7 @@ function buildModern(accent, p) {
       right += '<div style="display:flex;justify-content:space-between;"><span class="jt">' + esc(w.title) + '</span><span style="font-size:11px;color:#94A3B8;">' + esc(per) + '</span></div>';
       right += '<div class="jc">' + esc(w.company) + (loc ? ' &middot; ' + esc(loc) : '') + '</div>';
       if (w.description) {
-        var lines = w.description.split(/\n|\u2022/).map(function(l) { return l.trim(); }).filter(Boolean);
+        var lines = w.description.split(/\n|\u2022/).map(function(l) { return cleanBullet(l); }).filter(Boolean);
         right += '<div class="jd" style="text-align:justify;">' + lines.map(function(l) { return '&bull; ' + esc(l); }).join('<br>') + '</div>';
       }
       right += '</div>';
@@ -750,7 +752,7 @@ function buildMinimal(accent, p) {
       wc += '<div style="margin-bottom:14px;">';
       wc += '<div style="display:flex;justify-content:space-between;"><span style="font-weight:600;font-size:12.5px;">' + esc(w.title) + ', ' + esc(w.company) + '</span><span style="font-size:11px;color:#94A3B8;">' + esc(per) + '</span></div>';
       if (w.description) {
-        var lines = w.description.split(/\n|\u2022/).map(function(l) { return l.trim(); }).filter(Boolean);
+        var lines = w.description.split(/\n|\u2022/).map(function(l) { return cleanBullet(l); }).filter(Boolean);
         wc += '<div style="font-size:12px;color:#475569;margin-top:3px;text-align:justify;">' + lines.map(function(l) { return '\u2013 ' + esc(l); }).join('<br>') + '</div>';
       }
       wc += '</div>';
@@ -809,7 +811,7 @@ function buildExecutive(accent, p) {
       h += '<div style="display:flex;justify-content:space-between;"><span style="font-weight:700;font-size:13px;">' + esc(w.title) + '</span><span style="font-size:11px;color:#94A3B8;font-style:italic;">' + esc(per) + '</span></div>';
       h += '<div style="font-size:12px;color:' + accent + ';font-weight:600;">' + esc(w.company) + (loc ? ' &middot; ' + esc(loc) : '') + '</div>';
       if (w.description) {
-        var lines = w.description.split(/\n|\u2022/).map(function(l) { return l.trim(); }).filter(Boolean);
+        var lines = w.description.split(/\n|\u2022/).map(function(l) { return cleanBullet(l); }).filter(Boolean);
         h += '<ul style="margin:5px 0 0 16px;font-size:12px;color:#334155;text-align:justify;">' + lines.map(function(l) { return '<li style="margin-bottom:2px;">' + esc(l) + '</li>'; }).join('') + '</ul>';
       }
       h += '</div>';
@@ -906,7 +908,7 @@ function buildImpact(accent, p) {
       main += '<div style="display:flex;justify-content:space-between;"><span style="font-weight:700;font-size:12.5px;">' + esc(w.title) + '</span><span style="font-size:10.5px;color:#94A3B8;">' + esc(per) + '</span></div>';
       main += '<div style="font-size:12px;color:' + accent + ';font-weight:600;">' + esc(w.company) + '</div>';
       if (w.description) {
-        var lines = w.description.split(/\n|\u2022/).map(function(l) { return l.trim(); }).filter(Boolean);
+        var lines = w.description.split(/\n|\u2022/).map(function(l) { return cleanBullet(l); }).filter(Boolean);
         main += '<div style="font-size:11.5px;color:#475569;margin-top:3px;text-align:justify;">' + lines.map(function(l) { return '&bull; ' + esc(l); }).join('<br>') + '</div>';
       }
       main += '</div>';
@@ -948,7 +950,7 @@ function buildHorizon(accent, p) {
       html += '<span style="font-size:11px;color:#94A3B8;white-space:nowrap;">' + esc(per) + '</span></div>';
       html += '<div style="font-size:12.5px;color:' + accent + ';font-weight:600;margin-bottom:4px;">' + esc(w.company) + (loc ? ' \u00b7 <span style="color:#64748B;font-weight:400;">' + esc(loc) + '</span>' : '') + '</div>';
       if (w.description) {
-        var lines = w.description.split(/\n|\u2022/).map(function(l) { return l.trim(); }).filter(Boolean);
+        var lines = w.description.split(/\n|\u2022/).map(function(l) { return cleanBullet(l); }).filter(Boolean);
         html += '<div style="font-size:12px;color:#475569;line-height:1.6;text-align:justify;">';
         lines.forEach(function(l) { html += '\u2022 ' + esc(l) + '<br>'; });
         html += '</div>';
