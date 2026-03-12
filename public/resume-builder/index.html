@@ -357,7 +357,7 @@ async function loadProfile() {
       soft_skills:      p.soft_skills             || '',
       tools:            tools,
       languages:        langs,
-      key_achievements: [],
+      key_achievements: (p.key_achievements || '').split(/\n/).map(function(l) { return l.trim(); }).filter(Boolean),
       work_exp:         workExp,
       education:        education,
       certifications:   certifications,
@@ -604,6 +604,8 @@ function buildClassic(accent, p) {
     h += cSec('Professional Summary');
     h += '<p style="font-size:12.5px;color:#334155;line-height:1.6;text-align:justify;">' + esc(p.summary) + '</p>';
   }
+  var achHtml = renderAchievements(accent, p);
+  if (achHtml) { h += cSec('Key Achievements'); h += '<div style="margin-top:2px;">' + achHtml + '</div>'; }
   if (p.work_exp && p.work_exp.length) {
     h += cSec('Work Experience');
     p.work_exp.forEach(function(w) {
@@ -638,8 +640,6 @@ function buildClassic(accent, p) {
     h += cSec('Skills &amp; Tools');
     h += '<div style="display:flex;flex-wrap:wrap;">' + allSk.map(function(s) { return '<span class="sk">' + esc(s) + '</span>'; }).join('') + '</div>';
   }
-  var achHtml = renderAchievements(accent, p);
-  if (achHtml) { h += cSec('Key Achievements'); h += '<div style="margin-top:2px;">' + achHtml + '</div>'; }
   if (p.certifications && p.certifications.length) {
     h += cSec('Certifications');
     p.certifications.forEach(function(c) {
@@ -710,6 +710,8 @@ function buildModern(accent, p) {
     right += rHead('Summary');
     right += '<p style="font-size:12px;color:#334155;line-height:1.6;margin-bottom:14px;text-align:justify;">' + esc(p.summary) + '</p>';
   }
+  var achHtml = renderAchievements(accent, p);
+  if (achHtml) { right += rHead('Key Achievements'); right += achHtml; }
   if (p.work_exp && p.work_exp.length) {
     right += rHead('Experience');
     p.work_exp.forEach(function(w) {
@@ -725,11 +727,7 @@ function buildModern(accent, p) {
       right += '</div>';
     });
   }
-  var achHtml = renderAchievements(accent, p);
-  if (achHtml) { right += rHead('Key Achievements'); right += achHtml; }
   right += buildPdfBtn(accent); right += buildFooter(); right += '</div>';
-  // Left sidebar: Contact (659), Skills (664), Education (669), Certifications (681), Languages (692)
-  // Right column: Summary (703), Experience (707)
   return '<div class="modern-wrap" style="display:flex;min-height:auto;">' + left + right + '</div>';
 }
 
@@ -745,6 +743,8 @@ function buildMinimal(accent, p) {
     return '<div style="margin-bottom:20px;margin-top:20px;"><div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:' + accent + ';margin-bottom:10px;">' + title + '</div>' + content + '</div>';
   }
   if (p.summary) h += ms('Profile', '<p style="font-size:12.5px;color:#334155;line-height:1.65;text-align:justify;">' + esc(p.summary) + '</p>');
+  var achHtml = renderAchievements(accent, p);
+  if (achHtml) h += ms('Key Achievements', achHtml);
   if (p.work_exp && p.work_exp.length) {
     var wc = '';
     p.work_exp.forEach(function(w) {
@@ -771,8 +771,6 @@ function buildMinimal(accent, p) {
   }
   var allSk = parseSkills(p.soft_skills).concat(p.tools || []);
   if (allSk.length) h += ms('Skills &amp; Tools', '<div style="font-size:12.5px;color:#334155;">' + allSk.map(esc).join(' &middot; ') + '</div>');
-  var achHtml = renderAchievements(accent, p);
-  if (achHtml) h += ms('Key Achievements', achHtml);
   if (p.certifications && p.certifications.length) {
     var cc = '';
     p.certifications.forEach(function(c) {
@@ -802,6 +800,8 @@ function buildExecutive(accent, p) {
     h += es('Executive Summary');
     h += '<p style="font-size:12.5px;color:#334155;line-height:1.6;margin-bottom:18px;text-align:justify;">' + esc(p.summary) + '</p>';
   }
+  var achHtml = renderAchievements(accent, p);
+  if (achHtml) { h += es('Key Achievements'); h += achHtml; }
   if (p.work_exp && p.work_exp.length) {
     h += es('Professional Experience');
     p.work_exp.forEach(function(w) {
@@ -831,8 +831,6 @@ function buildExecutive(accent, p) {
     h += es('Core Competencies');
     h += '<div style="display:flex;flex-wrap:wrap;">' + allSk.map(function(s) { return '<span class="sk">' + esc(s) + '</span>'; }).join('') + '</div>';
   }
-  var achHtml = renderAchievements(accent, p);
-  if (achHtml) { h += es('Key Achievements'); h += achHtml; }
   if (p.certifications && p.certifications.length) {
     h += es('Certifications');
     p.certifications.forEach(function(c) {
@@ -900,6 +898,8 @@ function buildImpact(accent, p) {
     main += iSecSpaced('Profile');
     main += '<p style="font-size:12px;color:#334155;line-height:1.6;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #E2E8F0;text-align:justify;">' + esc(p.summary) + '</p>';
   }
+  var achHtml = renderAchievements(accent, p);
+  if (achHtml) { main += '<div style="margin-top:12px;">' + iSec('Key Achievements') + achHtml + '</div>'; }
   if (p.work_exp && p.work_exp.length) {
     main += iSecSpaced('Experience');
     p.work_exp.forEach(function(w) {
@@ -914,8 +914,6 @@ function buildImpact(accent, p) {
       main += '</div>';
     });
   }
-  var achHtml = renderAchievements(accent, p);
-  if (achHtml) { main += '<div style="margin-top:12px;">' + iSec('Key Achievements') + achHtml + '</div>'; }
   main += buildPdfBtn(accent); main += buildFooter(); main += '</div>';
   return '<div class="impact-wrap" style="display:flex;min-height:auto;">' + side + main + '</div>';
 }
@@ -939,6 +937,8 @@ function buildHorizon(accent, p) {
   function hSec(t) {
     return '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:' + accent + ';margin-top:20px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid ' + accent + ';">' + t + '</div>';
   }
+  var achHtml = renderAchievements(accent, p);
+  if (achHtml) { html += hSec('Key Achievements'); html += achHtml; }
   if (p.work_exp && p.work_exp.length) {
     html += hSec('Experience');
     p.work_exp.forEach(function(w) {
@@ -971,8 +971,6 @@ function buildHorizon(accent, p) {
     html += hSec('Skills &amp; Tools');
     html += '<div style="display:flex;flex-wrap:wrap;">' + allSk.map(function(s) { return '<span style="display:inline-block;padding:3px 10px;background:#F1F5F9;border-radius:12px;font-size:11.5px;color:#334155;margin:3px 4px 3px 0;">' + esc(s) + '</span>'; }).join('') + '</div>';
   }
-  var achHtml = renderAchievements(accent, p);
-  if (achHtml) { html += hSec('Key Achievements'); html += achHtml; }
   if (p.certifications && p.certifications.length) {
     html += hSec('Certifications');
     p.certifications.forEach(function(c) {
