@@ -766,6 +766,11 @@ function buildModern(accent, p) {
     p.languages.forEach(function(l) { left += '<div style="font-size:11.5px;color:#334155;padding:3px 0;">' + esc(l) + '</div>'; });
     left += '</div>';
   }
+  if (p.key_achievements && p.key_achievements.length) {
+    left += '<div style="margin-top:18px;">' + mHead('Key Achievements');
+    p.key_achievements.forEach(function(a) { left += '<div style="font-size:11.5px;color:#334155;padding:3px 0;border-bottom:1px solid #E2E8F0;">&bull; ' + esc(a) + '</div>'; });
+    left += '</div>';
+  }
   left += '</div>';
   function rHead(t) { return '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:' + accent + ';margin-top:20px;margin-bottom:8px;">' + t + '</div>'; }
   var right = '<div style="flex:1;padding:24px 22px;">';
@@ -776,8 +781,6 @@ function buildModern(accent, p) {
     right += rHead('Summary');
     right += '<p style="font-size:12px;color:#334155;line-height:1.6;margin-bottom:14px;text-align:justify;">' + esc(p.summary) + '</p>';
   }
-  var achHtml = renderAchievements(accent, p);
-  if (achHtml) { right += rHead('Key Achievements'); right += achHtml; }
   if (p.work_exp && p.work_exp.length) {
     right += rHead('Experience');
     p.work_exp.forEach(function(w) {
@@ -952,6 +955,10 @@ function buildImpact(accent, p) {
     side += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:.6;margin:16px 0 8px;">Languages</div>';
     p.languages.forEach(function(l) { side += '<div style="font-size:10.5px;opacity:.85;padding:2px 0;">' + esc(l) + '</div>'; });
   }
+  if (p.key_achievements && p.key_achievements.length) {
+    side += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:.6;margin:16px 0 8px;">Key Achievements</div>';
+    p.key_achievements.forEach(function(a) { side += '<div style="font-size:10.5px;opacity:.85;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.15);">&bull; ' + esc(a) + '</div>'; });
+  }
   side += '</div>';
   function iSec(t) { return '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.2px;color:' + accent + ';margin-top:20px;margin-bottom:8px;">' + t + '</div>'; }
   var main = '<div style="flex:1;padding:28px 24px;">';
@@ -964,8 +971,6 @@ function buildImpact(accent, p) {
     main += iSecSpaced('Profile');
     main += '<p style="font-size:12px;color:#334155;line-height:1.6;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #E2E8F0;text-align:justify;">' + esc(p.summary) + '</p>';
   }
-  var achHtml = renderAchievements(accent, p);
-  if (achHtml) { main += '<div style="margin-top:12px;">' + iSec('Key Achievements') + achHtml + '</div>'; }
   if (p.work_exp && p.work_exp.length) {
     main += iSecSpaced('Experience');
     p.work_exp.forEach(function(w) {
