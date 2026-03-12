@@ -588,8 +588,19 @@ router.post('/logout', (req, res) => {
 });
 
 // ── GET /api/auth/me ───────────────────────────────────────────────────────
-router.get('/me', requireAuth, (req, res) => {
-  res.json({ ok: true, user: req.user });
+router.get('/me', requireAuth, async (req, res) => {
+  try {
+    const [[row]] = await db.query(
+      'SELECT first_name FROM agzit_users WHERE id = ? LIMIT 1',
+      [req.user.user_id]
+    );
+    const user = { ...req.user };
+    if (row && row.first_name) user.first_name = row.first_name;
+    res.json({ ok: true, user });
+  } catch (err) {
+    // Fallback to JWT payload if DB lookup fails
+    res.json({ ok: true, user: req.user });
+  }
 });
 
 module.exports = router;
