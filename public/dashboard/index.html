@@ -1051,7 +1051,7 @@ function statusStyle(s) {
 function normVis(v) { return (v || '').replace(/^(co_|re_)/, ''); }
 function visLabel(v) {
   const n = normVis(v);
-  return { public:'Public', verified_only:'Verified Only', not_shown:'Not Shown', private:'Private' }[n] || 'Not Set';
+  return { public:'Public', verified_only:'Verified Employers Only', not_shown:'Not Shown', private:'Private' }[n] || 'Not Set';
 }
 function visCls(v) {
   const n = normVis(v);
