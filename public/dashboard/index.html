@@ -134,17 +134,10 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   line-height: 1.55; text-align: center;
 }
 
-/* ── Stat cards ──────────────────────────────────────────────────────────── */
-.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
-.stat {
-  background: var(--white); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 20px 22px; box-shadow: var(--shadow-sm);
-}
-.stat-label { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .7px; text-transform: uppercase; margin-bottom: 8px; }
-.stat-value { font-size: 26px; font-weight: 800; color: var(--ink); letter-spacing: -.8px; line-height: 1; margin-bottom: 6px; }
-.stat-sub   { font-size: 12px; color: var(--muted); }
-.stat-bar   { height: 5px; background: var(--surface); border-radius: 999px; overflow: hidden; margin-top: 10px; }
-.stat-fill  { height: 5px; background: var(--blue); border-radius: 999px; transition: width .7s ease; }
+/* ── Full-width Visibility section ────────────────────────────────────────── */
+.vis-section { margin: 0 0 16px 0; }
+.vis-section .card { padding: 20px 24px; }
+.vis-section .vis-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; }
 
 /* ── Layout ──────────────────────────────────────────────────────────────── */
 .two-col { display: grid; grid-template-columns: 1fr 300px; gap: 18px; align-items: start; }
@@ -481,10 +474,10 @@ select.jp-input {
   .hero-heading { font-size: 22px; }
 }
 @media (max-width: 720px) {
-  .stats-row { grid-template-columns: 1fr 1fr; }
+  .vis-section .vis-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 480px) {
-  .stats-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .vis-section .vis-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
   .hero-inner { flex-direction: column; }
   .field-grid { grid-template-columns: 1fr; }
   .comp-label { width: 130px; }
@@ -569,30 +562,9 @@ select.jp-input {
       </div>
     </div>
 
-    <!-- Stats -->
-    <div class="stats-row reveal">
-      <div class="stat">
-        <div class="stat-label">Profile</div>
-        <div class="stat-value" id="st-profile">—</div>
-        <div class="stat-bar"><div class="stat-fill" id="st-profile-bar" style="width:0"></div></div>
-        <div class="stat-sub" id="st-profile-sub" style="margin-top:8px;"></div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Interview Score</div>
-        <div class="stat-value" id="st-score">—</div>
-        <div class="stat-bar"><div class="stat-fill" id="st-score-bar" style="width:0"></div></div>
-        <div class="stat-sub" id="st-score-sub" style="margin-top:8px;"></div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Sessions Taken</div>
-        <div class="stat-value" id="st-sessions">0</div>
-        <div class="stat-sub" id="st-sessions-sub" style="margin-top:8px;">mock interviews</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">Profile Views</div>
-        <div class="stat-value" id="st-views">—</div>
-        <div class="stat-sub" id="st-views-sub" style="margin-top:8px;">employer views</div>
-      </div>
+    <!-- Visibility (full-width) -->
+    <div class="vis-section reveal">
+      <div class="card" id="vis-full"></div>
     </div>
 
     <!-- Main content -->
@@ -823,9 +795,6 @@ select.jp-input {
             <a id="sb-preview" href="#" class="btn-secondary" style="display:none;" target="_blank">View Public Profile</a>
           </div>
         </div>
-
-        <!-- Visibility summary -->
-        <div class="card" id="sb-vis-card"></div>
 
       </div>
 
@@ -1099,7 +1068,7 @@ function visBadgeCls(v) {
 }
 function updateVisibilitySidebar(pv, ev, phv, rv) {
   if (!pv && !ev && !phv && !rv) return;
-  el('sb-vis-card').innerHTML = `<div class="card-title" style="margin-bottom:4px;">Visibility</div>` +
+  el('vis-full').innerHTML = `<div class="card-title" style="margin-bottom:4px;">Visibility</div>` +
     `<div class="vis-grid">` +
     [['Profile', pv],['Email', ev],['Phone', phv],['Resume', rv]]
     .map(([k,v]) => `<div class="vis-item"><span class="vis-label">${k}</span><span class="vis-badge ${visBadgeCls(v)}">${visLabel(v)}</span></div>`)
@@ -1265,23 +1234,7 @@ function render(d, pd, id) {
     hr.innerHTML = `<div class="hero-pending-note">Public profile link activates after approval.</div>`;
   }
 
-  /* ── Stat cards ─────────────────────────────────────────────────────────── */
   const pct = parseInt(prof.profile_completeness) || 0;
-  el('st-profile').textContent = pct + '%';
-  el('st-profile-bar').style.width = pct + '%';
-  el('st-profile-sub').textContent = statusLabel(prof.dpr_status);
-
-  const bestScore = recent.reduce((m, s) => Math.max(m, parseInt(s.mock_overall_score)||0), 0);
-  el('st-score').textContent = bestScore ? bestScore + '/100' : 'None yet';
-  el('st-score-bar').style.width = bestScore + '%';
-  el('st-score-sub').textContent = sc ? (sc.mock_performance_level || '') : 'No interview yet';
-
-  el('st-sessions').textContent = (id && id.count != null) ? id.count : (recent.length || 0);
-
-  /* Profile views stat — comes from dashboard API (dpr_id_view_count in profile object) */
-  const viewCount = parseInt(prof.dpr_id_view_count) || 0;
-  el('st-views').textContent    = viewCount;
-  el('st-views-sub').textContent = viewCount === 1 ? '1 employer view' : viewCount + ' employer views';
 
   /* ── Entitlement strip ───────────────────────────────────────────────────── */
   const strip = el('ent-strip');
