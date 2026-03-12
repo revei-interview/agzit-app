@@ -286,20 +286,15 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 .ent-chip.c30 { background: var(--green-lt); color: var(--green); }
 .ent-meta  { font-size: 12px; color: var(--muted); font-weight: 600; }
 
-/* ── Visibility rows ─────────────────────────────────────────────────────── */
-.vis-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 11px 14px; border-radius: 11px; background: var(--surface);
-  border: 1px solid var(--line); margin-bottom: 8px;
-}
-.vis-row:last-of-type { margin-bottom: 0; }
-.vis-row-label { font-size: 13px; font-weight: 700; color: var(--soft); }
-.vis-val {
-  font-size: 11.5px; font-weight: 700; padding: 4px 11px; border-radius: 999px;
-}
-.vis-val.vv-public  { background: var(--green-lt); color: var(--green); }
-.vis-val.vv-verified { background: #EDE9FE; color: #5B21B6; }
-.vis-val.vv-private  { background: var(--red-lt); color: var(--red); }
+/* ── Visibility pill grid ─────────────────────────────────────────────────── */
+.vis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.vis-item { background: var(--surface, #F5F6FA); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+.vis-label { font-size: 11px; font-weight: 600; color: var(--muted, #7C83A0); text-transform: uppercase; letter-spacing: 0.4px; }
+.vis-badge { font-size: 12px; font-weight: 700; display: inline-block; }
+.vis-badge.public { color: #0B7A47; }
+.vis-badge.verified { color: #1A44C2; }
+.vis-badge.private { color: var(--red); }
+.vis-note { font-size: 11.5px; color: var(--muted, #7C83A0); margin-top: 10px; line-height: 1.4; }
 
 /* ── Visibility selects ──────────────────────────────────────────────────── */
 .vis-form-row {
@@ -1096,13 +1091,21 @@ function visCls(v) {
   return 'vv-verified';
 }
 
+function visBadgeCls(v) {
+  const n = normVis(v);
+  if (n === 'public') return 'public';
+  if (n === 'private' || n === 'not_shown') return 'private';
+  return 'verified';
+}
 function updateVisibilitySidebar(pv, ev, phv, rv) {
   if (!pv && !ev && !phv && !rv) return;
-  el('sb-vis-card').innerHTML = `<div class="card-title" style="margin-bottom:12px;">Visibility</div>` +
+  el('sb-vis-card').innerHTML = `<div class="card-title" style="margin-bottom:4px;">Visibility</div>` +
+    `<div class="vis-grid">` +
     [['Profile', pv],['Email', ev],['Phone', phv],['Resume', rv]]
-    .map(([k,v]) => `<div class="vis-row"><span class="vis-row-label">${k}</span><span class="vis-val ${visCls(v)}">${visLabel(v)}</span></div>`)
+    .map(([k,v]) => `<div class="vis-item"><span class="vis-label">${k}</span><span class="vis-badge ${visBadgeCls(v)}">${visLabel(v)}</span></div>`)
     .join('') +
-    `<div style="margin-top:10px;font-size:12px;color:var(--muted);line-height:1.55;">Controls what employers see on your public DPR page.</div>`;
+    `</div>` +
+    `<div class="vis-note">Controls what employers see on your public DPR page.</div>`;
 }
 
 /* ── Country lookup ───────────────────────────────────────────────────────── */
