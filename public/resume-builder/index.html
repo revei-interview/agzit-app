@@ -728,7 +728,7 @@ function buildClassic(accent, p) {
 function buildModern(accent, p) {
   var allSk = parseSkills(p.soft_skills).concat(p.tools || []);
   function mHead(t) { return '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:' + accent + ';margin-bottom:8px;">' + t + '</div>'; }
-  var left = '<div class="modern-sidebar" style="width:34%;background:#F8FAFC;padding:24px 18px;border-right:1px solid #E2E8F0;">';
+  var left = '<div class="modern-sidebar" style="width:34%;background:#F8FAFC;padding:32px 18px 24px;border-right:1px solid #E2E8F0;">';
   left += mHead('Contact');
   if (p.email)    left += '<div style="font-size:11.5px;color:#334155;margin-bottom:5px;word-break:break-all;">\u2709 ' + esc(p.email) + '</div>';
   if (p.phone)    left += '<div style="font-size:11.5px;color:#334155;margin-bottom:5px;">\u260E ' + esc(p.phone) + '</div>';
