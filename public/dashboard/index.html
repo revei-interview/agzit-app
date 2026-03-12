@@ -613,6 +613,7 @@ select.jp-input {
             <button class="tab-btn" data-tab="interviews" id="tab-btn-interviews">Interviews</button>
             <button class="tab-btn" data-tab="job">Job Preferences</button>
             <button class="tab-btn" data-tab="account">Account</button>
+            <button class="tab-btn" data-tab="resumes">My Resumes</button>
           </div>
 
           <!-- ── Overview ──────────────────────────────────────────────── -->
@@ -791,6 +792,13 @@ select.jp-input {
             <div style="max-width:440px;">
               <div class="card-title" style="margin-bottom:6px;">Account Details</div>
               <div id="acc-details"></div>
+            </div>
+          </div>
+
+          <!-- ── My Resumes ────────────────────────────────────────────── -->
+          <div class="tab-pane" id="tab-resumes">
+            <div id="resumes-content">
+              <p style="color:var(--muted);font-size:13px;">Loading saved resumes...</p>
             </div>
           </div>
 
@@ -1897,6 +1905,55 @@ function showErr(title, msg) {
 /* ── Boot ─────────────────────────────────────────────────────────────────── */
 populateCurrencySelects(); // must run before searchable-select.js auto-inits
 init();
+
+/* ── My Resumes tab ──────────────────────────────────────────────────────── */
+async function loadSavedResumes() {
+  var container = el('resumes-content');
+  if (!container) return;
+  try {
+    var r = await fetch('/api/candidate/saved-resumes', { credentials: 'include' });
+    var d = await r.json();
+    if (!d.ok || !d.resumes || !d.resumes.length) {
+      container.innerHTML = '<div style="text-align:center;padding:40px 16px;"><div style="font-size:32px;margin-bottom:8px;">&#128196;</div><div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px;">No saved resumes yet</div><p style="font-size:13px;color:var(--muted);line-height:1.5;">Polish your resume with AI to get started.<br><a href="/resume-builder" style="color:var(--blue);font-weight:600;">Go to Resume Builder</a></p></div>';
+      return;
+    }
+    var html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">';
+    d.resumes.forEach(function(r) {
+      var date = new Date(r.updated_at || r.created_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+      html += '<div style="border:1px solid var(--line);border-radius:12px;padding:16px;background:#fff;">';
+      html += '<div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px;">' + esc(r.resume_name) + '</div>';
+      html += '<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Template: ' + esc(r.template_id || 'classic') + '</div>';
+      if (r.jd_used) html += '<div style="font-size:11px;color:var(--blue);margin-bottom:4px;">JD-targeted</div>';
+      html += '<div style="font-size:11px;color:var(--muted);margin-bottom:12px;">' + date + '</div>';
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+      html += '<a href="/resume-builder?saved=' + r.id + '" style="padding:6px 14px;background:var(--blue);color:#fff;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;">Preview</a>';
+      html += '<button onclick="deleteSavedResume(' + r.id + ',this)" style="padding:6px 14px;background:#FEF2F2;color:#DC2626;border:1px solid #FECACA;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Delete</button>';
+      html += '</div></div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = '<p style="color:var(--muted);">Failed to load saved resumes.</p>';
+  }
+}
+
+window.deleteSavedResume = async function(id, btn) {
+  if (!confirm('Delete this saved resume?')) return;
+  btn.disabled = true; btn.textContent = '...';
+  try {
+    var r = await fetch('/api/candidate/saved-resumes/' + id, { method: 'DELETE', credentials: 'include' });
+    var d = await r.json();
+    if (d.ok) loadSavedResumes();
+    else alert(d.error || 'Failed to delete');
+  } catch (e) { alert('Network error'); btn.disabled = false; btn.textContent = 'Delete'; }
+};
+
+// Load saved resumes when the tab is shown
+var origSwitchTab = window.switchTab;
+window.switchTab = function(name) {
+  origSwitchTab(name);
+  if (name === 'resumes') loadSavedResumes();
+};
 
 }());
 </script>

@@ -252,6 +252,28 @@ async function initDB() {
       UNIQUE KEY unique_user_resume (user_id)
     )
   `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_ai_polish_credits (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id BIGINT NOT NULL,
+      credits_remaining INT DEFAULT 3,
+      order_id VARCHAR(255),
+      purchased_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_user (user_id)
+    )
+  `);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_saved_resumes (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id BIGINT NOT NULL,
+      resume_name VARCHAR(255) NOT NULL,
+      template_id VARCHAR(100),
+      resume_data LONGTEXT,
+      jd_used TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
   // Migration: rename post_id → profile_post_id and fix unique key if old schema exists
   try {
     await pool.execute('ALTER TABLE agzit_resume_files CHANGE COLUMN post_id profile_post_id INT NULL');

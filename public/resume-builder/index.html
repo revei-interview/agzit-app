@@ -191,12 +191,12 @@
 <!-- AI Suggestions Modal -->
 <div id="ai-modal">
   <div class="ai-modal-inner">
-    <div class="ai-modal-title">AI Writing Suggestions</div>
+    <div class="ai-modal-title" id="ai-modal-title">AI Writing Suggestions</div>
     <div class="ai-modal-sub">Review each suggestion. Accept or keep your original, then click Apply.</div>
     <div id="ai-suggestions" style="min-height:60px;"></div>
     <div class="ai-modal-footer">
       <button class="btn-secondary" onclick="aiModalClose()">Cancel</button>
-      <button class="btn-primary" onclick="aiApply()">Apply Accepted Changes</button>
+      <button class="btn-primary" id="ai-apply-btn" onclick="aiApply()">Apply Accepted Changes</button>
     </div>
   </div>
 </div>
@@ -210,6 +210,8 @@ var SELECTED    = null;
 var ACCENT      = '#1E3A5F';
 var AI_USES     = 0;
 var aiSuggestions = [];
+var POLISHED_PROFILE = null;
+var JD_TEXT = '';
 
 var TEMPLATES = [
   { id:'classic',       name:'Classic',        desc:'Clean, traditional layout. Works for all industries.',      color:'#1E3A5F', premium:false },
@@ -363,6 +365,19 @@ async function loadProfile() {
       certifications:   certifications,
     };
 
+    // Check for saved resume in URL
+    var savedId = new URLSearchParams(window.location.search).get('saved');
+    if (savedId) {
+      try {
+        var sr = await fetch('/api/candidate/saved-resumes/' + savedId, { credentials: 'include' });
+        var sd = await sr.json();
+        if (sd.ok && sd.resume) {
+          PROFILE = sd.resume.resume_data;
+          if (sd.resume.template_id) SELECTED = sd.resume.template_id;
+        }
+      } catch(e) { /* use default profile */ }
+    }
+
     buildTemplatePicker();
     document.getElementById('loading').style.display = 'none';
     document.getElementById('main').style.display = 'block';
@@ -371,125 +386,180 @@ async function loadProfile() {
   }
 }
 
-// ── AI Rewrite ────────────────────────────────────────────────────────────────
-function doAIRewrite() {
-  if (AI_USES >= 3) { alert('Maximum 3 AI rewrites per session.'); return; }
+// ── AI Polish (paid feature) ──────────────────────────────────────────────────
+async function doAIRewrite() {
   var btn = document.getElementById('ai-btn');
-  btn.disabled = true; btn.textContent = '\u23F3 Generating suggestions...';
+  btn.disabled = true; btn.textContent = 'Checking credits...';
 
-  var requests = [];
-  if (PROFILE.summary) {
-    requests.push({
-      type: 'summary',
-      prompt: 'Rewrite this professional summary to sound polished and ATS-friendly. Keep it under 4 sentences. Return only the rewritten text, no labels:\n\n' + PROFILE.summary
-    });
-  }
-  (PROFILE.work_exp || []).slice(0, 3).forEach(function(w, i) {
-    if (w.description) {
-      requests.push({
-        type: 'job', index: i,
-        title: w.title + ' at ' + w.company,
-        prompt: 'Convert these job responsibilities into 4-5 concise, impactful resume bullet points. Start each with a strong action verb. Return only the bullet points, one per line:\n\n' + w.description
-      });
+  try {
+    var credRes = await fetch('/api/candidate/ai-polish/credits', { credentials: 'include' });
+    var credData = await credRes.json();
+    var credits = credData.ok ? credData.credits_remaining : 0;
+
+    if (credits <= 0) {
+      showPolishPurchaseModal();
+      btn.disabled = false; btn.textContent = '\u2728 Polish with AI';
+      return;
     }
-  });
 
-  if (requests.length === 0) {
+    showPolishModal(credits);
     btn.disabled = false; btn.textContent = '\u2728 Polish with AI';
-    alert('No summary or job descriptions found to improve. Please edit your profile first.');
-    return;
+  } catch (e) {
+    alert('Could not check AI Polish credits. Please try again.');
+    btn.disabled = false; btn.textContent = '\u2728 Polish with AI';
   }
+}
 
-  aiSuggestions = [];
-  document.getElementById('ai-suggestions').innerHTML = '<div style="color:#64748B;font-size:13px;padding:12px 0;">\u23F3 Generating suggestions...</div>';
-  document.getElementById('ai-modal').style.display = 'block';
+function showPolishPurchaseModal() {
+  var m = document.getElementById('ai-modal');
+  document.getElementById('ai-modal-title').textContent = 'AI Polish Credits';
+  document.getElementById('ai-suggestions').innerHTML =
+    '<div style="text-align:center;padding:32px 16px;">' +
+    '<div style="font-size:40px;margin-bottom:12px;">&#10024;</div>' +
+    '<div style="font-size:18px;font-weight:700;color:#0A1A3A;margin-bottom:8px;">No AI Polish Credits</div>' +
+    '<p style="font-size:14px;color:#64748B;line-height:1.6;margin-bottom:20px;">You have used all your AI Polish credits.<br>Purchase 3 more uses for <strong>$5</strong>.</p>' +
+    '<a href="https://agzit.com/?p=20640" target="_blank" style="display:inline-block;padding:12px 32px;background:#1A44C2;color:#fff;border-radius:10px;font-weight:700;text-decoration:none;font-size:14px;">Buy Now — $5</a>' +
+    '<div style="margin-top:16px;font-size:12px;color:#94A3B8;">After purchase, enter your order ID below:</div>' +
+    '<div style="margin-top:10px;display:flex;gap:8px;justify-content:center;max-width:360px;margin-left:auto;margin-right:auto;">' +
+    '<input type="text" id="polish-order-id" placeholder="WooCommerce Order ID" style="flex:1;padding:8px 12px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px;">' +
+    '<button onclick="verifyPolishPurchase()" style="padding:8px 16px;background:#0B7A47;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">Verify</button>' +
+    '</div>' +
+    '<div id="polish-verify-msg" style="margin-top:8px;font-size:12px;min-height:16px;"></div>' +
+    '</div>';
+  document.getElementById('ai-apply-btn').style.display = 'none';
+  m.style.display = 'block';
   document.body.style.overflow = 'hidden';
-
-  processAIRequests(requests, 0, function() {
-    AI_USES++;
-    btn.disabled = false; btn.textContent = '\u2728 Polish with AI';
-    renderAISuggestions();
-  });
 }
 
-function processAIRequests(reqs, idx, done) {
-  if (idx >= reqs.length) { done(); return; }
-  var req = reqs[idx];
-  fetch(RENDER_BASE + '/ai-rewrite', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: req.prompt })
-  })
-  .then(function(r) { return r.ok ? r.json() : { ok: false }; })
-  .then(function(d) {
-    if (d.ok && d.result) {
-      aiSuggestions.push({
-        type:      req.type,
-        index:     req.index,
-        title:     req.title || 'Professional Summary',
-        original:  req.type === 'summary' ? PROFILE.summary : PROFILE.work_exp[req.index].description,
-        suggested: d.result,
-        accepted:  true,
-      });
+async function verifyPolishPurchase() {
+  var orderId = (document.getElementById('polish-order-id').value || '').trim();
+  var msg = document.getElementById('polish-verify-msg');
+  if (!orderId) { msg.innerHTML = '<span style="color:#DC2626;">Please enter an order ID</span>'; return; }
+  msg.innerHTML = '<span style="color:#64748B;">Verifying...</span>';
+  try {
+    var r = await fetch('/api/candidate/ai-polish/verify-purchase', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_id: orderId })
+    });
+    var d = await r.json();
+    if (d.ok) {
+      msg.innerHTML = '<span style="color:#0B7A47;">&#10003; Credits added! You now have 3 AI Polish uses.</span>';
+      setTimeout(function() { aiModalClose(); }, 1500);
+    } else {
+      msg.innerHTML = '<span style="color:#DC2626;">' + (d.error || 'Verification failed') + '</span>';
     }
-    processAIRequests(reqs, idx + 1, done);
-  })
-  .catch(function() { processAIRequests(reqs, idx + 1, done); });
-}
-
-function renderAISuggestions() {
-  if (aiSuggestions.length === 0) {
-    document.getElementById('ai-suggestions').innerHTML = '<div style="color:#94A3B8;font-size:13px;">No suggestions could be generated. Please try again.</div>';
-    return;
+  } catch (e) {
+    msg.innerHTML = '<span style="color:#DC2626;">Network error. Please try again.</span>';
   }
-  var html = '';
-  aiSuggestions.forEach(function(s, i) {
-    html += '<div style="margin-bottom:24px;padding-bottom:24px;border-bottom:1px solid #F1F5F9;">';
-    html += '<div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#64748B;margin-bottom:10px;">' +
-      (s.type === 'summary' ? 'Professional Summary' : 'Role: ' + escHtml(s.title)) + '</div>';
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">';
-    html += '<div style="padding:12px;background:#F8FAFC;border-radius:8px;border:1px solid #E2E8F0;">' +
-      '<div style="font-size:10.5px;font-weight:700;color:#94A3B8;margin-bottom:6px;text-transform:uppercase;">Original</div>' +
-      '<div style="font-size:12px;color:#475569;line-height:1.55;white-space:pre-wrap;">' + escHtml(s.original) + '</div></div>';
-    html += '<div id="ai-sug-' + i + '" style="padding:12px;background:#F0FDF4;border-radius:8px;border:2px solid #BBF7D0;">' +
-      '<div style="font-size:10.5px;font-weight:700;color:#15803D;margin-bottom:6px;text-transform:uppercase;">AI Suggestion</div>' +
-      '<div style="font-size:12px;color:#166534;line-height:1.55;white-space:pre-wrap;">' + escHtml(s.suggested) + '</div></div>';
-    html += '</div>';
-    html += '<div style="margin-top:10px;display:flex;gap:10px;align-items:center;">' +
-      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:#334155;">' +
-      '<input type="checkbox" id="ai-accept-' + i + '" checked onchange="aiToggle(' + i + ',this.checked)" style="width:16px;height:16px;accent-color:#15803D;">' +
-      '<span>Use AI suggestion</span></label></div>';
-    html += '</div>';
-  });
-  document.getElementById('ai-suggestions').innerHTML = html;
 }
 
-function aiToggle(i, checked) {
-  aiSuggestions[i].accepted = checked;
-  var box = document.getElementById('ai-sug-' + i);
-  if (box) { box.style.background = checked ? '#F0FDF4' : '#F8FAFC'; box.style.borderColor = checked ? '#BBF7D0' : '#E2E8F0'; }
+function showPolishModal(credits) {
+  var m = document.getElementById('ai-modal');
+  document.getElementById('ai-modal-title').textContent = 'AI Polish Resume';
+  document.getElementById('ai-suggestions').innerHTML =
+    '<div style="padding:8px 0;">' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">' +
+    '<span style="background:#EAF0FF;color:#1A44C2;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;">&#10024; ' + credits + ' AI Polish use' + (credits !== 1 ? 's' : '') + ' remaining</span>' +
+    '</div>' +
+    '<div style="margin-bottom:16px;">' +
+    '<label style="font-size:13px;font-weight:600;color:#334155;display:block;margin-bottom:6px;">Paste Job Description (optional)</label>' +
+    '<textarea id="polish-jd-input" rows="5" placeholder="Paste the target job description here — AI will tailor your resume to this role. Leave empty for a general polish." style="width:100%;padding:10px 12px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;"></textarea>' +
+    '</div>' +
+    '<p style="font-size:12.5px;color:#64748B;line-height:1.5;">AI will rewrite your summary and job bullet points to be more impactful and ATS-friendly.' + (credits <= 1 ? ' <strong>This is your last credit.</strong>' : '') + '</p>' +
+    '</div>';
+  document.getElementById('ai-apply-btn').style.display = '';
+  document.getElementById('ai-apply-btn').textContent = 'Polish Resume';
+  document.getElementById('ai-apply-btn').onclick = runAIPolish;
+  m.style.display = 'block';
+  document.body.style.overflow = 'hidden';
 }
 
-function aiApply() {
-  aiSuggestions.forEach(function(s) {
-    if (!s.accepted) return;
-    if (s.type === 'summary') {
-      PROFILE.summary = s.suggested;
-    } else if (s.type === 'job' && s.index !== undefined) {
-      // Strip leading bullet markers from each AI-generated line before saving
-      PROFILE.work_exp[s.index].description = s.suggested.split('\n').map(function(l) { return cleanBullet(l); }).filter(Boolean).join('\n');
+async function runAIPolish() {
+  var applyBtn = document.getElementById('ai-apply-btn');
+  applyBtn.disabled = true; applyBtn.textContent = 'Polishing...';
+  var jd = (document.getElementById('polish-jd-input') || {}).value || '';
+  JD_TEXT = jd;
+
+  try {
+    var r = await fetch('/api/candidate/ai-polish', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile: PROFILE, jd_text: jd })
+    });
+    var d = await r.json();
+    if (!d.ok) {
+      alert(d.error || 'AI Polish failed. Please try again.');
+      applyBtn.disabled = false; applyBtn.textContent = 'Polish Resume';
+      return;
     }
-  });
-  document.getElementById('ai-modal').style.display = 'none';
-  document.body.style.overflow = '';
-  var btn = document.getElementById('ai-btn');
-  if (btn) { btn.textContent = '\u2705 AI improvements applied'; btn.disabled = true; }
+
+    POLISHED_PROFILE = d.polished_profile;
+    PROFILE = d.polished_profile;
+    aiModalClose();
+
+    // Show save prompt
+    showSaveResumePrompt(d.credits_remaining);
+  } catch (e) {
+    alert('Network error. Please try again.');
+    applyBtn.disabled = false; applyBtn.textContent = 'Polish Resume';
+  }
 }
+
+function showSaveResumePrompt(creditsLeft) {
+  var btn = document.getElementById('ai-btn');
+  btn.textContent = '\u2705 Resume polished (' + creditsLeft + ' credits left)';
+  btn.disabled = true;
+
+  // Add save button if not already present
+  if (!document.getElementById('save-resume-bar')) {
+    var bar = document.createElement('div');
+    bar.id = 'save-resume-bar';
+    bar.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap;';
+    bar.innerHTML =
+      '<input type="text" id="save-resume-name" placeholder="Name this resume, e.g. KYC Analyst - HSBC" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px;">' +
+      '<button onclick="savePolishedResume()" style="padding:8px 20px;background:#0B7A47;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;white-space:nowrap;">Save This Resume</button>';
+    btn.parentNode.insertBefore(bar, btn.nextSibling);
+  }
+}
+
+async function savePolishedResume() {
+  var nameInput = document.getElementById('save-resume-name');
+  var name = (nameInput.value || '').trim();
+  if (!name) { nameInput.style.borderColor = '#DC2626'; return; }
+  nameInput.style.borderColor = '#E2E8F0';
+
+  try {
+    var r = await fetch('/api/candidate/saved-resumes', {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        resume_name: name,
+        template_id: SELECTED,
+        resume_data: PROFILE,
+        jd_used: JD_TEXT || null
+      })
+    });
+    var d = await r.json();
+    if (d.ok) {
+      var bar = document.getElementById('save-resume-bar');
+      bar.innerHTML = '<div style="padding:8px 16px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;font-size:13px;color:#166534;font-weight:600;">&#10003; Resume saved as \u201c' + esc(name) + '\u201d</div>';
+    } else {
+      alert(d.error || 'Failed to save resume');
+    }
+  } catch (e) {
+    alert('Network error. Please try again.');
+  }
+}
+
+function aiApply() { /* legacy — now handled by runAIPolish */ }
 
 function aiModalClose() {
   document.getElementById('ai-modal').style.display = 'none';
   document.body.style.overflow = '';
 }
+
+function aiToggle() { /* legacy — no longer used */ }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 function fmtDate(d) {

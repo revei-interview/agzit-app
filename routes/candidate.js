@@ -1945,4 +1945,257 @@ router.post('/dpr/:postId/resume', requireAuth, upload.single('resume'), async (
   }
 });
 
+// ── AI Polish Credits ─────────────────────────────────────────────────────────
+
+// GET /api/candidate/ai-polish/credits
+router.get('/ai-polish/credits', ...guard, async (req, res) => {
+  try {
+    const [[row]] = await pool.execute(
+      'SELECT credits_remaining FROM agzit_ai_polish_credits WHERE user_id = ?',
+      [req.user.id]
+    );
+    return res.json({ ok: true, credits_remaining: row ? row.credits_remaining : 0 });
+  } catch (err) {
+    console.error('[ai-polish/credits]', err.message);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// POST /api/candidate/ai-polish/verify-purchase
+router.post('/ai-polish/verify-purchase', ...guard, async (req, res) => {
+  try {
+    const orderId = typeof req.body.order_id === 'string' ? req.body.order_id.trim() : '';
+    if (!orderId) return res.status(400).json({ ok: false, error: 'order_id is required' });
+
+    // Check if order already used
+    const [[existing]] = await pool.execute(
+      'SELECT id FROM agzit_ai_polish_credits WHERE order_id = ?',
+      [orderId]
+    );
+    if (existing) {
+      return res.status(409).json({ ok: false, error: 'This order has already been applied' });
+    }
+
+    // Look up WooCommerce order: check wp_posts for wc-completed order,
+    // then verify it contains product 20640 and billing email matches
+    const [[order]] = await pool.execute(
+      `SELECT p.ID, pm_email.meta_value AS billing_email
+       FROM wp_posts p
+       JOIN wp_postmeta pm_email ON pm_email.post_id = p.ID AND pm_email.meta_key = '_billing_email'
+       WHERE p.ID = ? AND p.post_type = 'shop_order' AND p.post_status = 'wc-completed'
+       LIMIT 1`,
+      [orderId]
+    );
+    if (!order) {
+      return res.status(404).json({ ok: false, error: 'Order not found or not completed' });
+    }
+
+    // Verify billing email matches logged-in user
+    const [[user]] = await pool.execute('SELECT email FROM agzit_users WHERE id = ?', [req.user.id]);
+    if (!user || order.billing_email.toLowerCase() !== user.email.toLowerCase()) {
+      return res.status(403).json({ ok: false, error: 'Order email does not match your account' });
+    }
+
+    // Verify order contains product 20640
+    const [[item]] = await pool.execute(
+      `SELECT oi.order_item_id
+       FROM wp_woocommerce_order_items oi
+       JOIN wp_woocommerce_order_itemmeta oim ON oim.order_item_id = oi.order_item_id
+       WHERE oi.order_id = ? AND oi.order_item_type = 'line_item'
+         AND oim.meta_key = '_product_id' AND oim.meta_value = '20640'
+       LIMIT 1`,
+      [orderId]
+    );
+    if (!item) {
+      return res.status(404).json({ ok: false, error: 'Order does not contain AI Polish product' });
+    }
+
+    // Insert or update credits
+    await pool.execute(
+      `INSERT INTO agzit_ai_polish_credits (user_id, credits_remaining, order_id)
+       VALUES (?, 3, ?)
+       ON DUPLICATE KEY UPDATE credits_remaining = credits_remaining + 3, order_id = VALUES(order_id), purchased_at = NOW()`,
+      [req.user.id, orderId]
+    );
+
+    return res.json({ ok: true, credits_remaining: 3 });
+  } catch (err) {
+    console.error('[ai-polish/verify-purchase]', err.message);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// POST /api/candidate/ai-polish/use-credit
+router.post('/ai-polish/use-credit', ...guard, async (req, res) => {
+  try {
+    const [[row]] = await pool.execute(
+      'SELECT credits_remaining FROM agzit_ai_polish_credits WHERE user_id = ?',
+      [req.user.id]
+    );
+    if (!row || row.credits_remaining <= 0) {
+      return res.status(403).json({ ok: false, error: 'No AI Polish credits remaining' });
+    }
+    await pool.execute(
+      'UPDATE agzit_ai_polish_credits SET credits_remaining = credits_remaining - 1 WHERE user_id = ?',
+      [req.user.id]
+    );
+    return res.json({ ok: true, credits_remaining: row.credits_remaining - 1 });
+  } catch (err) {
+    console.error('[ai-polish/use-credit]', err.message);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// POST /api/candidate/ai-polish — Full profile polish with optional JD
+router.post('/ai-polish', ...guard, async (req, res) => {
+  try {
+    // Check credits
+    const [[creditRow]] = await pool.execute(
+      'SELECT credits_remaining FROM agzit_ai_polish_credits WHERE user_id = ?',
+      [req.user.id]
+    );
+    if (!creditRow || creditRow.credits_remaining <= 0) {
+      return res.status(403).json({ ok: false, error: 'No AI Polish credits remaining. Purchase more to continue.' });
+    }
+
+    const profile = req.body.profile;
+    const jdText  = typeof req.body.jd_text === 'string' ? req.body.jd_text.trim() : '';
+
+    if (!profile || !profile.summary) {
+      return res.status(400).json({ ok: false, error: 'Profile data with summary is required' });
+    }
+
+    // Build the prompt
+    let systemPrompt, userContent;
+
+    if (jdText) {
+      systemPrompt = `You are an expert resume writer and ATS optimization specialist. The candidate wants their resume tailored to a specific job description. Rewrite the summary and job bullet points to:
+- Align with the job description keywords and requirements
+- Improve ATS keyword match score
+- Highlight relevant skills and experience
+- Keep all facts true — never invent experience or qualifications
+- Use strong action verbs and quantified achievements where possible
+Return a JSON object with: { "summary": "rewritten summary", "work_exp": [{ "description": "rewritten bullets for job 0" }, { "description": "..." }] }
+Only include work_exp entries that had descriptions. Return valid JSON only, no markdown.`;
+      userContent = `JOB DESCRIPTION:\n${jdText}\n\nCANDIDATE PROFILE:\nSummary: ${profile.summary}\n\n${(profile.work_exp || []).map((w, i) => `Job ${i}: ${w.title} at ${w.company}\nBullets: ${w.description}`).join('\n\n')}`;
+    } else {
+      systemPrompt = `You are an expert resume writer. Polish the candidate's resume to:
+- Improve clarity, remove redundancy, strengthen impact language
+- Use strong action verbs and quantify achievements where possible
+- Make it ATS-friendly with professional tone
+- Keep all facts true — never invent experience
+Return a JSON object with: { "summary": "polished summary", "work_exp": [{ "description": "polished bullets for job 0" }, { "description": "..." }] }
+Only include work_exp entries that had descriptions. Return valid JSON only, no markdown.`;
+      userContent = `CANDIDATE PROFILE:\nSummary: ${profile.summary}\n\n${(profile.work_exp || []).map((w, i) => `Job ${i}: ${w.title} at ${w.company}\nBullets: ${w.description}`).join('\n\n')}`;
+    }
+
+    const raw = await callOpenAI(systemPrompt, userContent, 3000);
+
+    // Parse JSON from response (strip markdown fences if present)
+    let polished;
+    try {
+      const jsonStr = raw.replace(/^```json?\s*/i, '').replace(/```\s*$/, '').trim();
+      polished = JSON.parse(jsonStr);
+    } catch (parseErr) {
+      console.error('[ai-polish] Failed to parse OpenAI response:', raw.substring(0, 200));
+      return res.status(502).json({ ok: false, error: 'AI returned invalid format. Please try again.' });
+    }
+
+    // Build polished profile
+    const polishedProfile = JSON.parse(JSON.stringify(profile));
+    if (polished.summary) polishedProfile.summary = polished.summary;
+    if (polished.work_exp && Array.isArray(polished.work_exp)) {
+      polished.work_exp.forEach((pw, i) => {
+        if (polishedProfile.work_exp && polishedProfile.work_exp[i] && pw.description) {
+          polishedProfile.work_exp[i].description = pw.description;
+        }
+      });
+    }
+
+    // Deduct credit
+    await pool.execute(
+      'UPDATE agzit_ai_polish_credits SET credits_remaining = credits_remaining - 1 WHERE user_id = ?',
+      [req.user.id]
+    );
+
+    return res.json({
+      ok: true,
+      polished_profile: polishedProfile,
+      credits_remaining: creditRow.credits_remaining - 1,
+    });
+  } catch (err) {
+    console.error('[ai-polish]', err.message);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── Saved Resumes ─────────────────────────────────────────────────────────────
+
+// POST /api/candidate/saved-resumes
+router.post('/saved-resumes', ...guard, async (req, res) => {
+  try {
+    const resumeName = typeof req.body.resume_name === 'string' ? req.body.resume_name.trim() : '';
+    const templateId = typeof req.body.template_id === 'string' ? req.body.template_id.trim() : '';
+    const resumeData = req.body.resume_data ? JSON.stringify(req.body.resume_data) : null;
+    const jdUsed     = typeof req.body.jd_used === 'string' ? req.body.jd_used.trim() : null;
+
+    if (!resumeName) return res.status(400).json({ ok: false, error: 'resume_name is required' });
+    if (!resumeData) return res.status(400).json({ ok: false, error: 'resume_data is required' });
+
+    const [result] = await pool.execute(
+      'INSERT INTO agzit_saved_resumes (user_id, resume_name, template_id, resume_data, jd_used) VALUES (?, ?, ?, ?, ?)',
+      [req.user.id, resumeName, templateId, resumeData, jdUsed]
+    );
+    return res.json({ ok: true, id: result.insertId });
+  } catch (err) {
+    console.error('[saved-resumes/create]', err.message);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// GET /api/candidate/saved-resumes
+router.get('/saved-resumes', ...guard, async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      'SELECT id, resume_name, template_id, jd_used, created_at, updated_at FROM agzit_saved_resumes WHERE user_id = ? ORDER BY updated_at DESC',
+      [req.user.id]
+    );
+    return res.json({ ok: true, resumes: rows });
+  } catch (err) {
+    console.error('[saved-resumes/list]', err.message);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// GET /api/candidate/saved-resumes/:id
+router.get('/saved-resumes/:id', ...guard, async (req, res) => {
+  try {
+    const [[row]] = await pool.execute(
+      'SELECT * FROM agzit_saved_resumes WHERE id = ? AND user_id = ?',
+      [req.params.id, req.user.id]
+    );
+    if (!row) return res.status(404).json({ ok: false, error: 'Resume not found' });
+    row.resume_data = JSON.parse(row.resume_data || '{}');
+    return res.json({ ok: true, resume: row });
+  } catch (err) {
+    console.error('[saved-resumes/get]', err.message);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// DELETE /api/candidate/saved-resumes/:id
+router.delete('/saved-resumes/:id', ...guard, async (req, res) => {
+  try {
+    const [result] = await pool.execute(
+      'DELETE FROM agzit_saved_resumes WHERE id = ? AND user_id = ?',
+      [req.params.id, req.user.id]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ ok: false, error: 'Resume not found' });
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[saved-resumes/delete]', err.message);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
 module.exports = router;
