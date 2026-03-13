@@ -27,7 +27,12 @@ const upload = multer({
   limits:  { fileSize: 5 * 1024 * 1024 },
 });
 
-const guard = [requireAuth, requireRole('dpr_candidate')];
+// Normalize req.user.id — JWT stores user_id, some routes reference req.user.id
+const normalizeUserId = (req, res, next) => {
+  if (req.user && !req.user.id) req.user.id = req.user.user_id;
+  next();
+};
+const guard = [requireAuth, requireRole('dpr_candidate'), normalizeUserId];
 
 // ── Unlock helpers (used by /resume/download for employer access checks) ─────
 
