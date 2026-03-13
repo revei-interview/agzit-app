@@ -140,7 +140,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 .vis-section .vis-grid { grid-template-columns: repeat(4, 1fr); gap: 12px; }
 
 /* ── Layout ──────────────────────────────────────────────────────────────── */
-.two-col { display: grid; grid-template-columns: 1fr 300px; gap: 18px; align-items: start; }
+.two-col { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; }
 .sidebar { display: grid; gap: 14px; }
 
 /* ── Card ────────────────────────────────────────────────────────────────── */
@@ -467,7 +467,6 @@ select.jp-input {
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 960px) {
   .two-col { grid-template-columns: 1fr; }
-  .sidebar { display: none; } /* hide sidebar on mobile — content is in tabs */
   .page { padding: 20px 20px 60px; }
   .hero { padding: 26px 24px; }
   .hero-heading { font-size: 22px; }
@@ -1038,18 +1037,9 @@ select.jp-input {
         </div><!-- /.tabs-outer -->
       </div>
 
-      <!-- Sidebar (minimal) -->
-      <div class="sidebar reveal">
-        <div class="card" style="border-top:3px solid #1a44c2;">
-          <div class="card-title">Interview Credits</div>
-          <div id="sidebar-credits"></div>
-          <div style="display:grid;gap:8px;margin-top:14px;">
-            <a href="https://agzit.com/checkout/?add-to-cart=19594" class="btn-blue">Buy 20-min Plan</a>
-            <a href="https://agzit.com/checkout/?add-to-cart=19596" class="btn-secondary">Buy 30-min Plan</a>
-          </div>
-        </div>
-        <a id="sb-preview" href="#" class="btn-secondary" style="display:none;" target="_blank">View Public Profile</a>
-      </div>
+      <!-- Hidden elements for JS compatibility -->
+      <div id="sidebar-credits" style="display:none;"></div>
+      <a id="sb-preview" href="#" style="display:none;" target="_blank"></a>
 
     </div><!-- /.two-col -->
   </div><!-- /.page -->
