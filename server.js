@@ -336,6 +336,21 @@ async function initDB() {
       INDEX idx_created_at (created_at)
     )
   `);
+
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_referrals (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      referrer_id INT NOT NULL,
+      referral_email VARCHAR(255) NOT NULL,
+      referred_user_id INT NULL,
+      status ENUM('pending', 'completed') DEFAULT 'pending',
+      referred_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      completed_at TIMESTAMP NULL,
+      INDEX idx_referrer (referrer_id),
+      INDEX idx_email (referral_email),
+      INDEX idx_status (status)
+    )
+  `);
   // Migration: rename post_id → profile_post_id and fix unique key if old schema exists
   try {
     await pool.execute('ALTER TABLE agzit_resume_files CHANGE COLUMN post_id profile_post_id INT NULL');

@@ -725,6 +725,151 @@ Return ONLY valid JSON:
   }
 });
 
+// ── POST /api/candidate/send-referral ────────────────────────────────────────
+router.post('/send-referral', ...guard, async (req, res) => {
+  try {
+    const userId = req.user.user_id || req.user.id;
+    const { referral_email } = req.body;
+
+    if (!referral_email || !referral_email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      return res.status(400).json({ error: 'Invalid email address' });
+    }
+
+    // Get referrer info
+    const [[referrer]] = await pool.execute(
+      'SELECT id, first_name, email FROM agzit_users WHERE id = ?',
+      [userId]
+    );
+
+    if (!referrer) return res.status(404).json({ error: 'User not found' });
+
+    // Check if already invited (prevent spam)
+    const [[existing]] = await pool.execute(
+      'SELECT id FROM agzit_referrals WHERE referrer_id = ? AND referral_email = ? AND status IN ("pending", "completed")',
+      [userId, referral_email]
+    );
+
+    if (existing) {
+      return res.status(400).json({ error: 'Already invited this email' });
+    }
+
+    // Create referral record
+    const [referralResult] = await pool.execute(
+      `INSERT INTO agzit_referrals (referrer_id, referral_email, status, referred_at)
+       VALUES (?, ?, 'pending', NOW())`,
+      [userId, referral_email]
+    );
+
+    const referralId = referralResult.insertId;
+    const referralLink = `https://app.agzit.com/register?ref=${referralId}`;
+
+    // Send email via Brevo
+    try {
+      const emailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': process.env.BREVO_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          to: [{ email: referral_email }],
+          sender: { email: 'noreply@agzit.com', name: 'AGZIT Career Intelligence' },
+          subject: `${referrer.first_name} invited you to AGZIT - Get 1 Free Career Report!`,
+          htmlContent: `
+            <h2>You're invited to AGZIT!</h2>
+            <p>Hi there,</p>
+            <p><strong>${referrer.first_name}</strong> thinks you'd be great on AGZIT - a career intelligence platform for professionals.</p>
+
+            <h3>What you get:</h3>
+            <ul>
+              <li>AI-powered mock interviews (10 competencies scored)</li>
+              <li>Verification badges (Silver/Gold/Platinum)</li>
+              <li>Career Analyzer (3 strategic paths with salary insights)</li>
+              <li>1 FREE Career Analyzer report</li>
+              <li>Global job market insights</li>
+            </ul>
+
+            <p><a href="${referralLink}" style="background: #1A44C2; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">Create Your Profile Now</a></p>
+
+            <p>Bonus: When you sign up, ${referrer.first_name} gets 1 free Career Analyzer credit!</p>
+
+            <p>Best,<br>The AGZIT Team</p>
+          `
+        })
+      });
+
+      if (!emailResponse.ok) {
+        console.error('Brevo email error:', await emailResponse.text());
+      }
+    } catch (emailErr) {
+      console.error('Email send failed:', emailErr.message);
+    }
+
+    res.json({
+      ok: true,
+      message: 'Referral invite sent!',
+      referral_id: referralId
+    });
+
+  } catch (error) {
+    console.error('Send referral error:', error);
+    res.status(500).json({ error: 'Failed to send referral' });
+  }
+});
+
+// ── GET /api/candidate/referral-stats ────────────────────────────────────────
+router.get('/referral-stats', ...guard, async (req, res) => {
+  try {
+    const userId = req.user.user_id || req.user.id;
+
+    const [[stats]] = await pool.execute(
+      `SELECT
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_count,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as credits_earned
+      FROM agzit_referrals WHERE referrer_id = ?`,
+      [userId]
+    );
+
+    res.json({
+      ok: true,
+      pending_invites: stats.pending_count || 0,
+      successful_referrals: stats.completed_count || 0,
+      credits_earned: stats.credits_earned || 0
+    });
+
+  } catch (error) {
+    console.error('Referral stats error:', error);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
+// ── GET /api/candidate/referral-history ──────────────────────────────────────
+router.get('/referral-history', ...guard, async (req, res) => {
+  try {
+    const userId = req.user.user_id || req.user.id;
+
+    const [referrals] = await pool.execute(
+      `SELECT
+        id, referral_email, status, referred_at, completed_at
+      FROM agzit_referrals
+      WHERE referrer_id = ?
+      ORDER BY referred_at DESC
+      LIMIT 50`,
+      [userId]
+    );
+
+    res.json({
+      ok: true,
+      referrals: referrals || []
+    });
+
+  } catch (error) {
+    console.error('Referral history error:', error);
+    res.status(500).json({ error: 'Failed to fetch referral history' });
+  }
+});
+
 // ── GET /api/candidate/scorecard ──────────────────────────────────────────────
 // Returns latest scored session + all scored sessions (newest first)
 
