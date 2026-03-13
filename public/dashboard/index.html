@@ -824,68 +824,81 @@ select.jp-input {
             <div id="ov-main-content">
 
               <!-- ROW 1: Key Stats -->
-              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;" id="ov-stats-row">
-                <div style="background:white;border:1px solid #e4e6ef;padding:16px;border-radius:8px;text-align:center;">
-                  <div style="font-size:12px;color:#7c83a0;margin-bottom:8px;">PROFILE STATUS</div>
-                  <div style="font-size:24px;font-weight:600;" id="ov-stat-profile">--</div>
-                  <div style="font-size:11px;color:#7c83a0;margin-top:4px;" id="ov-stat-profile-sub"></div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:28px;" id="ov-stats-row">
+                <div style="background:white;border:1px solid #e8eaf0;padding:20px 16px;border-radius:12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.04);position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.2s;" onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 1px 3px rgba(0,0,0,0.04)'">
+                  <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#1a44c2;border-radius:12px 12px 0 0;"></div>
+                  <div style="font-size:11px;font-weight:600;letter-spacing:0.5px;color:#7c83a0;margin-bottom:10px;text-transform:uppercase;">Profile Status</div>
+                  <div style="font-size:28px;font-weight:700;color:#09101f;line-height:1;" id="ov-stat-profile">--</div>
+                  <div style="font-size:11px;color:#7c83a0;margin-top:6px;" id="ov-stat-profile-sub"></div>
                 </div>
-                <div style="background:white;border:1px solid #e4e6ef;padding:16px;border-radius:8px;text-align:center;">
-                  <div style="font-size:12px;color:#7c83a0;margin-bottom:8px;">INTERVIEWS</div>
-                  <div style="font-size:24px;font-weight:600;color:#1a44c2;" id="ov-stat-interviews">0</div>
-                  <div style="font-size:11px;color:#7c83a0;margin-top:4px;" id="ov-stat-interviews-sub">Completed</div>
+                <div style="background:white;border:1px solid #e8eaf0;padding:20px 16px;border-radius:12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.04);position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.2s;" onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 1px 3px rgba(0,0,0,0.04)'">
+                  <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#1a44c2;border-radius:12px 12px 0 0;"></div>
+                  <div style="font-size:11px;font-weight:600;letter-spacing:0.5px;color:#7c83a0;margin-bottom:10px;text-transform:uppercase;">Interviews</div>
+                  <div style="font-size:28px;font-weight:700;color:#1a44c2;line-height:1;" id="ov-stat-interviews">0</div>
+                  <div style="font-size:11px;color:#7c83a0;margin-top:6px;" id="ov-stat-interviews-sub">Completed</div>
                 </div>
-                <div style="background:white;border:1px solid #e4e6ef;padding:16px;border-radius:8px;text-align:center;">
-                  <div style="font-size:12px;color:#7c83a0;margin-bottom:8px;">BADGES EARNED</div>
-                  <div style="font-size:24px;font-weight:600;color:#ff9800;" id="ov-stat-badges">--</div>
-                  <div style="font-size:11px;color:#7c83a0;margin-top:4px;" id="ov-stat-badges-sub">Do 3 Interviews</div>
+                <div style="background:white;border:1px solid #e8eaf0;padding:20px 16px;border-radius:12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.04);position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.2s;" onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 1px 3px rgba(0,0,0,0.04)'">
+                  <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#ff9800;border-radius:12px 12px 0 0;"></div>
+                  <div style="font-size:11px;font-weight:600;letter-spacing:0.5px;color:#7c83a0;margin-bottom:10px;text-transform:uppercase;">Badges Earned</div>
+                  <div style="font-size:28px;font-weight:700;color:#ff9800;line-height:1;" id="ov-stat-badges">--</div>
+                  <div style="font-size:11px;color:#7c83a0;margin-top:6px;" id="ov-stat-badges-sub">Do 3 Interviews</div>
                 </div>
-                <div style="background:white;border:1px solid #e4e6ef;padding:16px;border-radius:8px;text-align:center;">
-                  <div style="font-size:12px;color:#7c83a0;margin-bottom:8px;">CREDITS LEFT</div>
-                  <div style="font-size:24px;font-weight:600;color:#e53935;" id="ov-stat-credits">0</div>
-                  <div style="font-size:11px;color:#7c83a0;margin-top:4px;" id="ov-stat-credits-sub">Buy or Refer</div>
+                <div style="background:white;border:1px solid #e8eaf0;padding:20px 16px;border-radius:12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.04);position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.2s;" onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 1px 3px rgba(0,0,0,0.04)'">
+                  <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#e53935;border-radius:12px 12px 0 0;"></div>
+                  <div style="font-size:11px;font-weight:600;letter-spacing:0.5px;color:#7c83a0;margin-bottom:10px;text-transform:uppercase;">Credits Left</div>
+                  <div style="font-size:28px;font-weight:700;color:#e53935;line-height:1;" id="ov-stat-credits">0</div>
+                  <div style="font-size:11px;color:#7c83a0;margin-top:6px;" id="ov-stat-credits-sub">Buy or Refer</div>
                 </div>
               </div>
 
               <!-- ROW 2: Profile Overview + Next Steps -->
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
-                <div style="background:white;border:1px solid #e4e6ef;padding:20px;border-radius:8px;">
-                  <h3 style="font-size:14px;font-weight:600;color:#09101f;margin:0 0 12px;">Profile Overview</h3>
-                  <div id="ov-profile-summary" style="font-size:13px;color:#3a4163;line-height:1.8;"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px;">
+                <!-- Profile Overview (unique fields only: DPR ID, Industry, Resume) -->
+                <div style="background:white;border:1px solid #e8eaf0;padding:24px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.04);position:relative;overflow:hidden;">
+                  <div style="position:absolute;top:0;left:0;bottom:0;width:3px;background:#1a44c2;"></div>
+                  <h3 style="font-size:13px;font-weight:700;color:#09101f;margin:0 0 16px;text-transform:uppercase;letter-spacing:0.3px;">Profile Overview</h3>
+                  <div id="ov-profile-summary" style="font-size:13px;color:#3a4163;line-height:2;"></div>
+                  <div style="display:flex;gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid #f0f1f5;">
+                    <a href="/profile-edit" style="flex:1;padding:9px 16px;background:#1a44c2;color:white;border-radius:8px;font-size:12px;font-weight:600;text-align:center;text-decoration:none;transition:background 0.2s;" onmouseenter="this.style.background='#153ab0'" onmouseleave="this.style.background='#1a44c2'">Edit Profile</a>
+                    <a id="ov-view-public-btn" href="#" target="_blank" style="flex:1;padding:9px 16px;background:white;color:#1a44c2;border:1px solid #1a44c2;border-radius:8px;font-size:12px;font-weight:600;text-align:center;text-decoration:none;transition:all 0.2s;display:none;" onmouseenter="this.style.background='#f0f4ff'" onmouseleave="this.style.background='white'">View Public Profile</a>
+                  </div>
                 </div>
-                <div style="background:linear-gradient(135deg,#eaf0ff 0%,#f5faff 100%);border:1px solid #1a44c2;padding:20px;border-radius:8px;">
-                  <h3 style="font-size:14px;font-weight:600;color:#1a44c2;margin:0 0 12px;">Next Steps</h3>
+                <!-- Next Steps -->
+                <div style="background:linear-gradient(135deg,#edf1ff 0%,#f7f9ff 100%);border:1px solid #c5d0f0;padding:24px;border-radius:12px;box-shadow:0 1px 3px rgba(26,68,194,0.06);position:relative;overflow:hidden;">
+                  <div style="position:absolute;top:0;left:0;bottom:0;width:3px;background:#1a44c2;"></div>
+                  <h3 style="font-size:13px;font-weight:700;color:#1a44c2;margin:0 0 16px;text-transform:uppercase;letter-spacing:0.3px;">Next Steps</h3>
                   <div id="ov-next-steps" style="font-size:13px;color:#3a4163;"></div>
-                  <a href="/interview-start" style="display:block;width:100%;margin-top:12px;padding:10px;background:#1a44c2;color:white;border:none;border-radius:6px;font-weight:500;text-align:center;text-decoration:none;font-size:13px;">Start Mock Interview</a>
+                  <a href="/interview-start" style="display:block;width:100%;margin-top:16px;padding:11px;background:#1a44c2;color:white;border:none;border-radius:8px;font-weight:600;text-align:center;text-decoration:none;font-size:13px;transition:background 0.2s;box-sizing:border-box;" onmouseenter="this.style.background='#153ab0'" onmouseleave="this.style.background='#1a44c2'">Start Mock Interview</a>
                 </div>
               </div>
 
-              <!-- ROW 3: Career Progression -->
-              <div style="background:white;border:1px solid #e4e6ef;padding:20px;border-radius:8px;margin-bottom:24px;">
-                <h3 style="font-size:14px;font-weight:600;color:#09101f;margin:0 0 16px;">Career Progression</h3>
-                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:13px;" id="ov-career-grid">
-                  <div style="padding:12px;background:#f5f6fa;border-radius:6px;">
-                    <div style="color:#7c83a0;margin-bottom:4px;">Current Role</div>
-                    <div style="font-weight:500;color:#09101f;" id="ov-career-role">--</div>
+              <!-- ROW 3: Career Progression (unique: Current Role, Experience, Skills) -->
+              <div style="background:white;border:1px solid #e8eaf0;padding:24px;border-radius:12px;margin-bottom:28px;box-shadow:0 1px 3px rgba(0,0,0,0.04);position:relative;overflow:hidden;">
+                <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#1a44c2,#6366f1);"></div>
+                <h3 style="font-size:13px;font-weight:700;color:#09101f;margin:0 0 20px;text-transform:uppercase;letter-spacing:0.3px;">Career Progression</h3>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;" id="ov-career-grid">
+                  <div style="padding:16px;background:#f8f9fc;border-radius:10px;text-align:center;border:1px solid #eef0f5;">
+                    <div style="font-size:11px;font-weight:600;color:#7c83a0;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.3px;">Current Role</div>
+                    <div style="font-size:15px;font-weight:600;color:#09101f;" id="ov-career-role">--</div>
                   </div>
-                  <div style="padding:12px;background:#f5f6fa;border-radius:6px;">
-                    <div style="color:#7c83a0;margin-bottom:4px;">Years Experience</div>
-                    <div style="font-weight:500;color:#09101f;" id="ov-career-exp">--</div>
+                  <div style="padding:16px;background:#f8f9fc;border-radius:10px;text-align:center;border:1px solid #eef0f5;">
+                    <div style="font-size:11px;font-weight:600;color:#7c83a0;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.3px;">Years Experience</div>
+                    <div style="font-size:15px;font-weight:600;color:#09101f;" id="ov-career-exp">--</div>
                   </div>
-                  <div style="padding:12px;background:#f5f6fa;border-radius:6px;">
-                    <div style="color:#7c83a0;margin-bottom:4px;">Skills Verified</div>
-                    <div style="font-weight:500;color:#09101f;" id="ov-career-skills">0 / 10</div>
+                  <div style="padding:16px;background:#f8f9fc;border-radius:10px;text-align:center;border:1px solid #eef0f5;">
+                    <div style="font-size:11px;font-weight:600;color:#7c83a0;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.3px;">Skills Verified</div>
+                    <div style="font-size:15px;font-weight:600;color:#09101f;" id="ov-career-skills">0 / 10</div>
                   </div>
                 </div>
               </div>
 
               <!-- ROW 4: Action Buttons -->
-              <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;">
-                <a href="/interview-start" style="padding:12px;background:#1a44c2;color:white;border:none;border-radius:6px;font-size:13px;font-weight:500;text-align:center;text-decoration:none;">Start Interview</a>
-                <a href="#" onclick="switchTab('career-analyzer');return false;" style="padding:12px;background:#0b7a47;color:white;border:none;border-radius:6px;font-size:13px;font-weight:500;text-align:center;text-decoration:none;">Career Analyzer</a>
-                <a href="/resume-builder" style="padding:12px;background:#6366f1;color:white;border:none;border-radius:6px;font-size:13px;font-weight:500;text-align:center;text-decoration:none;">Resume Builder</a>
-                <a href="#" onclick="switchTab('referral');return false;" style="padding:12px;background:#ff9800;color:white;border:none;border-radius:6px;font-size:13px;font-weight:500;text-align:center;text-decoration:none;">Refer Friends</a>
-                <a href="https://agzit.com/pricing/" style="padding:12px;background:white;color:#1a44c2;border:1px solid #1a44c2;border-radius:6px;font-size:13px;font-weight:500;text-align:center;text-decoration:none;">Buy Credits</a>
+              <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;">
+                <a href="/interview-start" style="padding:13px 12px;background:#1a44c2;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;text-align:center;text-decoration:none;transition:all 0.2s;box-shadow:0 2px 6px rgba(26,68,194,0.2);" onmouseenter="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(26,68,194,0.3)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 2px 6px rgba(26,68,194,0.2)'">Start Interview</a>
+                <a href="#" onclick="switchTab('career-analyzer');return false;" style="padding:13px 12px;background:#0b7a47;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;text-align:center;text-decoration:none;transition:all 0.2s;box-shadow:0 2px 6px rgba(11,122,71,0.2);" onmouseenter="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(11,122,71,0.3)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 2px 6px rgba(11,122,71,0.2)'">Career Analyzer</a>
+                <a href="/resume-builder" style="padding:13px 12px;background:#6366f1;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;text-align:center;text-decoration:none;transition:all 0.2s;box-shadow:0 2px 6px rgba(99,102,241,0.2);" onmouseenter="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(99,102,241,0.3)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 2px 6px rgba(99,102,241,0.2)'">Resume Builder</a>
+                <a href="#" onclick="switchTab('referral');return false;" style="padding:13px 12px;background:#ff9800;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;text-align:center;text-decoration:none;transition:all 0.2s;box-shadow:0 2px 6px rgba(255,152,0,0.2);" onmouseenter="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(255,152,0,0.3)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 2px 6px rgba(255,152,0,0.2)'">Refer Friends</a>
+                <a href="https://agzit.com/pricing/" style="padding:13px 12px;background:white;color:#1a44c2;border:1.5px solid #1a44c2;border-radius:10px;font-size:13px;font-weight:600;text-align:center;text-decoration:none;transition:all 0.2s;" onmouseenter="this.style.background='#f0f4ff';this.style.transform='translateY(-1px)'" onmouseleave="this.style.background='white';this.style.transform=''">Buy Credits</a>
               </div>
 
               <a id="ov-preview-link" href="#" target="_blank" style="font-size:13px;color:var(--blue);text-decoration:none;display:none;margin-top:12px;text-align:center;display:none;"></a>
@@ -1801,18 +1814,14 @@ function render(d, pd, id) {
   const pubUrl = prof.dpr_id && isApproved ? 'https://agzit.com/view-profile/?dpr_id=' + encodeURIComponent(prof.dpr_id) : '';
 
   el('ov-profile-summary').innerHTML = [
-    prof.dpr_id ? '<div><strong>DPR ID:</strong> ' + esc(prof.dpr_id) + '</div>' : '',
-    prof.desired_role ? '<div><strong>Current Role:</strong> ' + esc(prof.desired_role) + '</div>' : '',
+    prof.dpr_id ? '<div><strong>DPR ID:</strong> <span style="font-family:monospace;background:#f0f4ff;padding:2px 8px;border-radius:4px;font-size:12px;">' + esc(prof.dpr_id) + '</span></div>' : '',
     '<div><strong>Industry:</strong> ' + esc(industry || 'Not specified') + '</div>',
-    '<div><strong>Experience:</strong> ' + (expYears !== '--' ? esc(String(expYears)) + ' years' : 'Not specified') + '</div>',
     '<div><strong>Resume:</strong> ' + (hasResume
-      ? '\u2713 Uploaded <a href="/api/candidate/download?type=resume" target="_blank" style="color:#1a44c2;text-decoration:none;font-size:12px;margin-left:8px;">Download PDF</a>'
-      : '\u2717 Not uploaded <a href="/profile-edit" style="color:#1a44c2;text-decoration:none;font-size:12px;margin-left:8px;">Upload now</a>') + '</div>',
-    '<div style="margin-top:12px;">' +
-      '<a href="/profile-edit" style="color:#1a44c2;text-decoration:none;font-size:12px;">Edit Profile \u2192</a>' +
-      (pubUrl ? ' | <a href="' + pubUrl + '" target="_blank" style="color:#1a44c2;text-decoration:none;font-size:12px;">View Public Profile \u2192</a>' : '') +
-    '</div>'
+      ? '<span style="color:#0b7a47;font-weight:500;">\u2713 Uploaded</span> <a href="/api/candidate/download?type=resume" target="_blank" style="color:#1a44c2;text-decoration:none;font-size:12px;margin-left:6px;font-weight:500;">Download</a>'
+      : '<span style="color:#e53935;font-weight:500;">\u2717 Not uploaded</span> <a href="/profile-edit" style="color:#1a44c2;text-decoration:none;font-size:12px;margin-left:6px;font-weight:500;">Upload now</a>') + '</div>',
   ].join('');
+  var pubBtn = el('ov-view-public-btn');
+  if (pubUrl && pubBtn) { pubBtn.href = pubUrl; pubBtn.style.display = ''; }
 
   /* ROW 2: Next steps */
   const steps = [];
