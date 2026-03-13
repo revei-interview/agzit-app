@@ -290,6 +290,52 @@ async function initDB() {
       UNIQUE KEY unique_user_badge (user_id, badge_type, competency_name)
     )
   `);
+
+  // Candidate credits table
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_candidate_credits (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      user_id INT NOT NULL,
+      credit_balance INT DEFAULT 0,
+      total_credits_purchased INT DEFAULT 0,
+      total_credits_earned INT DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_user (user_id),
+      INDEX idx_user_id (user_id)
+    )
+  `);
+
+  // Career reports table
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_career_reports (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      user_id INT NOT NULL,
+      report_json LONGTEXT,
+      dpr_snapshot JSON,
+      badges_snapshot JSON,
+      openai_response_full LONGTEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_user_id (user_id),
+      INDEX idx_created_at (created_at)
+    )
+  `);
+
+  // Credit transactions table
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_credit_transactions (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      user_id INT NOT NULL,
+      transaction_type ENUM('purchase', 'referral', 'usage') NOT NULL,
+      amount INT NOT NULL,
+      reference_id VARCHAR(100),
+      description VARCHAR(255),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_user_id (user_id),
+      INDEX idx_type (transaction_type),
+      INDEX idx_created_at (created_at)
+    )
+  `);
   // Migration: rename post_id → profile_post_id and fix unique key if old schema exists
   try {
     await pool.execute('ALTER TABLE agzit_resume_files CHANGE COLUMN post_id profile_post_id INT NULL');

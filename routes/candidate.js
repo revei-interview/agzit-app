@@ -553,7 +553,7 @@ router.get('/profile', ...guard, async (req, res) => {
 });
 
 // ── POST /api/candidate/career-analyzer ──────────────────────────────────────
-// Generate AI career analysis (costs 1 credit)
+// Generate AI career analysis with dynamic salary research (costs 1 credit)
 
 router.post('/career-analyzer', ...guard, async (req, res) => {
   try {
@@ -579,12 +579,15 @@ router.post('/career-analyzer', ...guard, async (req, res) => {
     }
     const { meta } = data;
 
-    // Parse repeaters for work history and education
+    // Parse repeaters
     const workExperience = parseRepeater(meta, 'work_experience', [
       'job_title', 'company_name', 'start_date', 'end_date', 'Currently_working',
     ]);
     const education = parseRepeater(meta, 'education', [
       'degree', 'institution_name',
+    ]);
+    const prefLocations = parseRepeater(meta, 'preferred_location', [
+      'preferred_city_name', 'preferred_country_name',
     ]);
 
     // Get badges
@@ -594,29 +597,76 @@ router.post('/career-analyzer', ...guard, async (req, res) => {
       ? Math.round(scored.reduce((sum, b) => sum + b.score, 0) / scored.length)
       : null;
 
-    // Build OpenAI prompt
-    const systemPrompt = `You are an expert career strategist. Analyze career profiles and provide 3 strategic paths considering salary progression, work stability, and industry trends. Return ONLY valid JSON.`;
+    // Extract location and industry
+    const city = meta.residential_city || (prefLocations[0] && prefLocations[0].preferred_city_name) || 'Not specified';
+    const country = meta.residential_country || meta.country_of_nationality || 'IN';
+    const industry = meta.compliance_domains || 'Not specified';
+    const expYears = parseInt(meta.total_work_experience) || 0;
 
-    const userPrompt = `Analyze this candidate and suggest 3 career paths with salary insights.
+    // Build comprehensive OpenAI prompt with dynamic salary research
+    const systemPrompt = `You are an expert global career strategist with deep knowledge of:
+- Salary markets across 50+ countries
+- Industry trends and job market dynamics
+- Realistic career progression paths
+- Cost of living and purchasing power in different locations
 
-PROFILE:
+Provide REALISTIC, DATA-DRIVEN career advice using actual 2024-2025 market data.
+Return ONLY valid JSON. No preamble or explanation.`;
+
+    const userPrompt = `Analyze this candidate's career profile and suggest 3 strategic next roles with location-specific salary insights.
+
+CANDIDATE PROFILE:
 Name: ${meta.full_name || 'Not specified'}
-Role: ${meta.desired_role || 'Not specified'}
-Experience: ${meta.total_work_experience || 0} years
-Industry: ${meta.compliance_domains || 'Not specified'}
+Current Location: ${city}, ${country}
+Current Role: ${meta.desired_role || 'Not specified'}
+Industry: ${industry}
+Experience: ${expYears} years
 Current Salary: ${meta.current_annual_ctc_with_currency || 'Not specified'}
 Expected Salary: ${meta.expected_annual_ctc_with_currency || 'Not specified'}
 Skills: ${meta.soft_skills || 'Not specified'}
 Work Level: ${meta.work_level || 'Not specified'}
+Interview Performance: ${avgScore ? avgScore + '/100' : 'Not assessed'}
+Verified Skills: ${scored.map(b => b.competency).join(', ') || 'None yet'}
+Open to Relocation: ${meta.open_to_relocate === '1' ? 'Yes' : 'No'}
+Preferred Locations: ${prefLocations.map(p => (p.preferred_city_name || '') + ', ' + (p.preferred_country_name || '')).join('; ') || 'Current location preferred'}
 Employment History:
 ${workExperience.map(j => `  ${j.job_title || '?'} at ${j.company_name || '?'} (${j.start_date || '?'} - ${j.Currently_working === 'yes' ? 'Present' : j.end_date || '?'})`).join('\n') || '  None listed'}
 Education:
 ${education.map(e => `  ${e.degree || '?'} from ${e.institution_name || '?'}`).join('\n') || '  None listed'}
-Performance: ${avgScore ? avgScore + '/100' : 'No interviews'}
-Verified Skills: ${scored.map(b => b.competency).join(', ') || 'None yet'}
 
-For each path: role title, timeline (months), required skills, salary range, why fit, industries, work-life balance, stability, switch timing, risks, next steps.
-Return ONLY valid JSON with structure: { "paths": [{ "role", "timeline_months", "required_skills", "salary_range", "fit_reason", "industries", "work_life_balance", "stability", "timing_strategy", "risks", "next_actions" }] }`;
+RESEARCH TASK:
+For this ${industry} professional in ${city}, ${country}, research and provide:
+1. Three realistic career paths (specific to their industry + location)
+2. Current salary level in ${city} for their role
+3. Salary progression for EACH path in ${city} (or if relocation, in that specific city)
+4. Market demand for each role in their location
+5. Timeline to transition (realistic, considering market conditions)
+
+FOR EACH PATH PROVIDE:
+- role_title: Specific job title in their industry
+- timeline_months: Realistic months to transition
+- required_skills: 3-4 specific skills needed
+- current_salary_range: What they earn now in ${city}
+- expected_salary_range: What they'll earn in new role in ${city}
+- salary_growth_percentage: % increase from current
+- fit_reason: Leverage their current strengths
+- industries: Where this role exists
+- work_life_balance: Balanced/Demanding/Flexible
+- stability: Stable/Growth/Risk
+- timing_strategy: When to move (market conditions, experience level)
+- risks: Challenges they might face
+- risk_mitigation: How to overcome risks
+- next_actions: 4-5 concrete actions to start now
+
+CRITICAL: Use REAL 2024-2025 salary data for ${city}, ${country}. No vague ranges like "5L-25L" — be SPECIFIC (e.g., "6-8L", "10-14L"). Account for ${expYears} years experience.
+
+Return ONLY valid JSON:
+{
+  "paths": [{ "role_title", "timeline_months", "required_skills", "current_salary_range", "expected_salary_range", "salary_growth_percentage", "fit_reason", "industries", "work_life_balance", "stability", "timing_strategy", "risks", "risk_mitigation", "next_actions" }],
+  "overall_insights": "...",
+  "skill_gaps": [...],
+  "market_analysis": "..."
+}`;
 
     // Call OpenAI
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -632,17 +682,22 @@ Return ONLY valid JSON with structure: { "paths": [{ "role", "timeline_months", 
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.7,
-        max_tokens: 3000,
+        max_tokens: 3500,
         response_format: { type: 'json_object' }
       })
     });
 
     if (!openaiResponse.ok) {
-      return res.status(500).json({ error: 'Failed to generate analysis' });
+      const err = await openaiResponse.json().catch(() => ({}));
+      console.error('OpenAI error:', err);
+      return res.status(500).json({ error: 'Failed to generate career analysis' });
     }
 
     const openaiData = await openaiResponse.json();
     const reportData = JSON.parse(openaiData.choices[0].message.content);
+
+    // Add location metadata
+    reportData.location = { city, country };
 
     // Save report
     await pool.execute(
@@ -658,8 +713,8 @@ Return ONLY valid JSON with structure: { "paths": [{ "role", "timeline_months", 
 
     // Log transaction
     await pool.execute(
-      "INSERT INTO agzit_credit_transactions (user_id, transaction_type, amount, description) VALUES (?, 'usage', 1, 'Career Analyzer report generated')",
-      [userId]
+      "INSERT INTO agzit_credit_transactions (user_id, transaction_type, amount, description) VALUES (?, 'usage', 1, ?)",
+      [userId, `Career Analyzer: ${industry} in ${city}`]
     );
 
     res.json({ ok: true, report: reportData, creditsRemaining: credits.credit_balance - 1 });
