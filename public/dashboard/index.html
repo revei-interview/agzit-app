@@ -529,7 +529,7 @@ select.jp-input {
 .step-done .step-title { color: var(--green); }
 .step-sub { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
 
-/* Badge styles */
+/* Badge styles - Tier System */
 .badges-section {
   margin: 30px 0;
   padding: 20px;
@@ -540,45 +540,188 @@ select.jp-input {
 
 .badges-section h3 {
   font-size: 16px;
-  margin: 0 0 16px;
+  margin: 0 0 24px;
   color: var(--ink);
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .badges-container {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Experience Verified Badge */
+.badge-experience {
+  padding: 20px;
+  background: linear-gradient(135deg, var(--green-lt) 0%, #E8F5E9 100%);
+  border: 2px solid var(--green);
+  border-radius: var(--border-radius-lg);
+}
+
+.badge-experience .badge-header {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
   gap: 12px;
 }
 
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-radius: 24px;
-  background: var(--green-lt, #E4F5EE);
-  border: 1px solid var(--green, #0B7A47);
-  color: var(--green, #0B7A47);
+.badge-experience .interview-count {
+  font-size: 13px;
+  color: var(--soft);
+  font-weight: 400;
+}
+
+.badge-experience .badge-description {
   font-size: 14px;
+  color: var(--soft);
+  margin: 0;
+}
+
+/* Competency Badges Grid */
+.competency-badges {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.badge-competency {
+  padding: 20px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: var(--border-radius-lg);
+  transition: all 0.3s ease;
+}
+
+.badge-competency:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.badge-competency.tier-silver {
+  border-left: 4px solid #C0C0C0;
+  background: #F5F5F5;
+}
+
+.badge-competency.tier-gold {
+  border-left: 4px solid #FFD700;
+  background: #FFFACD;
+}
+
+.badge-competency.tier-platinum {
+  border-left: 4px solid #E5E4E2;
+  background: #FAFAF8;
+}
+
+.badge-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.badge-competency h4 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--ink);
+  font-weight: 600;
+  flex: 1;
+}
+
+.badge-tier-icon {
+  font-size: 28px;
+  cursor: help;
+}
+
+/* Score Section */
+.score-section {
+  margin-bottom: 12px;
+}
+
+.score-text {
+  font-size: 13px;
+  color: var(--soft);
+  margin: 0 0 8px;
   font-weight: 500;
 }
 
-.badge::before {
-  content: "✓";
-  font-weight: 700;
-  font-size: 16px;
+.score-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--line);
+  border-radius: 4px;
+  overflow: hidden;
 }
 
-.badge-score {
+.score-fill {
+  height: 100%;
+  background: #FFD700;
+  transition: width 0.4s ease;
+}
+
+.badge-competency.tier-silver .score-fill {
+  background: #C0C0C0;
+}
+
+.badge-competency.tier-platinum .score-fill {
+  background: #E5E4E2;
+}
+
+/* Competency Name */
+.competency-name {
   font-size: 12px;
-  opacity: 0.8;
+  color: var(--muted);
+  margin: 12px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
+/* Tier Info */
+.tier-info {
+  font-size: 13px;
+  color: var(--soft);
+  margin: 12px 0;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 6px;
+  line-height: 1.5;
+}
+
+.tier-info strong {
+  color: var(--ink);
+}
+
+/* Next Tier / Expert */
+.next-tier {
+  font-size: 12px;
+  color: #FF9800;
+  margin: 12px 0 0;
+  padding: 8px;
+  background: #FFF3E0;
+  border-radius: 4px;
+}
+
+.expert {
+  font-size: 12px;
+  color: #0B7A47;
+  margin: 12px 0 0;
+  padding: 8px;
+  background: var(--green-lt);
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* No Badges */
 .no-badges {
   font-size: 14px;
-  color: var(--muted, #7C83A0);
-  padding: 16px;
+  color: var(--muted);
+  padding: 24px;
+  text-align: center;
+  background: var(--surface);
+  border-radius: var(--border-radius-lg);
 }
 </style>
 <link rel="stylesheet" href="/shared/searchable-select.css">
@@ -1229,22 +1372,91 @@ async function init() {
 }
 
 function displayBadges(badges) {
-  const container = document.getElementById("badges-container");
+  const container = document.getElementById('badges-container');
+
   if (!badges || badges.length === 0) {
-    container.innerHTML = `<div class="no-badges">Complete 3+ interviews to earn verification badges</div>`;
+    container.innerHTML = '<div class="no-badges">Complete 3+ interviews to earn verification badges</div>';
     return;
   }
-  const sorted = [...badges].sort((a, b) => {
-    if (a.type === "experience_verified") return -1;
-    if (b.type === "experience_verified") return 1;
-    return (b.score || 0) - (a.score || 0);
-  });
-  container.innerHTML = sorted.map(badge => `
-    <div class="badge" title="${badge.competency}${badge.score ? ": " + badge.score + "/100" : ""}">
-      <span>${badge.name}</span>
-      ${badge.score ? `<span class="badge-score">${badge.score}</span>` : ""}
-    </div>
-  `).join("");
+
+  // Separate experience badge from competency badges
+  const experienceBadge = badges.find(b => b.type === 'experience_verified');
+  const competencyBadges = badges.filter(b => b.type !== 'experience_verified');
+
+  let html = '';
+
+  // Show Experience Verified first
+  if (experienceBadge) {
+    html += `
+      <div class="badge-experience">
+        <div class="badge-header">
+          ${experienceBadge.name}
+          <span class="interview-count">(${experienceBadge.interviewCount} interviews)</span>
+        </div>
+        <p class="badge-description">Completed ${experienceBadge.interviewCount} mock interviews with verified AI scoring</p>
+      </div>
+    `;
+  }
+
+  // Show competency badges with tier styling
+  if (competencyBadges.length > 0) {
+    html += '<div class="competency-badges">';
+
+    competencyBadges.forEach(badge => {
+      const tierColors = {
+        'silver': '#C0C0C0',
+        'gold': '#FFD700',
+        'platinum': '#E5E4E2'
+      };
+
+      const tierBgColors = {
+        'silver': '#F5F5F5',
+        'gold': '#FFFACD',
+        'platinum': '#F0F0F0'
+      };
+
+      html += `
+        <div class="badge-competency tier-${badge.tier}" style="border-left: 4px solid ${tierColors[badge.tier]}; background: ${tierBgColors[badge.tier]};">
+          <div class="badge-top">
+            <h4>${badge.name}</h4>
+            <span class="badge-tier-icon" title="Score: ${badge.score}/100">${
+              badge.tier === 'platinum' ? '💎' :
+              badge.tier === 'gold' ? '🥇' :
+              '🥈'
+            }</span>
+          </div>
+
+          <div class="score-section">
+            <p class="score-text">${badge.score}/100 average</p>
+            <div class="score-bar">
+              <div class="score-fill" style="width: ${badge.score}%; background: ${tierColors[badge.tier]};"></div>
+            </div>
+          </div>
+
+          <p class="competency-name">Verified in: ${badge.competency}</p>
+
+          <p class="tier-info">
+            <strong>${badge.name.split(' ').slice(1).join(' ')}</strong> -
+            You're in the top ${
+              badge.tier === 'platinum' ? '5%' :
+              badge.tier === 'gold' ? '30%' :
+              '50%'
+            } of candidates
+          </p>
+
+          ${badge.tier !== 'platinum' ? `
+            <p class="next-tier">
+              📈 Next: ${badge.nextTier} to reach ${badge.tier === 'silver' ? 'Gold' : 'Platinum'} status
+            </p>
+          ` : '<p class="expert">🌟 You\'ve reached expert level!</p>'}
+        </div>
+      `;
+    });
+
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
 }
 
 /* ── Render ───────────────────────────────────────────────────────────────── */

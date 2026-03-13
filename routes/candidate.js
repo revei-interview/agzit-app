@@ -283,10 +283,10 @@ router.get('/dashboard', ...guard, async (req, res) => {
   }
 });
 
-// Calculate verified badges based on employer_interview posts
+// Calculate verified badges based on employer_interview posts with tier system
 const calculateVerifiedBadges = async (userId) => {
   try {
-    // Get candidate email from agzit_users
+    // Get candidate email
     const [candidate] = await pool.execute(
       'SELECT email FROM agzit_users WHERE id = ?',
       [userId]
@@ -298,8 +298,8 @@ const calculateVerifiedBadges = async (userId) => {
 
     const candidateEmail = candidate[0].email;
 
-    // Find all employer_interview posts for this candidate
-    const interviewsQuery = `
+    // Find all employer_interview posts
+    const [interviews] = await pool.execute(`
       SELECT p.ID as interview_id, p.post_date
       FROM wp_posts p
       JOIN wp_postmeta pm ON p.ID = pm.post_id
@@ -310,24 +310,14 @@ const calculateVerifiedBadges = async (userId) => {
       GROUP BY p.ID
       ORDER BY p.post_date DESC
       LIMIT 50
-    `;
+    `, [candidateEmail]);
 
-    const [interviews] = await pool.execute(interviewsQuery, [candidateEmail]);
-
-    // Need at least 3 interviews
+    // Need at least 3 interviews for any badge
     if (!interviews || interviews.length < 3) {
       return [];
     }
 
     const badges = [];
-
-    // Add Experience Verified badge
-    badges.push({
-      name: 'Experience Verified',
-      competency: 'experience_verified',
-      score: null,
-      type: 'experience_verified'
-    });
 
     // Competency to meta_key mapping
     const competencyMap = {
@@ -343,9 +333,9 @@ const calculateVerifiedBadges = async (userId) => {
       'score_depth_specificity': 'Depth & Specificity'
     };
 
-    // Calculate competency badges
+    // Calculate competency badges with TIER SYSTEM
     for (const [metaKey, competencyName] of Object.entries(competencyMap)) {
-      const scoresQuery = `
+      const [scores] = await pool.execute(`
         SELECT CAST(pm.meta_value AS DECIMAL(5,2)) as score
         FROM wp_posts p
         JOIN wp_postmeta pm_email ON p.ID = pm_email.post_id
@@ -357,23 +347,54 @@ const calculateVerifiedBadges = async (userId) => {
           AND p.post_status = 'publish'
         ORDER BY p.post_date DESC
         LIMIT 50
-      `;
-
-      const [scores] = await pool.execute(scoresQuery, [candidateEmail, metaKey]);
+      `, [candidateEmail, metaKey]);
 
       if (scores && scores.length >= 3) {
         const avgScore = scores.reduce((sum, row) => sum + (parseFloat(row.score) || 0), 0) / scores.length;
 
-        if (avgScore >= 75) {
+        // Tier system: 0-60 no badge, 61-75 silver, 76-85 gold, 86-100 platinum
+        let tier = null;
+        let tierIcon = '';
+        let tierName = '';
+
+        if (avgScore >= 86) {
+          tier = 'platinum';
+          tierIcon = '💎';
+          tierName = 'Platinum Member';
+        } else if (avgScore >= 76) {
+          tier = 'gold';
+          tierIcon = '🥇';
+          tierName = 'Gold Member';
+        } else if (avgScore >= 61) {
+          tier = 'silver';
+          tierIcon = '🥈';
+          tierName = 'Silver Member';
+        }
+        // avgScore < 61 = no badge (tier = null)
+
+        // Only add badge if tier exists (score >= 61)
+        if (tier) {
           badges.push({
-            name: `Verified ${competencyName}`,
+            name: `${tierIcon} ${tierName}`,
             competency: competencyName,
             score: Math.round(avgScore * 10) / 10,
-            type: 'competency'
+            tier: tier,
+            type: 'competency',
+            nextTier: tier === 'silver' ? 'Gold (76+)' : tier === 'gold' ? 'Platinum (86+)' : 'Expert Level'
           });
         }
       }
     }
+
+    // Also add overall Experience Verified badge (always shown if 3+ interviews)
+    badges.push({
+      name: '✓ Latest Experience Verified via AI Interview',
+      competency: 'experience_verified',
+      score: null,
+      tier: null,
+      type: 'experience_verified',
+      interviewCount: interviews.length
+    });
 
     return badges;
 
