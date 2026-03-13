@@ -274,6 +274,22 @@ async function initDB() {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
+
+  // Badge table for storing verified competency badges
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_badges (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      user_id INT NOT NULL,
+      badge_type ENUM('experience_verified', 'competency'),
+      competency_name VARCHAR(100),
+      score DECIMAL(5,2),
+      earned_date TIMESTAMP,
+      expires_date TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_user_badge (user_id, badge_type, competency_name)
+    )
+  `);
   // Migration: rename post_id → profile_post_id and fix unique key if old schema exists
   try {
     await pool.execute('ALTER TABLE agzit_resume_files CHANGE COLUMN post_id profile_post_id INT NULL');

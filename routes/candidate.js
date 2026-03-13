@@ -283,6 +283,106 @@ router.get('/dashboard', ...guard, async (req, res) => {
   }
 });
 
+// Calculate verified badges based on employer_interview posts
+const calculateVerifiedBadges = async (userId) => {
+  try {
+    // Get candidate email from agzit_users
+    const [candidate] = await pool.execute(
+      'SELECT email FROM agzit_users WHERE id = ?',
+      [userId]
+    );
+
+    if (!candidate || !candidate[0] || !candidate[0].email) {
+      return [];
+    }
+
+    const candidateEmail = candidate[0].email;
+
+    // Find all employer_interview posts for this candidate
+    const interviewsQuery = `
+      SELECT p.ID as interview_id, p.post_date
+      FROM wp_posts p
+      JOIN wp_postmeta pm ON p.ID = pm.post_id
+      WHERE p.post_type = 'employer_interview'
+        AND pm.meta_key = 'candidate_email'
+        AND pm.meta_value = ?
+        AND p.post_status = 'publish'
+      GROUP BY p.ID
+      ORDER BY p.post_date DESC
+      LIMIT 50
+    `;
+
+    const [interviews] = await pool.execute(interviewsQuery, [candidateEmail]);
+
+    // Need at least 3 interviews
+    if (!interviews || interviews.length < 3) {
+      return [];
+    }
+
+    const badges = [];
+
+    // Add Experience Verified badge
+    badges.push({
+      name: 'Experience Verified',
+      competency: 'experience_verified',
+      score: null,
+      type: 'experience_verified'
+    });
+
+    // Competency to meta_key mapping
+    const competencyMap = {
+      'score_communication': 'Communication Clarity',
+      'score_answer_structure': 'Answer Structure',
+      'score_role_knowledge': 'Role Knowledge',
+      'score_domain_application': 'Domain Application',
+      'score_problem_solving': 'Problem Solving',
+      'score_confidence_presence': 'Confidence & Presence',
+      'score_question_handling': 'Question Handling',
+      'score_experience_relevance': 'Experience Relevance',
+      'score_resume_alignment': 'Resume Alignment',
+      'score_depth_specificity': 'Depth & Specificity'
+    };
+
+    // Calculate competency badges
+    for (const [metaKey, competencyName] of Object.entries(competencyMap)) {
+      const scoresQuery = `
+        SELECT CAST(pm.meta_value AS DECIMAL(5,2)) as score
+        FROM wp_posts p
+        JOIN wp_postmeta pm_email ON p.ID = pm_email.post_id
+        JOIN wp_postmeta pm ON p.ID = pm.post_id
+        WHERE p.post_type = 'employer_interview'
+          AND pm_email.meta_key = 'candidate_email'
+          AND pm_email.meta_value = ?
+          AND pm.meta_key = ?
+          AND p.post_status = 'publish'
+        ORDER BY p.post_date DESC
+        LIMIT 50
+      `;
+
+      const [scores] = await pool.execute(scoresQuery, [candidateEmail, metaKey]);
+
+      if (scores && scores.length >= 3) {
+        const avgScore = scores.reduce((sum, row) => sum + (parseFloat(row.score) || 0), 0) / scores.length;
+
+        if (avgScore >= 75) {
+          badges.push({
+            name: `Verified ${competencyName}`,
+            competency: competencyName,
+            score: Math.round(avgScore * 10) / 10,
+            type: 'competency'
+          });
+        }
+      }
+    }
+
+    return badges;
+
+  } catch (error) {
+    console.error('Badge calculation error:', error);
+    return [];
+  }
+};
+
 // ── GET /api/candidate/profile ────────────────────────────────────────────────
 // Full DPR profile — all ACF fields, all repeaters
 
@@ -345,6 +445,8 @@ router.get('/profile', ...guard, async (req, res) => {
       upsertPostMeta(profileId, 'has_resume', '1').catch(() => {});
       upsertPostMeta(profileId, 'resume_upload', String(profileId)).catch(() => {});
     }
+
+    const badges = await calculateVerifiedBadges(req.user.user_id);
 
     res.json({
       ok:              true,
@@ -420,6 +522,7 @@ router.get('/profile', ...guard, async (req, res) => {
 
         // ── New fields
         key_achievements:                 meta.key_achievements,
+        badges,
       },
     });
   } catch (err) {

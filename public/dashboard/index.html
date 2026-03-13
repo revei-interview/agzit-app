@@ -528,6 +528,58 @@ select.jp-input {
 .step-title { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 3px; }
 .step-done .step-title { color: var(--green); }
 .step-sub { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+
+/* Badge styles */
+.badges-section {
+  margin: 30px 0;
+  padding: 20px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: var(--border-radius-lg);
+}
+
+.badges-section h3 {
+  font-size: 16px;
+  margin: 0 0 16px;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.badges-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 24px;
+  background: var(--green-lt, #E4F5EE);
+  border: 1px solid var(--green, #0B7A47);
+  color: var(--green, #0B7A47);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.badge::before {
+  content: "✓";
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.badge-score {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.no-badges {
+  font-size: 14px;
+  color: var(--muted, #7C83A0);
+  padding: 16px;
+}
 </style>
 <link rel="stylesheet" href="/shared/searchable-select.css">
 <script src="/assets/layout.js" defer></script>
@@ -691,6 +743,11 @@ select.jp-input {
           <div class="tab-pane" id="tab-profile">
             <div id="profile-content">
               <p style="color:var(--muted);font-size:13px;">Loading profile…</p>
+            </div>
+            <!-- Badges Section -->
+            <div class="badges-section">
+              <h3>Verified Competencies</h3>
+              <div id="badges-container" class="badges-container"></div>
             </div>
           </div>
 
@@ -1171,6 +1228,25 @@ async function init() {
   render(dash, profileData, interviewData);
 }
 
+function displayBadges(badges) {
+  const container = document.getElementById("badges-container");
+  if (!badges || badges.length === 0) {
+    container.innerHTML = `<div class="no-badges">Complete 3+ interviews to earn verification badges</div>`;
+    return;
+  }
+  const sorted = [...badges].sort((a, b) => {
+    if (a.type === "experience_verified") return -1;
+    if (b.type === "experience_verified") return 1;
+    return (b.score || 0) - (a.score || 0);
+  });
+  container.innerHTML = sorted.map(badge => `
+    <div class="badge" title="${badge.competency}${badge.score ? ": " + badge.score + "/100" : ""}">
+      <span>${badge.name}</span>
+      ${badge.score ? `<span class="badge-score">${badge.score}</span>` : ""}
+    </div>
+  `).join("");
+}
+
 /* ── Render ───────────────────────────────────────────────────────────────── */
 function render(d, pd, id) {
   const user   = d.user   || {};
@@ -1297,6 +1373,7 @@ function render(d, pd, id) {
 
   /* ── Profile tab ─────────────────────────────────────────────────────────── */
   renderProfile(pd ? pd.profile : null);
+  if (pd && pd.profile && pd.profile.badges) displayBadges(pd.profile.badges);
 
   /* ── Visibility sidebar ──────────────────────────────────────────────────── */
   if (pd && pd.profile) {
