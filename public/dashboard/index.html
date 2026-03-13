@@ -475,7 +475,11 @@ select.jp-input {
 @media (max-width: 720px) {
   .vis-section .vis-grid { grid-template-columns: 1fr 1fr; }
 }
+@media (max-width: 768px) {
+  #ov-stats-row { grid-template-columns: 1fr 1fr !important; }
+}
 @media (max-width: 480px) {
+  #ov-stats-row { grid-template-columns: 1fr !important; }
   .vis-section .vis-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
   .hero-inner { flex-direction: column; }
   .field-grid { grid-template-columns: 1fr; }
@@ -819,67 +823,72 @@ select.jp-input {
 
             <!-- Main overview content (hidden for new users) -->
             <div id="ov-main-content">
-            <div class="ov-two-col">
 
-              <!-- Left col -->
-              <div>
-
-                <div class="card" style="margin-bottom:0;">
-                  <div class="card-title">Profile Completeness</div>
-                  <div class="ov-completeness">
-                    <svg width="72" height="72" viewBox="0 0 72 72" style="flex-shrink:0;">
-                      <circle cx="36" cy="36" r="28" fill="none" stroke="#E4E6EF" stroke-width="7"/>
-                      <circle id="ov-ring" cx="36" cy="36" r="28" fill="none"
-                        stroke="#1A44C2" stroke-width="7" stroke-linecap="round"
-                        stroke-dasharray="0 176" transform="rotate(-90 36 36)"/>
-                      <text id="ov-pct-text" x="36" y="41" text-anchor="middle"
-                        font-size="13" font-weight="800" fill="#09101F"
-                        font-family="Plus Jakarta Sans,system-ui,sans-serif">0%</text>
-                    </svg>
-                    <div>
-                      <div class="ov-pct-text" id="ov-pct-label">Complete your profile</div>
-                      <div class="ov-pct-tip" id="ov-pct-tip"></div>
-                      <div class="pills" id="ov-pills" style="margin-top:10px;"></div>
-                    </div>
-                  </div>
+              <!-- ROW 1: Key Stats -->
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;" id="ov-stats-row">
+                <div style="background:white;border:1px solid #e4e6ef;padding:16px;border-radius:8px;text-align:center;">
+                  <div style="font-size:12px;color:#7c83a0;margin-bottom:8px;">PROFILE STATUS</div>
+                  <div style="font-size:24px;font-weight:600;" id="ov-stat-profile">--</div>
+                  <div style="font-size:11px;color:#7c83a0;margin-top:4px;" id="ov-stat-profile-sub"></div>
                 </div>
-
-                <div class="card" style="margin-top:14px;">
-                  <div class="card-title">Profile Details</div>
-                  <div id="ov-details"></div>
+                <div style="background:white;border:1px solid #e4e6ef;padding:16px;border-radius:8px;text-align:center;">
+                  <div style="font-size:12px;color:#7c83a0;margin-bottom:8px;">INTERVIEWS</div>
+                  <div style="font-size:24px;font-weight:600;color:#1a44c2;" id="ov-stat-interviews">0</div>
+                  <div style="font-size:11px;color:#7c83a0;margin-top:4px;" id="ov-stat-interviews-sub">Completed</div>
                 </div>
-
+                <div style="background:white;border:1px solid #e4e6ef;padding:16px;border-radius:8px;text-align:center;">
+                  <div style="font-size:12px;color:#7c83a0;margin-bottom:8px;">BADGES EARNED</div>
+                  <div style="font-size:24px;font-weight:600;color:#ff9800;" id="ov-stat-badges">--</div>
+                  <div style="font-size:11px;color:#7c83a0;margin-top:4px;" id="ov-stat-badges-sub">Do 3 Interviews</div>
+                </div>
+                <div style="background:white;border:1px solid #e4e6ef;padding:16px;border-radius:8px;text-align:center;">
+                  <div style="font-size:12px;color:#7c83a0;margin-bottom:8px;">CREDITS LEFT</div>
+                  <div style="font-size:24px;font-weight:600;color:#e53935;" id="ov-stat-credits">0</div>
+                  <div style="font-size:11px;color:#7c83a0;margin-top:4px;" id="ov-stat-credits-sub">Buy or Refer</div>
+                </div>
               </div>
 
-              <!-- Right col -->
-              <div>
+              <!-- ROW 2: Profile Overview + Next Steps -->
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+                <div style="background:white;border:1px solid #e4e6ef;padding:20px;border-radius:8px;">
+                  <h3 style="font-size:14px;font-weight:600;color:#09101f;margin:0 0 12px;">Profile Overview</h3>
+                  <div id="ov-profile-summary" style="font-size:13px;color:#3a4163;line-height:1.8;"></div>
+                </div>
+                <div style="background:linear-gradient(135deg,#eaf0ff 0%,#f5faff 100%);border:1px solid #1a44c2;padding:20px;border-radius:8px;">
+                  <h3 style="font-size:14px;font-weight:600;color:#1a44c2;margin:0 0 12px;">Next Steps</h3>
+                  <div id="ov-next-steps" style="font-size:13px;color:#3a4163;"></div>
+                  <a href="/interview-start" style="display:block;width:100%;margin-top:12px;padding:10px;background:#1a44c2;color:white;border:none;border-radius:6px;font-weight:500;text-align:center;text-decoration:none;font-size:13px;">Start Mock Interview</a>
+                </div>
+              </div>
 
-                <!-- Latest scorecard mini -->
-                <div class="card" id="ov-sc-card">
-                  <div class="card-title">Latest Score</div>
-                  <div id="ov-sc-content">
-                    <div style="border:1.5px dashed var(--line, #E4E6EF);border-radius:12px;padding:32px 24px;text-align:center;background:var(--surface);">
-                      <div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:7px;">No scorecard yet</div>
-                      <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:18px;">Complete a mock interview to see your results.</div>
-                      <a href="https://agzit.com/pricing/" class="btn-blue" style="width:auto;padding:10px 20px;display:inline-flex;">Buy a Session</a>
-                    </div>
+              <!-- ROW 3: Career Progression -->
+              <div style="background:white;border:1px solid #e4e6ef;padding:20px;border-radius:8px;margin-bottom:24px;">
+                <h3 style="font-size:14px;font-weight:600;color:#09101f;margin:0 0 16px;">Career Progression</h3>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;font-size:13px;" id="ov-career-grid">
+                  <div style="padding:12px;background:#f5f6fa;border-radius:6px;">
+                    <div style="color:#7c83a0;margin-bottom:4px;">Current Role</div>
+                    <div style="font-weight:500;color:#09101f;" id="ov-career-role">--</div>
+                  </div>
+                  <div style="padding:12px;background:#f5f6fa;border-radius:6px;">
+                    <div style="color:#7c83a0;margin-bottom:4px;">Years Experience</div>
+                    <div style="font-weight:500;color:#09101f;" id="ov-career-exp">--</div>
+                  </div>
+                  <div style="padding:12px;background:#f5f6fa;border-radius:6px;">
+                    <div style="color:#7c83a0;margin-bottom:4px;">Skills Verified</div>
+                    <div style="font-weight:500;color:#09101f;" id="ov-career-skills">0 / 10</div>
                   </div>
                 </div>
-
-                <!-- Resume status -->
-                <div class="card" style="margin-top:14px;">
-                  <div class="card-title">Resume</div>
-                  <div id="ov-resume"></div>
-                </div>
-
               </div>
-            </div>
 
-            <div style="margin-top:16px;text-align:center;">
-              <a href="/profile-edit" style="display:block;width:100%;padding:14px;font-size:14px;font-weight:700;border-radius:10px;background:var(--ink, #09101F);color:#fff;text-align:center;text-decoration:none;">Update DPR Profile</a>
-              <a id="ov-preview-link" href="#" target="_blank" style="font-size:13px;color:var(--blue);text-decoration:none;display:none;margin-top:8px;">View Public Profile →</a>
-            </div>
+              <!-- ROW 4: Action Buttons -->
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+                <a href="/interview-start" style="padding:12px;background:#1a44c2;color:white;border:none;border-radius:6px;font-size:13px;font-weight:500;text-align:center;text-decoration:none;">Start Interview</a>
+                <a href="#" onclick="switchTab('career-analyzer');return false;" style="padding:12px;background:#0b7a47;color:white;border:none;border-radius:6px;font-size:13px;font-weight:500;text-align:center;text-decoration:none;">Career Analyzer</a>
+                <a href="#" onclick="switchTab('referral');return false;" style="padding:12px;background:#ff9800;color:white;border:none;border-radius:6px;font-size:13px;font-weight:500;text-align:center;text-decoration:none;">Refer Friends</a>
+                <a href="https://agzit.com/pricing/" style="padding:12px;background:white;color:#1a44c2;border:1px solid #1a44c2;border-radius:6px;font-size:13px;font-weight:500;text-align:center;text-decoration:none;">Buy Credits</a>
+              </div>
 
+              <a id="ov-preview-link" href="#" target="_blank" style="font-size:13px;color:var(--blue);text-decoration:none;display:none;margin-top:12px;text-align:center;display:none;"></a>
             </div><!-- /ov-main-content -->
 
           </div>
@@ -1786,45 +1795,56 @@ function render(d, pd, id) {
   ].map(([k,v]) => `<div class="info-row"><span class="info-key">${esc(k)}</span><span class="info-val" style="${!v||v==='—'?'color:var(--muted);':''}">${esc(String(v))}</span></div>`).join('');
 
   /* ── Overview panel ──────────────────────────────────────────────────────── */
-  /* ring + completeness */
-  const circ = 2 * Math.PI * 28;
-  const dash2 = ((pct / 100) * circ).toFixed(1);
-  el('ov-ring').setAttribute('stroke-dasharray', `${dash2} ${circ.toFixed(1)}`);
-  el('ov-pct-text').textContent = pct + '%';
-  el('ov-pct-label').textContent = pct === 100 ? 'Profile complete' : pct >= 80 ? 'Almost there' : pct >= 50 ? 'Keep going' : 'Profile incomplete';
-  const tip = pct < 60 ? 'Add Work Experience and Education to increase employer trust.'
-            : pct < 85 ? 'Add Certifications to strengthen your credibility.'
-            : pct < 100 ? 'Fill remaining fields to reach 100%.'
-            : 'Your profile is fully complete.';
-  el('ov-pct-tip').textContent = tip;
+  /* ROW 1: Stats */
+  const profileColor = pct === 100 ? '#0b7a47' : pct >= 50 ? '#ff9800' : '#e53935';
+  el('ov-stat-profile').style.color = profileColor;
+  el('ov-stat-profile').textContent = pct === 100 ? 'Complete' : pct + '%';
+  el('ov-stat-profile-sub').textContent = pct + '% ' + statusLabel(prof.dpr_status);
 
-  /* overview details */
-  el('ov-details').innerHTML = [
-    ['DPR ID',   prof.dpr_id],
-    ['Status',   statusLabel(prof.dpr_status)],
-    ['Industry', parseIndustry(prof.compliance_domains)],
-  ].map(([k,v]) => v ? `<div class="info-row"><span class="info-key">${esc(k)}</span><span class="info-val">${esc(String(v))}</span></div>` : '').join('');
-
-  /* overview scorecard mini — show last 3 completed interviews with scores */
   const scored = recent.filter(s => s.mock_overall_score).slice(0, 3);
-  if (scored.length) {
-    el('ov-sc-content').innerHTML = scored.map((s, i) => {
-      const score = parseInt(s.mock_overall_score);
-      return `<div style="${i > 0 ? 'margin-top:14px;padding-top:14px;border-top:1px solid var(--line);' : ''}">
-        <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px;">
-          <div style="font-size:${i===0?'38':'28'}px;font-weight:800;color:var(--ink);letter-spacing:-2px;">${score}</div>
-          <div>
-            <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.6px;">out of 100</div>
-            ${perfBadge(s.mock_performance_level)}
-            <div style="font-size:12px;color:var(--muted);margin-top:5px;">${esc(s.interview_role||'')} &middot; ${fmtDate(s.started_at)}</div>
-          </div>
-        </div>
-        <div style="height:6px;background:var(--surface);border-radius:999px;overflow:hidden;">
-          <div style="height:6px;background:var(--blue);border-radius:999px;width:${score}%;"></div>
-        </div>
-      </div>`;
-    }).join('');
-  }
+  el('ov-stat-interviews').textContent = recent.length;
+  el('ov-stat-interviews-sub').textContent = 'Completed' + (scored.length ? ' \u2022 Best: ' + Math.max(...scored.map(s => parseInt(s.mock_overall_score))) + '/100' : '');
+
+  const badges = prof.badges || [];
+  const badgeCount = badges.filter(b => b.type === 'competency').length;
+  el('ov-stat-badges').textContent = badgeCount || '\u2014';
+  el('ov-stat-badges').style.color = badgeCount > 0 ? '#0b7a47' : '#ff9800';
+  el('ov-stat-badges-sub').textContent = badgeCount > 0 ? badgeCount + ' verified' : 'Do 3 interviews';
+
+  const totalCredits = (ent.sessions_20 || 0) + (ent.sessions_30 || 0);
+  el('ov-stat-credits').textContent = totalCredits;
+  el('ov-stat-credits').style.color = totalCredits > 0 ? '#0b7a47' : '#e53935';
+  el('ov-stat-credits-sub').textContent = totalCredits > 0 ? '20-min: ' + (ent.sessions_20||0) + ' \u2022 30-min: ' + (ent.sessions_30||0) : 'Buy or Refer';
+
+  /* ROW 2: Profile summary */
+  const industry = parseIndustry(prof.compliance_domains);
+  const expYears = prof.total_experience || prof.years_experience || '--';
+  const hasResume = !!(prof.resume_url || prof.resume_file);
+  const pubUrl = prof.dpr_id && isApproved ? 'https://agzit.com/view-profile/?dpr_id=' + encodeURIComponent(prof.dpr_id) : '';
+
+  el('ov-profile-summary').innerHTML = [
+    prof.dpr_id ? '<div><strong>DPR ID:</strong> ' + esc(prof.dpr_id) + '</div>' : '',
+    '<div><strong>Industry:</strong> ' + esc(industry || 'Not specified') + '</div>',
+    '<div><strong>Experience:</strong> ' + esc(String(expYears)) + ' years</div>',
+    '<div><strong>Resume:</strong> ' + (hasResume ? '\u2713 Uploaded' : '\u2717 Not uploaded') + '</div>',
+    '<div style="margin-top:12px;">' +
+      '<a href="/profile-edit" style="color:#1a44c2;text-decoration:none;font-size:12px;">Edit Profile \u2192</a>' +
+      (pubUrl ? ' | <a href="' + pubUrl + '" target="_blank" style="color:#1a44c2;text-decoration:none;font-size:12px;">View Public Profile \u2192</a>' : '') +
+    '</div>'
+  ].join('');
+
+  /* ROW 2: Next steps */
+  const steps = [];
+  steps.push(hasDpr ? '<li style="color:#0b7a47;">\u2713 Create Account & Build DPR</li>' : '<li><strong><a href="/register" style="color:#1a44c2;">Build your DPR Profile</a></strong></li>');
+  steps.push(recent.length >= 3 ? '<li style="color:#0b7a47;">\u2713 Complete 3 Mock Interviews</li>' : '<li><strong>Complete ' + (3 - recent.length) + ' more Mock Interview' + (3 - recent.length > 1 ? 's' : '') + '</strong> (earn badges)</li>');
+  steps.push('<li>' + (scored.length ? '\u2713 ' : '') + 'Generate Career Report</li>');
+  steps.push('<li>Get discovered by employers</li>');
+  el('ov-next-steps').innerHTML = '<ol style="margin:0;padding-left:20px;line-height:1.8;">' + steps.join('') + '</ol>';
+
+  /* ROW 3: Career progression */
+  el('ov-career-role').textContent = prof.desired_role || prof.headline || '--';
+  el('ov-career-exp').textContent = expYears + ' years';
+  el('ov-career-skills').textContent = badgeCount + ' / 10';
 
   /* ── Visibility sidebar card ─────────────────────────────────────────────── */
   updateVisibilitySidebar(prof.profile_visibility, prof.email_visibility, prof.phone_visibility, prof.resume_visibility);
