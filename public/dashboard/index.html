@@ -1041,7 +1041,7 @@ select.jp-input {
       <div class="sidebar reveal">
 
         <!-- Credits -->
-        <div class="card">
+        <div class="card" style="border-top:3px solid #1a44c2;">
           <div class="card-title">Interview Credits</div>
           <div id="sidebar-credits"></div>
           <div style="display:grid;gap:8px;margin-top:14px;">
@@ -1051,10 +1051,10 @@ select.jp-input {
         </div>
 
         <!-- Quick links -->
-        <div class="card">
+        <div class="card" style="border-top:3px solid #0b7a47;">
           <div class="card-title">Quick Links</div>
           <div style="display:grid;gap:8px;">
-            <a href="/interview-start" class="btn-primary">Start Mock Interview</a>
+            <a href="/interview-start" style="display:block;padding:10px 16px;background:#1a44c2;color:white;border-radius:6px;text-align:center;text-decoration:none;font-size:13px;font-weight:600;">Start Mock Interview</a>
             <a href="/profile-edit" class="btn-secondary">Edit Profile</a>
             <a href="/resume-builder" class="btn-secondary">Resume Builder</a>
             <a id="sb-preview" href="#" class="btn-secondary" style="display:none;" target="_blank">View Public Profile</a>
@@ -1818,8 +1818,8 @@ function render(d, pd, id) {
 
   /* ROW 2: Profile summary */
   const industry = parseIndustry(prof.compliance_domains);
-  const expYears = prof.total_experience || prof.years_experience || '--';
-  const hasResume = !!(prof.resume_url || prof.resume_file);
+  const expYears = prof.total_work_experience || '--';
+  const hasResume = !!(prof.resume_upload || prof.has_resume === '1');
   const pubUrl = prof.dpr_id && isApproved ? 'https://agzit.com/view-profile/?dpr_id=' + encodeURIComponent(prof.dpr_id) : '';
 
   el('ov-profile-summary').innerHTML = [
