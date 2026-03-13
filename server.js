@@ -79,6 +79,7 @@ app.use('/api/employer',  apiLimiter,      require('./routes/employer'));
 app.use('/api/internal',  internalLimiter, require('./routes/internal'));
 app.use('/api/profile',   apiLimiter,      require('./routes/profile'));           // Public — no auth
 app.use('/api/employer-interview', apiLimiter, require('./routes/employer-interviews')); // Token + employer auth
+app.use('/api/admin',             apiLimiter, require('./routes/admin'));               // Super admin only
 
 // ── Page Routes ────────────────────────────────────────────────────────────
 
@@ -150,6 +151,10 @@ app.get('/profile', (req, res) => {
 // Employer team invite accept — no auth required (token in URL)
 app.get('/employer-accept-invite', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/employer-accept-invite/index.html'));
+});
+
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/admin/index.html'));
 });
 
 // Branded error page — serves with 200 so ?code= param works correctly
@@ -351,6 +356,95 @@ async function initDB() {
       INDEX idx_status (status)
     )
   `);
+
+  // ── Admin / Platform tables ─────────────────────────────────────────────────
+  try {
+    await pool.execute('ALTER TABLE wp_users ADD COLUMN is_super_admin TINYINT DEFAULT 0');
+  } catch (_) { /* already exists */ }
+
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_super_admin_logs (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      admin_id INT NOT NULL,
+      action VARCHAR(255) NOT NULL,
+      target_user_id INT,
+      target_type ENUM('user','credit','interview','referral','api_token','email'),
+      old_value JSON,
+      new_value JSON,
+      ip_address VARCHAR(45),
+      user_agent TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_admin (admin_id),
+      INDEX idx_target_user (target_user_id),
+      INDEX idx_action (action),
+      INDEX idx_created (created_at)
+    )
+  `);
+
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_api_tokens (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      user_id INT NOT NULL UNIQUE,
+      token VARCHAR(255) UNIQUE NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      last_used_at TIMESTAMP NULL,
+      request_count_24h INT DEFAULT 0,
+      request_count_7d INT DEFAULT 0,
+      request_count_30d INT DEFAULT 0,
+      rate_limit INT DEFAULT 5000,
+      status ENUM('active','revoked','expired') DEFAULT 'active',
+      INDEX idx_token (token),
+      INDEX idx_user (user_id),
+      INDEX idx_created (created_at)
+    )
+  `);
+
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_api_calls (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      token_id INT NOT NULL,
+      user_id INT,
+      endpoint VARCHAR(255) NOT NULL,
+      method VARCHAR(10),
+      status_code INT,
+      response_time_ms INT,
+      request_size INT,
+      response_size INT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_token (token_id),
+      INDEX idx_user (user_id),
+      INDEX idx_endpoint (endpoint),
+      INDEX idx_created (created_at)
+    )
+  `);
+
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_platform_metrics (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      metric_name VARCHAR(255) NOT NULL,
+      metric_value DECIMAL(15,2),
+      metric_data JSON,
+      recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_metric (metric_name),
+      INDEX idx_date (recorded_at)
+    )
+  `);
+
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_user_activity_log (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      user_id INT NOT NULL,
+      activity_type ENUM('login','interview_start','interview_complete','api_call','career_report','credit_used','profile_update','download','upload'),
+      activity_detail JSON,
+      cost_to_platform DECIMAL(10,2),
+      ip_address VARCHAR(45),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_user (user_id),
+      INDEX idx_type (activity_type),
+      INDEX idx_created (created_at)
+    )
+  `);
+
   // Migration: rename post_id → profile_post_id and fix unique key if old schema exists
   try {
     await pool.execute('ALTER TABLE agzit_resume_files CHANGE COLUMN post_id profile_post_id INT NULL');
