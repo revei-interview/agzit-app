@@ -552,6 +552,124 @@ router.get('/profile', ...guard, async (req, res) => {
   }
 });
 
+// ── POST /api/candidate/career-analyzer ──────────────────────────────────────
+// Generate AI career analysis (costs 1 credit)
+
+router.post('/career-analyzer', ...guard, async (req, res) => {
+  try {
+    const userId = req.user.user_id || req.user.id;
+
+    // Check credits
+    const [[credits]] = await pool.execute(
+      'SELECT credit_balance FROM agzit_candidate_credits WHERE user_id = ?',
+      [userId]
+    );
+
+    if (!credits || credits.credit_balance < 1) {
+      return res.status(402).json({
+        error: 'Insufficient credits',
+        message: 'Get 1 free credit by referring a friend!'
+      });
+    }
+
+    // Load DPR data
+    const data = await loadProfile(userId);
+    if (!data) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+    const { meta } = data;
+
+    // Parse repeaters for work history and education
+    const workExperience = parseRepeater(meta, 'work_experience', [
+      'job_title', 'company_name', 'start_date', 'end_date', 'Currently_working',
+    ]);
+    const education = parseRepeater(meta, 'education', [
+      'degree', 'institution_name',
+    ]);
+
+    // Get badges
+    const badges = await calculateVerifiedBadges(userId);
+    const scored = badges.filter(b => b.score);
+    const avgScore = scored.length > 0
+      ? Math.round(scored.reduce((sum, b) => sum + b.score, 0) / scored.length)
+      : null;
+
+    // Build OpenAI prompt
+    const systemPrompt = `You are an expert career strategist. Analyze career profiles and provide 3 strategic paths considering salary progression, work stability, and industry trends. Return ONLY valid JSON.`;
+
+    const userPrompt = `Analyze this candidate and suggest 3 career paths with salary insights.
+
+PROFILE:
+Name: ${meta.full_name || 'Not specified'}
+Role: ${meta.desired_role || 'Not specified'}
+Experience: ${meta.total_work_experience || 0} years
+Industry: ${meta.compliance_domains || 'Not specified'}
+Current Salary: ${meta.current_annual_ctc_with_currency || 'Not specified'}
+Expected Salary: ${meta.expected_annual_ctc_with_currency || 'Not specified'}
+Skills: ${meta.soft_skills || 'Not specified'}
+Work Level: ${meta.work_level || 'Not specified'}
+Employment History:
+${workExperience.map(j => `  ${j.job_title || '?'} at ${j.company_name || '?'} (${j.start_date || '?'} - ${j.Currently_working === 'yes' ? 'Present' : j.end_date || '?'})`).join('\n') || '  None listed'}
+Education:
+${education.map(e => `  ${e.degree || '?'} from ${e.institution_name || '?'}`).join('\n') || '  None listed'}
+Performance: ${avgScore ? avgScore + '/100' : 'No interviews'}
+Verified Skills: ${scored.map(b => b.competency).join(', ') || 'None yet'}
+
+For each path: role title, timeline (months), required skills, salary range, why fit, industries, work-life balance, stability, switch timing, risks, next steps.
+Return ONLY valid JSON with structure: { "paths": [{ "role", "timeline_months", "required_skills", "salary_range", "fit_reason", "industries", "work_life_balance", "stability", "timing_strategy", "risks", "next_actions" }] }`;
+
+    // Call OpenAI
+    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 3000,
+        response_format: { type: 'json_object' }
+      })
+    });
+
+    if (!openaiResponse.ok) {
+      return res.status(500).json({ error: 'Failed to generate analysis' });
+    }
+
+    const openaiData = await openaiResponse.json();
+    const reportData = JSON.parse(openaiData.choices[0].message.content);
+
+    // Save report
+    await pool.execute(
+      'INSERT INTO agzit_career_reports (user_id, report_json, dpr_snapshot) VALUES (?, ?, ?)',
+      [userId, JSON.stringify(reportData), JSON.stringify(meta)]
+    );
+
+    // Deduct credit
+    await pool.execute(
+      'UPDATE agzit_candidate_credits SET credit_balance = credit_balance - 1 WHERE user_id = ?',
+      [userId]
+    );
+
+    // Log transaction
+    await pool.execute(
+      "INSERT INTO agzit_credit_transactions (user_id, transaction_type, amount, description) VALUES (?, 'usage', 1, 'Career Analyzer report generated')",
+      [userId]
+    );
+
+    res.json({ ok: true, report: reportData, creditsRemaining: credits.credit_balance - 1 });
+
+  } catch (error) {
+    console.error('Career analyzer error:', error);
+    res.status(500).json({ error: 'Failed to generate analysis' });
+  }
+});
+
 // ── GET /api/candidate/scorecard ──────────────────────────────────────────────
 // Returns latest scored session + all scored sessions (newest first)
 

@@ -773,6 +773,7 @@ select.jp-input {
             <button class="tab-btn" data-tab="job">Job Preferences</button>
             <button class="tab-btn" data-tab="account">Account</button>
             <button class="tab-btn" data-tab="resumes">My Resumes</button>
+            <button class="tab-btn" data-tab="career-analyzer">Career Analyzer</button>
           </div>
 
           <!-- ── Overview ──────────────────────────────────────────────── -->
@@ -957,6 +958,24 @@ select.jp-input {
           <div class="tab-pane" id="tab-resumes">
             <div id="resumes-content">
               <p style="color:var(--muted);font-size:13px;">Loading saved resumes...</p>
+            </div>
+          </div>
+
+          <!-- ── Career Analyzer ────────────────────────────────────── -->
+          <div class="tab-pane" id="tab-career-analyzer">
+            <div id="career-analyzer-content">
+              <div style="text-align:center;padding:40px 20px;">
+                <h3 style="font-size:20px;font-weight:600;margin-bottom:12px;">Career Analyzer</h3>
+                <p style="color:var(--soft);font-size:14px;margin-bottom:24px;max-width:500px;margin-left:auto;margin-right:auto;">Get AI-powered career path recommendations based on your profile, skills, and interview performance.</p>
+                <div id="ca-credit-info" style="font-size:13px;color:var(--muted);margin-bottom:20px;">Cost: 1 credit per report</div>
+                <button id="ca-generate-btn" class="btn-blue" style="padding:14px 32px;font-size:15px;font-weight:600;" onclick="generateCareerReport()">Generate Career Report</button>
+                <div id="ca-loading" style="display:none;margin-top:24px;">
+                  <div style="display:inline-block;width:36px;height:36px;border:4px solid var(--line);border-top:4px solid var(--blue);border-radius:50%;animation:spin 1s linear infinite;"></div>
+                  <p style="color:var(--muted);font-size:13px;margin-top:12px;">Analyzing your profile... this may take 30 seconds</p>
+                </div>
+                <div id="ca-error" style="display:none;margin-top:20px;"></div>
+              </div>
+              <div id="ca-report" style="display:none;"></div>
             </div>
           </div>
 
@@ -1369,6 +1388,112 @@ async function init() {
   } catch (_) {}
 
   render(dash, profileData, interviewData);
+}
+
+function generateCareerReport() {
+  const btn = document.getElementById('ca-generate-btn');
+  const loading = document.getElementById('ca-loading');
+  const error = document.getElementById('ca-error');
+  const report = document.getElementById('ca-report');
+
+  if (btn) btn.disabled = true;
+  if (loading) loading.style.display = 'block';
+  if (error) error.style.display = 'none';
+  if (report) { report.style.display = 'none'; report.innerHTML = ''; }
+
+  fetch('/api/candidate/career-analyzer', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' }
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (loading) loading.style.display = 'none';
+    if (btn) btn.disabled = false;
+
+    if (!data.ok) throw new Error(data.error || 'Failed to generate report');
+
+    displayCareerReport(data.report);
+  })
+  .catch(err => {
+    if (loading) loading.style.display = 'none';
+    if (btn) btn.disabled = false;
+    if (error) {
+      error.style.display = 'block';
+      error.innerHTML = '<div style="background:#FFEBEE;border:1px solid #EF5350;padding:16px;border-radius:8px;color:#C62828;">Error: ' + err.message + '</div>';
+    }
+    console.error('Career report error:', err);
+  });
+}
+
+function displayCareerReport(report) {
+  const container = document.getElementById('ca-report');
+  if (!container) return;
+
+  const paths = (report.paths || []).map((p, i) => `
+    <div class="career-path-card">
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+        <div style="width: 36px; height: 36px; background: var(--blue, #1A44C2); color: white; border-radius: 50%; text-align: center; line-height: 36px; font-weight: 600;">${i + 1}</div>
+        <h3 style="margin: 0; font-size: 18px; color: var(--ink, #09101F);">${p.role_title || p.role || 'Career Path ' + (i + 1)}</h3>
+      </div>
+
+      <div style="display: flex; gap: 16px; margin: 12px 0; font-size: 13px; color: var(--soft, #3A4163); flex-wrap: wrap;">
+        <span>Timeline: ${p.timeline_months || p.timeline || '?'} months</span>
+        <span>Salary: ${p.salary_range || p.expected_salary || 'TBD'}</span>
+        <span>${p.work_life_balance || 'Balanced'}</span>
+      </div>
+
+      <div style="background: var(--blue-lt, #EAF0FF); padding: 12px; border-radius: 6px; margin: 12px 0; font-size: 13px; color: var(--blue, #1A44C2); line-height: 1.5;">
+        <strong>Why it's a good fit:</strong><br>
+        ${p.fit_reason || p.why_good_fit || 'Good career progression opportunity'}
+      </div>
+
+      <div style="margin: 12px 0;">
+        <p style="font-size: 12px; font-weight: 600; color: var(--ink); text-transform: uppercase; margin-bottom: 8px;">Skills Required</p>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          ${(p.required_skills || p.skills_needed || []).map(s => '<span style="background: var(--line, #E4E6EF); color: var(--soft); padding: 4px 8px; border-radius: 12px; font-size: 12px;">' + s + '</span>').join('')}
+        </div>
+      </div>
+
+      <div style="margin: 12px 0; font-size: 13px; color: var(--soft, #3A4163);">
+        <p><strong>Industries:</strong> ${(p.industries || []).join(', ') || 'Various'}</p>
+        <p><strong>When to switch:</strong> ${p.timing_strategy || p.switch_timing || 'When you master required skills'}</p>
+        <p><strong>Risks:</strong> ${Array.isArray(p.risks) ? p.risks.join(', ') : (p.risks || p.risk_factors || 'Minimal with proper planning')}</p>
+      </div>
+
+      <div style="background: var(--surface, #F5F6FA); padding: 12px; border-radius: 6px; font-size: 12px;">
+        <strong style="color: var(--ink);">Next Steps:</strong>
+        <ol style="margin: 8px 0 0 16px; color: var(--soft); line-height: 1.6;">
+          ${(p.next_actions || p.next_steps || []).map(s => '<li>' + s + '</li>').join('')}
+        </ol>
+      </div>
+    </div>
+  `).join('');
+
+  let html = paths;
+
+  if (report.overall_insights) {
+    html += `
+      <div style="background: linear-gradient(135deg, var(--green-lt, #E4F5EE) 0%, #E8F5E9 100%); border: 1px solid var(--green, #0B7A47); padding: 20px; border-radius: 8px; margin-top: 30px;">
+        <h4 style="color: var(--green, #0B7A47); margin: 0 0 8px;">Overall Insights</h4>
+        <p style="margin: 0; color: var(--ink, #09101F); line-height: 1.6;">${report.overall_insights}</p>
+      </div>
+    `;
+  }
+
+  if (report.skill_gaps && report.skill_gaps.length) {
+    html += `
+      <div style="margin-top: 30px;">
+        <h4 style="color: var(--ink, #09101F); margin-bottom: 12px;">Skill Gaps to Address</h4>
+        <ul style="margin: 0; padding-left: 20px; color: var(--soft, #3A4163); line-height: 1.8;">
+          ${report.skill_gaps.map(g => '<li>' + g + '</li>').join('')}
+        </ul>
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
+  container.style.display = 'block';
 }
 
 function displayBadges(badges) {
