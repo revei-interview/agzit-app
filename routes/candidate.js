@@ -272,6 +272,11 @@ router.get('/dashboard', ...guard, async (req, res) => {
         resume_visibility:    meta.resume_visibility,
         current_address:      meta.residential_address_line_1,
         key_achievements:     meta.key_achievements,
+        total_work_experience: meta.total_work_experience,
+        desired_role:          meta.desired_role,
+        professional_headline: meta.professional_headline,
+        resume_upload:         meta.resume_upload,
+        has_resume:            meta.has_resume,
       } : null,
       entitlements: {
         sessions_20: parseInt(userMeta.mock_sessions_remaining_20) || 0,
