@@ -380,10 +380,9 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 .ov-pct-tip  { font-size: 12px; color: var(--muted); margin-top: 4px; }
 .info-row {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 13px; border-radius: 10px; background: #F8FAFC;
-  border: 1px solid rgba(9,16,31,.07); margin-bottom: 8px;
+  padding: 10px 0; border-bottom: 1px solid var(--line); margin-bottom: 0;
 }
-.info-row:last-child { margin-bottom: 0; }
+.info-row:last-child { border-bottom: none; margin-bottom: 0; }
 .info-key { font-size: 13px; font-weight: 700; color: var(--soft); }
 .info-val { font-size: 13px; color: var(--soft); }
 
@@ -484,10 +483,8 @@ select.jp-input {
 }
 
 .ov-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
-.ov-actions { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 @media (max-width: 640px) {
   .ov-two-col { grid-template-columns: 1fr; }
-  .ov-actions { grid-template-columns: 1fr; }
 }
 
 /* ── Account tab form ─────────────────────────────────────────────────────── */
@@ -655,11 +652,6 @@ select.jp-input {
                   <div id="ov-details"></div>
                 </div>
 
-                <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
-                  <a href="/profile-edit" class="btn-primary">Update DPR Profile</a>
-                  <a id="ov-preview-link" href="#" class="btn-secondary" target="_blank" style="width:auto;display:none;">Preview Public Profile</a>
-                </div>
-
               </div>
 
               <!-- Right col -->
@@ -669,18 +661,12 @@ select.jp-input {
                 <div class="card" id="ov-sc-card">
                   <div class="card-title">Latest Score</div>
                   <div id="ov-sc-content">
-                    <div class="empty" style="padding:24px;">
-                      <div class="empty-heading">No scorecard yet</div>
-                      <div class="empty-sub">Complete a mock interview to see your results.</div>
+                    <div style="border:1.5px dashed var(--line, #E4E6EF);border-radius:12px;padding:32px 24px;text-align:center;background:var(--surface);">
+                      <div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:7px;">No scorecard yet</div>
+                      <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:18px;">Complete a mock interview to see your results.</div>
                       <a href="https://agzit.com/pricing/" class="btn-blue" style="width:auto;padding:10px 20px;display:inline-flex;">Buy a Session</a>
                     </div>
                   </div>
-                </div>
-
-                <!-- Recent interviews (last 3) -->
-                <div class="card" style="margin-top:14px;">
-                  <div class="card-title">Recent Interviews</div>
-                  <div id="ov-recent"></div>
                 </div>
 
                 <!-- Resume status -->
@@ -690,6 +676,11 @@ select.jp-input {
                 </div>
 
               </div>
+            </div>
+
+            <div style="margin-top:16px;text-align:center;">
+              <a href="/profile-edit" style="display:block;width:100%;padding:14px;font-size:14px;font-weight:700;border-radius:10px;background:var(--ink, #09101F);color:#fff;text-align:center;text-decoration:none;">Update DPR Profile</a>
+              <a id="ov-preview-link" href="#" target="_blank" style="font-size:13px;color:var(--blue);text-decoration:none;display:none;margin-top:8px;">View Public Profile →</a>
             </div>
 
             </div><!-- /ov-main-content -->
@@ -1248,7 +1239,6 @@ function render(d, pd, id) {
   el('sidebar-credits').innerHTML = [
     ['20-min sessions', ent.sessions_20||0],
     ['30-min sessions', ent.sessions_30||0],
-    ['Total remaining', ent.total||0],
     ['Valid until', ent.valid_until ? fmtDate(ent.valid_until) : '—'],
   ].map(([k,v]) => `<div class="info-row"><span class="info-key">${esc(k)}</span><span class="info-val" style="${!v||v==='—'?'color:var(--muted);':''}">${esc(String(v))}</span></div>`).join('');
 
@@ -1272,43 +1262,25 @@ function render(d, pd, id) {
     ['Industry', parseIndustry(prof.compliance_domains)],
   ].map(([k,v]) => v ? `<div class="info-row"><span class="info-key">${esc(k)}</span><span class="info-val">${esc(String(v))}</span></div>` : '').join('');
 
-  /* overview scorecard mini */
-  if (sc && sc.mock_overall_score) {
-    const score = parseInt(sc.mock_overall_score);
-    el('ov-sc-content').innerHTML = `
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;">
-        <div style="font-size:38px;font-weight:800;color:var(--ink);letter-spacing:-2px;">${score}</div>
-        <div>
-          <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.6px;">out of 100</div>
-          ${perfBadge(sc.mock_performance_level)}
-          <div style="font-size:12px;color:var(--muted);margin-top:5px;">${esc(sc.interview_role||'')} &middot; ${fmtDate(sc.started_at)}</div>
+  /* overview scorecard mini — show last 3 completed interviews with scores */
+  const scored = recent.filter(s => s.mock_overall_score).slice(0, 3);
+  if (scored.length) {
+    el('ov-sc-content').innerHTML = scored.map((s, i) => {
+      const score = parseInt(s.mock_overall_score);
+      return `<div style="${i > 0 ? 'margin-top:14px;padding-top:14px;border-top:1px solid var(--line);' : ''}">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px;">
+          <div style="font-size:${i===0?'38':'28'}px;font-weight:800;color:var(--ink);letter-spacing:-2px;">${score}</div>
+          <div>
+            <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.6px;">out of 100</div>
+            ${perfBadge(s.mock_performance_level)}
+            <div style="font-size:12px;color:var(--muted);margin-top:5px;">${esc(s.interview_role||'')} &middot; ${fmtDate(s.started_at)}</div>
+          </div>
         </div>
-      </div>
-      <div style="height:6px;background:var(--surface);border-radius:999px;overflow:hidden;">
-        <div style="height:6px;background:var(--blue);border-radius:999px;width:${score}%;"></div>
+        <div style="height:6px;background:var(--surface);border-radius:999px;overflow:hidden;">
+          <div style="height:6px;background:var(--blue);border-radius:999px;width:${score}%;"></div>
+        </div>
       </div>`;
-    /* sidebar mini */
-    el('sidebar-credits').insertAdjacentHTML('afterend', '');
-  }
-
-  /* overview recent interviews */
-  if (recent.length) {
-    el('ov-recent').innerHTML = recent.slice(0,3).map(s => `
-      <div class="mini-ses">
-        <div>
-          <div class="mini-role">${esc(s.interview_role||'Mock Interview')}</div>
-          <div class="mini-meta">${fmtDate(s.started_at)} &middot; ${s.duration_minutes||'—'} min</div>
-        </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
-          <span class="status-pill" style="${s.interview_status==='completed'?'background:var(--green-lt);color:var(--green);':'background:#DBEAFE;color:#1D4ED8;'}font-size:11.5px;font-weight:700;padding:3px 10px;">
-            ${esc(s.interview_status==='completed'?'Completed':'In Progress')}
-          </span>
-          ${s.mock_overall_score ? `<span class="score-chip">${s.mock_overall_score}/100</span>` : ''}
-        </div>
-      </div>`).join('') +
-    (recent.length > 3 ? `<div style="text-align:center;margin-top:10px;"><button class="btn-sm" onclick="switchTab('interviews')">View all ${recent.length} sessions</button></div>` : '');
-  } else {
-    el('ov-recent').innerHTML = '<div style="font-size:13px;color:var(--muted);padding:12px 0;">No interviews yet.</div>';
+    }).join('');
   }
 
   /* ── Visibility sidebar card ─────────────────────────────────────────────── */
