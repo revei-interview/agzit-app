@@ -1802,9 +1802,12 @@ function render(d, pd, id) {
 
   el('ov-profile-summary').innerHTML = [
     prof.dpr_id ? '<div><strong>DPR ID:</strong> ' + esc(prof.dpr_id) + '</div>' : '',
+    prof.desired_role ? '<div><strong>Current Role:</strong> ' + esc(prof.desired_role) + '</div>' : '',
     '<div><strong>Industry:</strong> ' + esc(industry || 'Not specified') + '</div>',
-    '<div><strong>Experience:</strong> ' + esc(String(expYears)) + ' years</div>',
-    '<div><strong>Resume:</strong> ' + (hasResume ? '\u2713 Uploaded' : '\u2717 Not uploaded') + '</div>',
+    '<div><strong>Experience:</strong> ' + (expYears !== '--' ? esc(String(expYears)) + ' years' : 'Not specified') + '</div>',
+    '<div><strong>Resume:</strong> ' + (hasResume
+      ? '\u2713 Uploaded <a href="/api/candidate/download?type=resume" target="_blank" style="color:#1a44c2;text-decoration:none;font-size:12px;margin-left:8px;">Download PDF</a>'
+      : '\u2717 Not uploaded <a href="/profile-edit" style="color:#1a44c2;text-decoration:none;font-size:12px;margin-left:8px;">Upload now</a>') + '</div>',
     '<div style="margin-top:12px;">' +
       '<a href="/profile-edit" style="color:#1a44c2;text-decoration:none;font-size:12px;">Edit Profile \u2192</a>' +
       (pubUrl ? ' | <a href="' + pubUrl + '" target="_blank" style="color:#1a44c2;text-decoration:none;font-size:12px;">View Public Profile \u2192</a>' : '') +
