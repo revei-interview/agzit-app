@@ -214,7 +214,7 @@ router.post('/ai-polish-order', async (req, res) => {
 
     // Check if this order was already processed (prevent duplicate credits)
     const [[alreadyUsed]] = await pool.execute(
-      'SELECT id FROM agzit_ai_polish_credits WHERE order_id = ?',
+      "SELECT id FROM agzit_credit_transactions WHERE reference_id = ? AND transaction_type = 'purchase'",
       [orderId]
     );
     if (alreadyUsed) {
@@ -257,16 +257,23 @@ router.post('/ai-polish-order', async (req, res) => {
       return res.json({ ok: true, skipped: true, reason: 'user_not_found' });
     }
 
-    // Grant 3 credits (add to existing if row exists)
+    // Grant 5 unified credits
     await pool.execute(
-      `INSERT INTO agzit_ai_polish_credits (user_id, credits_remaining, order_id)
-       VALUES (?, 3, ?)
-       ON DUPLICATE KEY UPDATE credits_remaining = credits_remaining + 3, order_id = VALUES(order_id), purchased_at = NOW()`,
+      `INSERT INTO agzit_candidate_credits (user_id, credit_balance, total_credits_purchased)
+       VALUES (?, 5, 5)
+       ON DUPLICATE KEY UPDATE credit_balance = credit_balance + 5, total_credits_purchased = total_credits_purchased + 5`,
+      [userId]
+    );
+
+    // Log the transaction
+    await pool.execute(
+      `INSERT INTO agzit_credit_transactions (user_id, transaction_type, amount, description, reference_id)
+       VALUES (?, 'purchase', 5, 'Purchased 5 credits — $5', ?)`,
       [userId, orderId]
     );
 
-    console.log(`[webhook/ai-polish] Order ${orderId}: user ${userId} (${billingEmail}) +3 AI Polish credits`);
-    return res.json({ ok: true, user_id: userId, credits_added: 3 });
+    console.log(`[webhook/ai-polish] Order ${orderId}: user ${userId} (${billingEmail}) +5 unified credits`);
+    return res.json({ ok: true, user_id: userId, credits_added: 5 });
   } catch (err) {
     console.error('[webhook/ai-polish]', err);
     // Always return 200 to prevent WooCommerce retries
