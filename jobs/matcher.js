@@ -1,257 +1,276 @@
-// jobs/matcher.js — Match jobs to candidate profile
+// jobs/matcher.js — Match jobs to candidate Job Preferences (not residential address)
+
+// ── Generic title words to skip when matching desired_role ───────────────────
+const GENERIC_WORDS = new Set([
+  'manager','senior','junior','assistant','associate',
+  'lead','head','director','officer','executive',
+  'analyst','specialist','consultant','coordinator',
+  'advisor','expert','principal','deputy','global',
+  'group','regional','area','general','chief',
+]);
+
+// ── Country aliases for location matching ────────────────────────────────────
+const COUNTRY_ALIASES = {
+  'india':                ['india','in'],
+  'united arab emirates': ['uae','ae','dubai','abu dhabi','sharjah','united arab'],
+  'united kingdom':       ['uk','gb','england','london','britain','scotland','wales'],
+  'united states':        ['usa','us','united states','america'],
+  'canada':               ['canada','ca'],
+  'australia':            ['australia','au'],
+  'singapore':            ['singapore','sg'],
+};
+
+function getAliases(countryName) {
+  if (!countryName) return [];
+  const key = countryName.toLowerCase().trim();
+  for (const [canonical, aliases] of Object.entries(COUNTRY_ALIASES)) {
+    if (key === canonical || aliases.includes(key)) return aliases;
+  }
+  return [key];
+}
 
 // ── Industry keyword map — all 53 AGZIT industries ──────────────────────────
 const INDUSTRY_KEYWORDS = {
-  compliance:       ['compliance', 'regulatory', 'regulation', 'aml', 'kyc', 'fincrime', 'governance', 'grc'],
-  finance:          ['finance', 'financial', 'cfo', 'controller', 'treasury', 'investment', 'portfolio'],
-  accounting:       ['accounting', 'accountant', 'bookkeeping', 'tax', 'cpa', 'ifrs', 'gaap', 'ledger'],
-  banking:          ['banking', 'bank', 'credit', 'lending', 'mortgage', 'retail banking', 'commercial banking'],
-  risk:             ['risk', 'risk management', 'enterprise risk', 'credit risk', 'market risk', 'operational risk'],
-  fraud:            ['fraud', 'anti-fraud', 'fraud investigation', 'forensic', 'fincrime', 'whistleblower'],
-  audit:            ['audit', 'auditor', 'internal audit', 'external audit', 'sox', 'assurance'],
-  legal:            ['legal', 'lawyer', 'attorney', 'counsel', 'litigation', 'contract', 'paralegal'],
-  insurance:        ['insurance', 'underwriting', 'actuary', 'claims', 'reinsurance', 'policyholder'],
-  hr:               ['hr', 'human resources', 'recruitment', 'talent', 'people operations', 'payroll', 'hrbp'],
-  administration:   ['administration', 'admin', 'office manager', 'executive assistant', 'receptionist', 'clerical'],
-  sales:            ['sales', 'business development', 'account manager', 'revenue', 'inside sales', 'b2b'],
-  marketing:        ['marketing', 'brand', 'digital marketing', 'seo', 'sem', 'social media', 'advertising'],
-  product:          ['product manager', 'product owner', 'product management', 'roadmap', 'backlog'],
-  operations:       ['operations', 'ops', 'process improvement', 'lean', 'six sigma', 'operational excellence'],
-  procurement:      ['procurement', 'sourcing', 'vendor management', 'purchasing', 'tender', 'rfp'],
-  supply_chain:     ['supply chain', 'logistics', 'warehouse', 'inventory', 'distribution', 'freight'],
-  customer_support: ['customer service', 'customer support', 'helpdesk', 'call center', 'client success', 'cx'],
-  data:             ['data', 'data analyst', 'data engineer', 'data science', 'machine learning', 'analytics', 'bi', 'tableau', 'power bi'],
-  it:               ['it', 'information technology', 'it support', 'sysadmin', 'system administrator', 'helpdesk'],
-  software:         ['software', 'developer', 'full stack', 'backend', 'frontend', 'react', 'node', 'python', 'java', 'devops'],
-  cybersecurity:    ['cybersecurity', 'infosec', 'security analyst', 'penetration', 'soc', 'incident response', 'ciso'],
-  erp_crm:          ['erp', 'sap', 'oracle', 'crm', 'salesforce', 'dynamics', 'netsuite', 'workday'],
-  qa:               ['qa', 'quality assurance', 'testing', 'test engineer', 'automation testing', 'selenium', 'qc'],
-  r_and_d:          ['r&d', 'research and development', 'innovation', 'scientist', 'laboratory', 'clinical trial'],
-  engineering:      ['engineer', 'engineering', 'mechanical', 'electrical', 'chemical', 'industrial'],
-  telecom:          ['telecom', 'telecommunications', '5g', 'wireless', 'fiber', 'voip'],
-  network_admin:    ['network', 'network admin', 'cisco', 'lan', 'wan', 'firewall', 'routing'],
-  hardware_it:      ['hardware', 'embedded', 'firmware', 'iot', 'pcb', 'semiconductor', 'chip'],
-  architecture:     ['architecture', 'architect', 'building design', 'urban planning', 'cad', 'bim'],
-  design:           ['design', 'ui', 'ux', 'graphic', 'creative', 'visual', 'illustration', 'figma'],
-  media:            ['media', 'journalism', 'publishing', 'broadcast', 'entertainment', 'film', 'video'],
-  content:          ['content', 'content writer', 'copywriter', 'editor', 'technical writer', 'blogging'],
-  translation:      ['translation', 'interpreter', 'localization', 'linguist', 'bilingual', 'multilingual'],
-  education:        ['education', 'teaching', 'academic', 'professor', 'instructor', 'curriculum', 'e-learning'],
-  healthcare:       ['healthcare', 'medical', 'clinical', 'nursing', 'hospital', 'patient care', 'health'],
-  pharma:           ['pharma', 'pharmaceutical', 'drug', 'biotech', 'clinical trial', 'regulatory affairs'],
-  manufacturing:    ['manufacturing', 'production', 'factory', 'assembly', 'lean manufacturing', 'plant'],
-  site_engineering: ['site engineer', 'construction engineer', 'field engineer', 'project engineer', 'site manager'],
-  civil:            ['civil', 'civil engineering', 'structural', 'construction', 'building', 'infrastructure'],
-  mech_electrical:  ['mechanical', 'electrical', 'hvac', 'plumbing', 'mep', 'power systems', 'motor'],
-  hse:              ['hse', 'health safety', 'safety officer', 'ehs', 'occupational health', 'osha'],
-  aviation:         ['aviation', 'airline', 'aerospace', 'pilot', 'aircraft', 'airport'],
-  marine:           ['marine', 'maritime', 'shipping', 'vessel', 'port', 'offshore', 'naval'],
-  oil_gas:          ['oil', 'gas', 'petroleum', 'upstream', 'downstream', 'refinery', 'drilling', 'energy'],
-  mining:           ['mining', 'mineral', 'geology', 'exploration', 'ore', 'excavation'],
-  security:         ['security', 'security guard', 'surveillance', 'loss prevention', 'physical security'],
-  retail:           ['retail', 'ecommerce', 'e-commerce', 'merchandising', 'store', 'pos'],
-  hospitality:      ['hospitality', 'hotel', 'restaurant', 'food service', 'chef', 'catering'],
-  travel:           ['travel', 'tourism', 'tour', 'booking', 'destination', 'hospitality'],
-  transport:        ['transport', 'transportation', 'fleet', 'driver', 'trucking', 'rail', 'courier'],
-  government:       ['government', 'public sector', 'civil service', 'policy', 'public administration'],
-  management:       ['management', 'general manager', 'director', 'vp', 'c-suite', 'executive', 'ceo', 'coo'],
-  freshers:         ['fresher', 'intern', 'internship', 'graduate', 'trainee', 'entry level', 'apprentice'],
-  other:            ['manager', 'analyst', 'coordinator', 'specialist', 'officer', 'consultant', 'advisor'],
-};
-
-// ── Country aliases (for location matching) ─────────────────────────────────
-const COUNTRY_ALIASES = {
-  india:      ['india', 'in'],
-  uae:        ['uae', 'united arab emirates', 'dubai', 'abu dhabi'],
-  uk:         ['uk', 'united kingdom', 'england', 'london', 'britain', 'gb'],
-  usa:        ['usa', 'united states', 'us', 'america'],
-  canada:     ['canada', 'ca'],
-  australia:  ['australia', 'au'],
-  singapore:  ['singapore', 'sg'],
-};
-
-function expandCountry(country) {
-  if (!country) return [];
-  const low = country.toLowerCase();
-  const terms = [low];
-  for (const aliases of Object.values(COUNTRY_ALIASES)) {
-    if (aliases.some(a => low.includes(a))) {
-      aliases.forEach(a => terms.push(a));
-    }
-  }
-  return [...new Set(terms)];
-}
-
-// ── Experience level keywords ───────────────────────────────────────────────
-const LEVEL_KEYWORDS = {
-  fresher: ['fresher', 'intern', 'internship', 'graduate', 'trainee', 'entry level', 'junior', 'entry-level'],
-  entry:   ['entry', 'junior', 'associate', 'entry level', 'entry-level', 'graduate'],
-  mid:     ['mid', 'mid-level', 'mid level', 'intermediate', '3-5 years', '3+ years'],
-  senior:  ['senior', 'lead', 'principal', 'staff', 'sr.', 'sr ', '7+ years', '5+ years'],
-  lead:    ['lead', 'team lead', 'tech lead', 'principal'],
-  manager: ['manager', 'head of', 'head -', 'director', 'vp'],
-  executive: ['executive', 'c-suite', 'cxo', 'ceo', 'cfo', 'coo', 'cto', 'chief'],
+  compliance:       ['compliance','regulatory','regulation','aml','kyc','fincrime','financial crime','governance','cdd','sanctions','anti-money','bsa','mlro','cco','know your customer'],
+  finance:          ['finance','financial','cfo','treasurer','treasury','fp&a','financial planning','financial analyst','budgeting','fintech'],
+  accounting:       ['accounting','accountant','cpa','chartered accountant','bookkeeping','ca ','accounts payable','accounts receivable','cima'],
+  banking:          ['banking','banker','branch','retail bank','commercial bank','investment bank','private banking','wealth management','nbfc'],
+  risk:             ['risk','risk management','risk analyst','credit risk','market risk','operational risk','enterprise risk','rcsa','risk officer'],
+  fraud:            ['fraud','fraud analyst','fraud prevention','fraud detection','anti-fraud','financial crime','investigation'],
+  audit:            ['audit','auditor','internal audit','external audit','it audit','sox','sarbanes','internal assurance'],
+  legal:            ['legal','lawyer','solicitor','counsel','attorney','paralegal','contract'],
+  insurance:        ['insurance','actuary','underwriter','claims','reinsurance'],
+  hr:               ['hr','human resources','hrbp','talent acquisition','recruitment','recruiter','people operations','learning development','compensation','payroll','workforce'],
+  administration:   ['admin','administrator','office manager','executive assistant','personal assistant','operations admin'],
+  sales:            ['sales','account executive','business development','account manager','revenue','bdr','sdr'],
+  marketing:        ['marketing','brand','digital marketing','seo','content marketing','growth','demand generation'],
+  product:          ['product manager','product owner','product lead','product strategy','roadmap'],
+  operations:       ['operations','ops','operational','process improvement','business operations'],
+  procurement:      ['procurement','purchasing','buyer','sourcing','vendor management','category manager'],
+  supply_chain:     ['supply chain','logistics','warehouse','inventory','distribution','fulfillment','scm'],
+  customer_support: ['customer support','customer service','customer success','helpdesk','support agent'],
+  data:             ['data analyst','data scientist','data engineer','bi ','business intelligence','analytics','tableau','power bi','sql'],
+  it:               ['it support','it manager','systems administrator','infrastructure','it operations'],
+  software:         ['software engineer','software developer','full stack','frontend','backend','mobile developer','react','node.js','python developer','java developer'],
+  cybersecurity:    ['cybersecurity','information security','infosec','soc analyst','penetration','cissp','ciso','security analyst'],
+  erp_crm:          ['sap','oracle erp','salesforce','dynamics','erp','crm implementation','d365'],
+  qa:               ['qa engineer','quality assurance','test','testing','automation test','selenium'],
+  r_and_d:          ['research','r&d','researcher','scientist','lab','innovation'],
+  engineering:      ['engineer','mechanical','electrical','civil engineer','structural','process engineer','chemical'],
+  telecom:          ['telecom','telecommunications','network engineer','rf engineer','5g','lte'],
+  network_admin:    ['network admin','network engineer','cisco','ccna','ccnp','lan','wan','routing','switching'],
+  hardware_it:      ['hardware','field engineer','desktop support','it technician'],
+  architecture:     ['architect','architecture','urban','building design','revit','autocad'],
+  design:           ['designer','graphic design','ui/ux','ux designer','ui designer','figma'],
+  media:            ['media','journalist','editor','video production','broadcast'],
+  content:          ['content writer','copywriter','content strategist','technical writer'],
+  translation:      ['translator','interpreter','localization','language specialist'],
+  education:        ['teacher','lecturer','professor','trainer','educator','curriculum','academic'],
+  healthcare:       ['doctor','nurse','physician','medical','clinical','healthcare','hospital','patient care'],
+  pharma:           ['pharmaceutical','pharma','drug','clinical trial','regulatory affairs pharma','medical device'],
+  manufacturing:    ['manufacturing','production','plant manager','factory','quality control','lean','six sigma'],
+  site_engineering: ['site engineer','construction','project engineer','site manager'],
+  civil:            ['civil engineer','structural','geotechnical','surveyor','quantity surveyor'],
+  mech_electrical:  ['mechanical engineer','electrical engineer','hvac','plumbing','electromechanical','maintenance engineer'],
+  hse:              ['hse','health safety','safety officer','ehs','environmental health','osha','nebosh'],
+  aviation:         ['aviation','pilot','cabin crew','airline','airport','air traffic','aeronautical'],
+  marine:           ['marine','maritime','seafarer','naval','shipping','port','vessel','offshore marine'],
+  oil_gas:          ['oil','gas','petroleum','upstream','downstream','refinery','drilling','offshore'],
+  mining:           ['mining','geologist','mine','extraction','minerals'],
+  security:         ['security guard','security manager','cctv','loss prevention','physical security'],
+  retail:           ['retail','store manager','merchandising','shop','buyer retail'],
+  hospitality:      ['hotel','hospitality','restaurant','food beverage','front desk','chef'],
+  travel:           ['travel','tourism','tour operator','travel agent','destination'],
+  transport:        ['transport','driver','logistics driver','fleet','dispatch','courier'],
+  government:       ['government','public sector','civil service','municipal','ministry','policy'],
+  management:       ['manager','director','vp ','vice president','head of','managing director','general manager','ceo'],
+  freshers:         ['graduate','fresher','entry level','trainee','intern','apprentice','junior'],
+  other:            [],
 };
 
 // ── Matching engine ─────────────────────────────────────────────────────────
 function matchJobsForCandidate(profile, jobs) {
   if (!jobs || !jobs.length) return [];
 
-  // Extract profile data
-  const candidateIndustryRaw = (profile.compliance_domains || profile.industry || '').toLowerCase();
-  const desiredRole    = (profile.desired_role || '').toLowerCase();
-  const candidateCity  = (profile.residential_city || '').toLowerCase();
-  const candidateCountry = (profile.residential_country || '').toLowerCase();
-  const candidateSkills  = (profile.soft_skills || '')
-    .split(',')
-    .map(s => s.trim().toLowerCase())
-    .filter(Boolean);
-  const candidateLevel = (profile.work_level || '').toLowerCase();
+  // ── Parse Job Preferences ─────────────────────────────────────────────────
+  const desiredRole    = (profile.desired_role || '').toLowerCase().trim();
+  const workType       = (profile.preferred_work_type || '').toLowerCase();
+  const workLevel      = (profile.work_level || '').toLowerCase();
+  const openToRelocate = profile.open_to_relocate === '1';
+  const experience     = parseInt(profile.total_work_experience) || 0;
+  const skills         = (profile.soft_skills || '').split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 2);
 
-  // Determine candidate's industry keywords
-  const industryKeywords = getIndustryKeywords(candidateIndustryRaw);
+  // ── Parse industry ────────────────────────────────────────────────────────
+  let industries = [];
+  try {
+    const raw = profile.compliance_domains;
+    if (!raw) industries = [];
+    else if (raw.startsWith('[')) industries = JSON.parse(raw);
+    else industries = [raw];
+  } catch (_) {
+    industries = [profile.compliance_domains || ''];
+  }
+  industries = industries.map(i => (i || '').toLowerCase().trim()).filter(Boolean);
 
-  // Desired role words (filter out very short/common words)
-  const roleWords = desiredRole
-    .split(/[\s,\-\/]+/)
-    .map(w => w.trim())
-    .filter(w => w.length > 2);
-
-  // Expand country for alias matching
-  const countryTerms = expandCountry(candidateCountry);
-
-  // Preferred locations from repeater
+  // ── Parse preferred locations (from Job Preferences repeater) ─────────────
+  // Profile keys: preferred_location (count), preferred_location_N_preferred_city_name, preferred_location_N_preferred_country_name
   const preferredLocations = [];
-  if (Array.isArray(profile.preferred_location)) {
-    for (const loc of profile.preferred_location) {
-      const prefCity = (loc.preferred_city_name || '').toLowerCase().trim();
-      const prefCountry = (loc.preferred_country_name || '').toLowerCase().trim();
-      if (prefCity || prefCountry) {
-        preferredLocations.push({
-          city: prefCity,
-          country: prefCountry,
-          countryTerms: expandCountry(prefCountry),
-        });
-      }
-    }
+  const count = parseInt(profile['preferred_location'] || '0');
+  for (let i = 0; i < Math.max(count, 10); i++) {
+    const city    = profile[`preferred_location_${i}_preferred_city_name`];
+    const country = profile[`preferred_location_${i}_preferred_country_name`];
+    if (!city && !country) continue;
+    preferredLocations.push({
+      city:           (city || '').toLowerCase().trim(),
+      country:        (country || '').toLowerCase().trim(),
+      countryAliases: getAliases(country || ''),
+    });
   }
 
-  // Experience level keywords for candidate
-  const levelKeywords = LEVEL_KEYWORDS[candidateLevel] || [];
+  // Build flat sets for fast lookup
+  const acceptableCities = new Set(preferredLocations.map(l => l.city).filter(Boolean));
+  const acceptableCountryAliases = new Set();
+  preferredLocations.forEach(l => l.countryAliases.forEach(a => acceptableCountryAliases.add(a)));
 
-  const now = Date.now();
-  const scored = [];
+  // ── Score each job ────────────────────────────────────────────────────────
+  const scored = jobs.map(job => {
+    let score = 0;
+    const breakdown = {};
 
-  for (const job of jobs) {
-    const titleLow = (job.title || '').toLowerCase();
-    const descLow  = (job.description || '').toLowerCase();
-    const combined = titleLow + ' ' + descLow;
-    const breakdown = { industry: 0, role: 0, location: 0, skills: 0, level: 0, freshness: 0 };
-
-    // 1. Industry match (+40)
-    if (industryKeywords.length > 0) {
-      const match = industryKeywords.some(kw => combined.includes(kw));
-      if (match) breakdown.industry = 40;
-    }
-
-    // 2. Desired role match (+25)
-    if (roleWords.length > 0) {
-      const match = roleWords.some(w => titleLow.includes(w));
-      if (match) breakdown.role = 25;
-    }
-
-    // 3. Location match (+20) with country aliases + preferred locations
+    const jobText     = ((job.title || '') + ' ' + (job.description || '') + ' ' + (job.company || '')).toLowerCase();
+    const jobTitle    = (job.title || '').toLowerCase();
     const jobCountry  = (job.country || '').toLowerCase();
     const jobCity     = (job.city || '').toLowerCase();
     const jobLocation = (job.location || '').toLowerCase();
-    const jobLocAll   = jobCountry + ' ' + jobCity + ' ' + jobLocation;
+    const isRemote    = job.is_remote === 1 || job.is_remote === true;
 
-    if (job.is_remote) {
-      breakdown.location += 10;
-    }
-    // Check residential location
-    if (countryTerms.length > 0 && countryTerms.some(t => jobLocAll.includes(t))) {
-      breakdown.location = Math.max(breakdown.location, 20);
-    } else if (candidateCity && (jobCity.includes(candidateCity) || jobLocation.includes(candidateCity))) {
-      breakdown.location = Math.max(breakdown.location, 20);
-    }
-    // Check preferred locations
-    for (const loc of preferredLocations) {
-      if (loc.city && (jobCity.includes(loc.city) || jobLocation.includes(loc.city))) {
-        breakdown.location = Math.max(breakdown.location, 20);
-        break;
-      }
-      if (loc.countryTerms.length > 0 && loc.countryTerms.some(t => jobLocAll.includes(t))) {
-        breakdown.location = Math.max(breakdown.location, 15);
-      }
-    }
-    if (breakdown.location > 20) breakdown.location = 20;
+    // ── STEP 1: LOCATION FILTER (non-negotiable) ────────────────────────────
+    if (preferredLocations.length > 0) {
+      let locationOk = false;
 
-    // 4. Skills match (+15, +3 per skill, max 15)
-    if (candidateSkills.length > 0) {
-      let skillPoints = 0;
-      for (const skill of candidateSkills) {
-        if (skill.length > 2 && combined.includes(skill)) {
-          skillPoints += 3;
-          if (skillPoints >= 15) break;
+      if (workType === 'remote') {
+        locationOk = isRemote;
+      } else {
+        // on_site, hybrid, or unspecified
+        if (isRemote) {
+          locationOk = openToRelocate;
+        } else {
+          const countryOk = [...acceptableCountryAliases].some(alias =>
+            jobCountry.includes(alias) || jobLocation.includes(alias));
+          const cityOk = [...acceptableCities].some(city =>
+            city && (jobCity.includes(city) || jobLocation.includes(city)));
+          locationOk = countryOk || cityOk;
+          if (!locationOk && openToRelocate) locationOk = true;
         }
       }
-      breakdown.skills = Math.min(skillPoints, 15);
-    }
 
-    // 5. Experience level match (+10)
-    if (levelKeywords.length > 0) {
-      const match = levelKeywords.some(kw => titleLow.includes(kw));
-      if (match) breakdown.level = 10;
-    }
-
-    // 6. Freshness bonus (+5)
-    if (job.date_posted) {
-      const posted = new Date(job.date_posted).getTime();
-      const ageMs = now - posted;
-      if (ageMs < 24 * 60 * 60 * 1000)      breakdown.freshness = 5;
-      else if (ageMs < 7 * 24 * 60 * 60 * 1000) breakdown.freshness = 2;
-    }
-
-    // Total possible: 115 — displayed as % capped at 100
-    const rawScore = breakdown.industry + breakdown.role + breakdown.location + breakdown.skills + breakdown.level + breakdown.freshness;
-    if (rawScore >= 25) {
-      const pct = Math.min(Math.round((rawScore / 115) * 100), 100);
-      scored.push({ ...job, score: pct, score_raw: rawScore, score_breakdown: breakdown });
-    }
-  }
-
-  // Sort by score descending, then by date_posted descending
-  scored.sort((a, b) => b.score - a.score || new Date(b.date_posted || 0) - new Date(a.date_posted || 0));
-  return scored.slice(0, 20);
-}
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
-function getIndustryKeywords(rawIndustry) {
-  if (!rawIndustry) return [];
-
-  // Try to parse as JSON array (compliance_domains stores ["finance"] etc.)
-  let industries = [];
-  try {
-    const parsed = JSON.parse(rawIndustry);
-    if (Array.isArray(parsed)) industries = parsed.map(s => s.toLowerCase().trim());
-    else industries = [rawIndustry];
-  } catch (_) {
-    industries = [rawIndustry];
-  }
-
-  const keywords = new Set();
-  for (const ind of industries) {
-    // Direct match in our map
-    for (const [key, kws] of Object.entries(INDUSTRY_KEYWORDS)) {
-      if (ind.includes(key) || kws.some(kw => ind.includes(kw))) {
-        kws.forEach(kw => keywords.add(kw));
+      if (!locationOk) {
+        return { ...job, score: 0, score_breakdown: { filtered: 'location' } };
       }
     }
-    // Also add the raw industry term itself
-    if (ind.length > 2) keywords.add(ind);
-  }
-  return [...keywords];
+
+    // ── STEP 2: INDUSTRY MATCH (+40) ────────────────────────────────────────
+    let industryScore = 0;
+    for (const ind of industries) {
+      const keywords = INDUSTRY_KEYWORDS[ind] || [ind];
+      if (keywords.some(kw => jobText.includes(kw))) { industryScore = 40; break; }
+    }
+    score += industryScore;
+    breakdown.industry = industryScore;
+
+    // ── STEP 3: DESIRED ROLE MATCH (+25) ────────────────────────────────────
+    let roleScore = 0;
+    if (desiredRole) {
+      if (jobTitle.includes(desiredRole) || desiredRole.includes(jobTitle)) {
+        roleScore = 25;
+      } else {
+        const specificWords = desiredRole.split(/[\s,\-\/]+/).filter(w => w.length > 2 && !GENERIC_WORDS.has(w));
+        const specificHits  = specificWords.filter(w => jobTitle.includes(w) || jobText.includes(w));
+
+        if (specificWords.length > 0) {
+          if (specificHits.length >= 2) roleScore = 25;
+          else if (specificHits.length === 1) roleScore = 15;
+        } else {
+          // All words are generic (e.g. "Senior Manager") — check title overlap
+          const genericHits = desiredRole.split(/[\s,\-\/]+/).filter(w => GENERIC_WORDS.has(w) && jobTitle.includes(w));
+          if (genericHits.length >= 1) roleScore = 8;
+        }
+      }
+    }
+    score += roleScore;
+    breakdown.role = roleScore;
+
+    // ── STEP 4: LOCATION SCORE (+20) ────────────────────────────────────────
+    let locationScore = 0;
+    if (isRemote && workType === 'remote') {
+      locationScore = 20;
+    } else if (!isRemote) {
+      const cityMatch    = [...acceptableCities].some(city => city && (jobCity.includes(city) || jobLocation.includes(city)));
+      const countryMatch = [...acceptableCountryAliases].some(alias => jobCountry.includes(alias) || jobLocation.includes(alias));
+      if (cityMatch) locationScore = 20;
+      else if (countryMatch) locationScore = 15;
+      else if (openToRelocate) locationScore = 5;
+    } else if (isRemote && openToRelocate) {
+      locationScore = 10;
+    }
+    score += locationScore;
+    breakdown.location = locationScore;
+
+    // ── STEP 5: SKILLS MATCH (+15) ──────────────────────────────────────────
+    let skillScore = 0;
+    for (const skill of skills) {
+      if (skill.length > 2 && jobText.includes(skill)) skillScore += 3;
+    }
+    skillScore = Math.min(skillScore, 15);
+    score += skillScore;
+    breakdown.skills = skillScore;
+
+    // ── STEP 6: EXPERIENCE LEVEL MATCH (+10) ────────────────────────────────
+    const levelMap = {
+      executive: ['director','vp ','vice president','chief','cxo','c-suite','head of'],
+      manager:   ['manager','head','lead','principal','senior manager','deputy'],
+      senior:    ['senior','sr.','sr ','lead','principal'],
+      mid:       [],
+      entry:     ['junior','associate','graduate','trainee','intern','entry'],
+      fresher:   ['fresher','graduate','entry','junior','trainee','intern'],
+    };
+    let expScore = 0;
+    const levelWords = levelMap[workLevel] || [];
+    if (workLevel === 'mid') {
+      const overqualified = ['director','vp ','chief','head of'].some(w => jobTitle.includes(w));
+      expScore = overqualified ? 0 : 10;
+    } else if (levelWords.length > 0) {
+      expScore = levelWords.some(w => w && jobTitle.includes(w)) ? 10 : 3;
+    } else {
+      expScore = 5;
+    }
+    score += expScore;
+    breakdown.level = expScore;
+
+    // ── STEP 7: FRESHNESS BONUS (+5) ────────────────────────────────────────
+    let freshScore = 0;
+    if (job.date_posted) {
+      const hoursOld = (Date.now() - new Date(job.date_posted).getTime()) / 3600000;
+      if (hoursOld <= 24) freshScore = 5;
+      else if (hoursOld <= 168) freshScore = 2;
+    }
+    score += freshScore;
+    breakdown.freshness = freshScore;
+
+    return { ...job, score: Math.min(100, Math.round(score)), score_raw: score, score_breakdown: breakdown };
+  });
+
+  return scored
+    .filter(j => j.score >= 25)
+    .sort((a, b) => b.score - a.score || new Date(b.date_posted || 0) - new Date(a.date_posted || 0))
+    .slice(0, 20);
 }
 
-module.exports = { matchJobsForCandidate };
+function getMatchLabel(score) {
+  if (score >= 80) return { label: 'Excellent match', color: 'green' };
+  if (score >= 60) return { label: 'Good match', color: 'blue' };
+  if (score >= 40) return { label: 'Possible match', color: 'gray' };
+  return { label: 'Low match', color: 'muted' };
+}
+
+module.exports = { matchJobsForCandidate, getMatchLabel };

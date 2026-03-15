@@ -3091,49 +3091,41 @@ const SOURCE_LABELS = {
 // ── GET /api/candidate/jobs — Matched jobs for candidate ────────────────────
 router.get('/jobs', ...guard, async (req, res) => {
   try {
-    // STEP A — Read candidate profile
-    const data = await loadProfile(req.user.user_id);
-    if (!data) return res.json({ ok: true, jobs: [], message: 'Complete your DPR profile first' });
-    const { meta } = data;
+    // STEP A — Get DPR post ID
+    const profileId = await getProfileId(req.user.user_id);
+    if (!profileId) return res.json({ ok: true, jobs: [], message: 'Complete your DPR profile first' });
 
-    // Parse preferred_location repeater for matching
-    const prefLocs = parseRepeater(meta, 'preferred_location', [
-      'preferred_city_name', 'preferred_country_name',
-    ]);
-
-    const profile = {
-      compliance_domains:               meta.compliance_domains,
-      industry:                         meta.industry,
-      desired_role:                     meta.desired_role,
-      residential_city:                 meta.residential_city,
-      residential_country:              meta.residential_country,
-      soft_skills:                      meta.soft_skills,
-      total_work_experience:            meta.total_work_experience,
-      preferred_work_type:              meta.preferred_work_type,
-      work_level:                       meta.work_level,
-      open_to_relocate:                 meta.open_to_relocate,
-      professional_headline:            meta.professional_headline,
-      current_employment_status:        meta.current_employment_status,
-      expected_annual_ctc_with_currency: meta.expected_annual_ctc_with_currency,
-      preferred_location:               prefLocs,
-    };
+    // Fetch ONLY Job Preferences meta keys (not residential address)
+    const [metaRows] = await pool.execute(
+      `SELECT meta_key, meta_value FROM wp_postmeta
+       WHERE post_id = ? AND (
+         meta_key IN ('desired_role','preferred_work_type','work_level',
+           'open_to_relocate','soft_skills','total_work_experience',
+           'compliance_domains','professional_headline')
+         OR meta_key LIKE 'preferred_location%'
+       )`,
+      [profileId]
+    );
+    const profile = {};
+    for (const r of metaRows) profile[r.meta_key] = r.meta_value;
 
     // STEP B — Live per-candidate JSearch (1 call/user/24h, cached)
     let liveJobs = [];
     const userId = req.user.id;
-    const desiredRole = (meta.desired_role || '').trim();
-    const city    = (meta.residential_city || '').trim();
-    const country = (meta.residential_country || '').trim();
+    const desiredRole = (profile.desired_role || '').trim();
+    // Build live search location from preferred locations (not residential)
+    const prefCity    = (profile['preferred_location_0_preferred_city_name'] || '').trim();
+    const prefCountry = (profile['preferred_location_0_preferred_country_name'] || '').trim();
 
     if (process.env.RAPIDAPI_KEY && desiredRole) {
       const cached = liveJobCache[userId];
       const now = Date.now();
-      const TTL = 24 * 60 * 60 * 1000; // 24 hours
+      const TTL = 24 * 60 * 60 * 1000;
 
       if (cached && (now - cached.fetchedAt) < TTL) {
         liveJobs = cached.jobs;
       } else {
-        const liveQuery = `${desiredRole} jobs in ${city || country || 'remote'}`;
+        const liveQuery = `${desiredRole} jobs in ${prefCity || prefCountry || 'remote'}`;
         console.log(`[jobs] Live search for user ${userId}: "${liveQuery}"`);
         liveJobs = await fetchJSearchLive(liveQuery);
         liveJobCache[userId] = { jobs: liveJobs, fetchedAt: now };
@@ -3162,7 +3154,7 @@ router.get('/jobs', ...guard, async (req, res) => {
       }
     }
 
-    // Run matcher on combined pool
+    // Run matcher on combined pool — profile is flat meta keys
     const matched = matchJobsForCandidate(profile, combined);
 
     // STEP D — Add source labels
