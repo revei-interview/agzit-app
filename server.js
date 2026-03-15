@@ -561,7 +561,7 @@ async function processScheduledInterviews() {
   try {
     // Find bookings whose scheduled time has arrived
     const [rows] = await pool.execute(
-      'SELECT id, user_id, email, first_name, preferred_time FROM agzit_interview_queue WHERE status = "waiting" AND preferred_time <= NOW()'
+      "SELECT id, user_id, email, first_name, preferred_time FROM agzit_interview_queue WHERE status = 'waiting' AND preferred_time <= NOW()"
     );
     if (!rows.length) return;
 
@@ -580,7 +580,7 @@ async function processScheduledInterviews() {
       if (slotsAvailable > 0) {
         // Slot is free — send "ready to start" email (Email 2)
         await pool.execute(
-          'UPDATE agzit_interview_queue SET status = "notified", notified_at = NOW() WHERE id = ?',
+          "UPDATE agzit_interview_queue SET status = 'notified', notified_at = NOW() WHERE id = ?",
           [row.id]
         );
         slotsAvailable--;
@@ -656,7 +656,7 @@ async function processScheduledInterviews() {
       }
     }
   } catch (err) {
-    console.error('[SCHEDULER] processScheduledInterviews error:', err.message);
+    console.error('[SCHEDULER] processScheduledInterviews error:', err.message, err.code || '');
   }
 }
 
