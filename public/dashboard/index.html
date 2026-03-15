@@ -2313,9 +2313,10 @@ function renderEmployerInterviews(list) {
 
 /* ── Job Preferences (read-only) ─────────────────────────────────────────── */
 function renderJobPrefs(p) {
-  const LEVEL  = {junior:'Junior',mid:'Mid-Level',senior:'Senior',lead:'Lead',manager:'Manager',director:'Director',csuite:'C-Suite'};
-  const EMP    = {employed:'Employed',unemployed:'Unemployed',freelance:'Freelance',on_notice:'On Notice',contract:'Contract'};
-  const TYPE   = {onsite:'On-site',remote:'Remote',hybrid:'Hybrid'};
+  const LEVEL  = {entry:'Entry Level',mid:'Mid Level',senior:'Senior Level',lead:'Lead',manager:'Manager',executive:'Executive',junior:'Junior',director:'Director',csuite:'C-Suite'};
+  const EMP    = {employed:'Employed',unemployed:'Unemployed',freelance:'Freelancing',notice:'Serving Notice',student:'Student',on_notice:'On Notice',contract:'Contract'};
+  const TYPE   = {on_site:'On-site',remote:'Remote',hybrid:'Hybrid',onsite:'On-site'};
+  const NOTICE = {'15_days':'15 Days','1_month':'1 Month','2_months':'2 Months','3_months':'3 Months','6_months':'6 Months',immediate:'Immediate',serving:'Currently Serving Notice'};
   const html = `
     <div class="jp-card">
       <div class="jp-heading">Job Preferences</div>
@@ -2324,7 +2325,7 @@ function renderJobPrefs(p) {
         ${fld('Desired Role',        p.desired_role)}
         ${fld('Work Level',          LEVEL[p.work_level] || p.work_level)}
         ${fld('Employment Status',   EMP[p.current_employment_status] || p.current_employment_status)}
-        ${fld('Notice Period',       p.notice_period_in_days)}
+        ${fld('Notice Period',       NOTICE[p.notice_period_in_days] || p.notice_period_in_days)}
         ${fld('Preferred Work Type', TYPE[p.preferred_work_type] || p.preferred_work_type)}
         ${fld('Open to Relocate',    p.open_to_relocate === '1' ? 'Yes' : p.open_to_relocate === '0' ? 'No' : '')}
         ${fld('Current CTC',         p.current_annual_ctc_with_currency)}

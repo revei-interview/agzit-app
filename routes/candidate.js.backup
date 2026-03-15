@@ -27,12 +27,7 @@ const upload = multer({
   limits:  { fileSize: 5 * 1024 * 1024 },
 });
 
-// Normalize req.user.id — JWT stores user_id, some routes reference req.user.id
-const normalizeUserId = (req, res, next) => {
-  if (req.user && !req.user.id) req.user.id = req.user.user_id;
-  next();
-};
-const guard = [requireAuth, requireRole('dpr_candidate'), normalizeUserId];
+const guard = [requireAuth, requireRole('dpr_candidate')];
 
 // ── Unlock helpers (used by /resume/download for employer access checks) ─────
 
@@ -248,13 +243,6 @@ router.get('/dashboard', ...guard, async (req, res) => {
         ])
       : {};
 
-    // Unified credit balance
-    const [[creditRow]] = await pool.execute(
-      'SELECT credit_balance FROM agzit_candidate_credits WHERE user_id = ?',
-      [user.id]
-    );
-    const creditBalance = creditRow ? creditRow.credit_balance : 0;
-
     res.json({
       ok: true,
       user: {
@@ -264,7 +252,6 @@ router.get('/dashboard', ...guard, async (req, res) => {
         last_name:  user.last_name,
         created_at: user.created_at,
       },
-      credit_balance: creditBalance,
       profile: meta ? {
         dpr_id:               meta.dpr_id,
         full_name:            meta.full_name,
@@ -280,11 +267,6 @@ router.get('/dashboard', ...guard, async (req, res) => {
         resume_visibility:    meta.resume_visibility,
         current_address:      meta.residential_address_line_1,
         key_achievements:     meta.key_achievements,
-        total_work_experience: meta.total_work_experience,
-        desired_role:          meta.desired_role,
-        professional_headline: meta.professional_headline,
-        resume_upload:         meta.resume_upload,
-        has_resume:            meta.has_resume,
       } : null,
       entitlements: {
         sessions_20: parseInt(userMeta.mock_sessions_remaining_20) || 0,
@@ -301,10 +283,10 @@ router.get('/dashboard', ...guard, async (req, res) => {
   }
 });
 
-// Calculate verified badges based on employer_interview posts with tier system
+// Calculate verified badges based on employer_interview posts
 const calculateVerifiedBadges = async (userId) => {
   try {
-    // Get candidate email
+    // Get candidate email from agzit_users
     const [candidate] = await pool.execute(
       'SELECT email FROM agzit_users WHERE id = ?',
       [userId]
@@ -316,8 +298,8 @@ const calculateVerifiedBadges = async (userId) => {
 
     const candidateEmail = candidate[0].email;
 
-    // Find all employer_interview posts
-    const [interviews] = await pool.execute(`
+    // Find all employer_interview posts for this candidate
+    const interviewsQuery = `
       SELECT p.ID as interview_id, p.post_date
       FROM wp_posts p
       JOIN wp_postmeta pm ON p.ID = pm.post_id
@@ -328,14 +310,24 @@ const calculateVerifiedBadges = async (userId) => {
       GROUP BY p.ID
       ORDER BY p.post_date DESC
       LIMIT 50
-    `, [candidateEmail]);
+    `;
 
-    // Need at least 3 interviews for any badge
+    const [interviews] = await pool.execute(interviewsQuery, [candidateEmail]);
+
+    // Need at least 3 interviews
     if (!interviews || interviews.length < 3) {
       return [];
     }
 
     const badges = [];
+
+    // Add Experience Verified badge
+    badges.push({
+      name: 'Experience Verified',
+      competency: 'experience_verified',
+      score: null,
+      type: 'experience_verified'
+    });
 
     // Competency to meta_key mapping
     const competencyMap = {
@@ -351,9 +343,9 @@ const calculateVerifiedBadges = async (userId) => {
       'score_depth_specificity': 'Depth & Specificity'
     };
 
-    // Calculate competency badges with TIER SYSTEM
+    // Calculate competency badges
     for (const [metaKey, competencyName] of Object.entries(competencyMap)) {
-      const [scores] = await pool.execute(`
+      const scoresQuery = `
         SELECT CAST(pm.meta_value AS DECIMAL(5,2)) as score
         FROM wp_posts p
         JOIN wp_postmeta pm_email ON p.ID = pm_email.post_id
@@ -365,54 +357,23 @@ const calculateVerifiedBadges = async (userId) => {
           AND p.post_status = 'publish'
         ORDER BY p.post_date DESC
         LIMIT 50
-      `, [candidateEmail, metaKey]);
+      `;
+
+      const [scores] = await pool.execute(scoresQuery, [candidateEmail, metaKey]);
 
       if (scores && scores.length >= 3) {
         const avgScore = scores.reduce((sum, row) => sum + (parseFloat(row.score) || 0), 0) / scores.length;
 
-        // Tier system: 0-60 no badge, 61-75 silver, 76-85 gold, 86-100 platinum
-        let tier = null;
-        let tierIcon = '';
-        let tierName = '';
-
-        if (avgScore >= 86) {
-          tier = 'platinum';
-          tierIcon = '💎';
-          tierName = 'Platinum Member';
-        } else if (avgScore >= 76) {
-          tier = 'gold';
-          tierIcon = '🥇';
-          tierName = 'Gold Member';
-        } else if (avgScore >= 61) {
-          tier = 'silver';
-          tierIcon = '🥈';
-          tierName = 'Silver Member';
-        }
-        // avgScore < 61 = no badge (tier = null)
-
-        // Only add badge if tier exists (score >= 61)
-        if (tier) {
+        if (avgScore >= 75) {
           badges.push({
-            name: `${tierIcon} ${tierName}`,
+            name: `Verified ${competencyName}`,
             competency: competencyName,
             score: Math.round(avgScore * 10) / 10,
-            tier: tier,
-            type: 'competency',
-            nextTier: tier === 'silver' ? 'Gold (76+)' : tier === 'gold' ? 'Platinum (86+)' : 'Expert Level'
+            type: 'competency'
           });
         }
       }
     }
-
-    // Also add overall Experience Verified badge (always shown if 3+ interviews)
-    badges.push({
-      name: '✓ Latest Experience Verified via AI Interview',
-      competency: 'experience_verified',
-      score: null,
-      tier: null,
-      type: 'experience_verified',
-      interviewCount: interviews.length
-    });
 
     return badges;
 
@@ -511,12 +472,6 @@ router.get('/profile', ...guard, async (req, res) => {
         issue_date:                       meta.issue_date,
         dpr_id_view_count:                meta.dpr_id_view_count,
 
-        // ── Fresher / project fields
-        is_fresher:                       meta.is_fresher,
-        project_title:                    meta.project_title,
-        project_date:                     meta.project_date,
-        project_summary:                  meta.project_summary,
-
         // ── Professional summary
         professional_summary_bio:         meta.professional_summary_bio,
         total_work_experience:            meta.total_work_experience,
@@ -573,324 +528,6 @@ router.get('/profile', ...guard, async (req, res) => {
   } catch (err) {
     console.error('[candidate/profile]', err);
     res.status(500).json({ ok: false, error: 'Server error' });
-  }
-});
-
-// ── POST /api/candidate/career-analyzer ──────────────────────────────────────
-// Generate AI career analysis with dynamic salary research (costs 1 credit)
-
-router.post('/career-analyzer', ...guard, async (req, res) => {
-  try {
-    const userId = req.user.user_id || req.user.id;
-
-    // Check credits
-    const [[credits]] = await pool.execute(
-      'SELECT credit_balance FROM agzit_candidate_credits WHERE user_id = ?',
-      [userId]
-    );
-
-    if (!credits || credits.credit_balance < 1) {
-      return res.status(402).json({
-        error: 'Insufficient credits',
-        message: 'Get 1 free credit by referring a friend!'
-      });
-    }
-
-    // Load DPR data
-    const data = await loadProfile(userId);
-    if (!data) {
-      return res.status(404).json({ error: 'Profile not found' });
-    }
-    const { meta } = data;
-
-    // Parse repeaters
-    const workExperience = parseRepeater(meta, 'work_experience', [
-      'job_title', 'company_name', 'start_date', 'end_date', 'Currently_working',
-    ]);
-    const education = parseRepeater(meta, 'education', [
-      'degree', 'institution_name',
-    ]);
-    const prefLocations = parseRepeater(meta, 'preferred_location', [
-      'preferred_city_name', 'preferred_country_name',
-    ]);
-
-    // Get badges
-    const badges = await calculateVerifiedBadges(userId);
-    const scored = badges.filter(b => b.score);
-    const avgScore = scored.length > 0
-      ? Math.round(scored.reduce((sum, b) => sum + b.score, 0) / scored.length)
-      : null;
-
-    // Extract location and industry
-    const city = meta.residential_city || (prefLocations[0] && prefLocations[0].preferred_city_name) || 'Not specified';
-    const country = meta.residential_country || meta.country_of_nationality || 'IN';
-    const industry = meta.compliance_domains || 'Not specified';
-    const expYears = parseInt(meta.total_work_experience) || 0;
-
-    // Build comprehensive OpenAI prompt with dynamic salary research
-    const systemPrompt = `You are an expert global career strategist with deep knowledge of:
-- Salary markets across 50+ countries
-- Industry trends and job market dynamics
-- Realistic career progression paths
-- Cost of living and purchasing power in different locations
-
-Provide REALISTIC, DATA-DRIVEN career advice using actual 2024-2025 market data.
-Return ONLY valid JSON. No preamble or explanation.`;
-
-    const userPrompt = `Analyze this candidate's career profile and suggest 3 strategic next roles with location-specific salary insights.
-
-CANDIDATE PROFILE:
-Name: ${meta.full_name || 'Not specified'}
-Current Location: ${city}, ${country}
-Current Role: ${meta.desired_role || 'Not specified'}
-Industry: ${industry}
-Experience: ${expYears} years
-Current Salary: ${meta.current_annual_ctc_with_currency || 'Not specified'}
-Expected Salary: ${meta.expected_annual_ctc_with_currency || 'Not specified'}
-Skills: ${meta.soft_skills || 'Not specified'}
-Work Level: ${meta.work_level || 'Not specified'}
-Interview Performance: ${avgScore ? avgScore + '/100' : 'Not assessed'}
-Verified Skills: ${scored.map(b => b.competency).join(', ') || 'None yet'}
-Open to Relocation: ${meta.open_to_relocate === '1' ? 'Yes' : 'No'}
-Preferred Locations: ${prefLocations.map(p => (p.preferred_city_name || '') + ', ' + (p.preferred_country_name || '')).join('; ') || 'Current location preferred'}
-Employment History:
-${workExperience.map(j => `  ${j.job_title || '?'} at ${j.company_name || '?'} (${j.start_date || '?'} - ${j.Currently_working === 'yes' ? 'Present' : j.end_date || '?'})`).join('\n') || '  None listed'}
-Education:
-${education.map(e => `  ${e.degree || '?'} from ${e.institution_name || '?'}`).join('\n') || '  None listed'}
-
-RESEARCH TASK:
-For this ${industry} professional in ${city}, ${country}, research and provide:
-1. Three realistic career paths (specific to their industry + location)
-2. Current salary level in ${city} for their role
-3. Salary progression for EACH path in ${city} (or if relocation, in that specific city)
-4. Market demand for each role in their location
-5. Timeline to transition (realistic, considering market conditions)
-
-FOR EACH PATH PROVIDE:
-- role_title: Specific job title in their industry
-- timeline_months: Realistic months to transition
-- required_skills: 3-4 specific skills needed
-- current_salary_range: What they earn now in ${city}
-- expected_salary_range: What they'll earn in new role in ${city}
-- salary_growth_percentage: % increase from current
-- fit_reason: Leverage their current strengths
-- industries: Where this role exists
-- work_life_balance: Balanced/Demanding/Flexible
-- stability: Stable/Growth/Risk
-- timing_strategy: When to move (market conditions, experience level)
-- risks: Challenges they might face
-- risk_mitigation: How to overcome risks
-- next_actions: 4-5 concrete actions to start now
-
-CRITICAL: Use REAL 2024-2025 salary data for ${city}, ${country}. No vague ranges like "5L-25L" — be SPECIFIC (e.g., "6-8L", "10-14L"). Account for ${expYears} years experience.
-
-Return ONLY valid JSON:
-{
-  "paths": [{ "role_title", "timeline_months", "required_skills", "current_salary_range", "expected_salary_range", "salary_growth_percentage", "fit_reason", "industries", "work_life_balance", "stability", "timing_strategy", "risks", "risk_mitigation", "next_actions" }],
-  "overall_insights": "...",
-  "skill_gaps": [...],
-  "market_analysis": "..."
-}`;
-
-    // Call OpenAI
-    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.7,
-        max_tokens: 3500,
-        response_format: { type: 'json_object' }
-      })
-    });
-
-    if (!openaiResponse.ok) {
-      const err = await openaiResponse.json().catch(() => ({}));
-      console.error('OpenAI error:', err);
-      return res.status(500).json({ error: 'Failed to generate career analysis' });
-    }
-
-    const openaiData = await openaiResponse.json();
-    const reportData = JSON.parse(openaiData.choices[0].message.content);
-
-    // Add location metadata
-    reportData.location = { city, country };
-
-    // Save report
-    await pool.execute(
-      'INSERT INTO agzit_career_reports (user_id, report_json, dpr_snapshot) VALUES (?, ?, ?)',
-      [userId, JSON.stringify(reportData), JSON.stringify(meta)]
-    );
-
-    // Deduct credit
-    await pool.execute(
-      'UPDATE agzit_candidate_credits SET credit_balance = credit_balance - 1 WHERE user_id = ?',
-      [userId]
-    );
-
-    // Log transaction
-    await pool.execute(
-      "INSERT INTO agzit_credit_transactions (user_id, transaction_type, amount, description) VALUES (?, 'usage', 1, ?)",
-      [userId, `Career Analyzer: ${industry} in ${city}`]
-    );
-
-    res.json({ ok: true, report: reportData, creditsRemaining: credits.credit_balance - 1 });
-
-  } catch (error) {
-    console.error('Career analyzer error:', error);
-    res.status(500).json({ error: 'Failed to generate analysis' });
-  }
-});
-
-// ── POST /api/candidate/send-referral ────────────────────────────────────────
-router.post('/send-referral', ...guard, async (req, res) => {
-  try {
-    const userId = req.user.user_id || req.user.id;
-    const { referral_email } = req.body;
-
-    if (!referral_email || !referral_email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-      return res.status(400).json({ error: 'Invalid email address' });
-    }
-
-    // Get referrer info
-    const [[referrer]] = await pool.execute(
-      'SELECT id, first_name, email FROM agzit_users WHERE id = ?',
-      [userId]
-    );
-
-    if (!referrer) return res.status(404).json({ error: 'User not found' });
-
-    // Check if already invited (prevent spam)
-    const [[existing]] = await pool.execute(
-      'SELECT id FROM agzit_referrals WHERE referrer_id = ? AND referral_email = ? AND status IN ("pending", "completed")',
-      [userId, referral_email]
-    );
-
-    if (existing) {
-      return res.status(400).json({ error: 'Already invited this email' });
-    }
-
-    // Create referral record
-    const [referralResult] = await pool.execute(
-      `INSERT INTO agzit_referrals (referrer_id, referral_email, status, referred_at)
-       VALUES (?, ?, 'pending', NOW())`,
-      [userId, referral_email]
-    );
-
-    const referralId = referralResult.insertId;
-    const referralLink = `https://app.agzit.com/register?ref=${referralId}`;
-
-    // Send email via Brevo
-    try {
-      const emailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'api-key': process.env.BREVO_API_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          to: [{ email: referral_email }],
-          sender: { email: 'noreply@agzit.com', name: 'AGZIT Career Intelligence' },
-          subject: `${referrer.first_name} invited you to AGZIT - Get 1 Free Career Report!`,
-          htmlContent: `
-            <h2>You're invited to AGZIT!</h2>
-            <p>Hi there,</p>
-            <p><strong>${referrer.first_name}</strong> thinks you'd be great on AGZIT - a career intelligence platform for professionals.</p>
-
-            <h3>What you get:</h3>
-            <ul>
-              <li>AI-powered mock interviews (10 competencies scored)</li>
-              <li>Verification badges (Silver/Gold/Platinum)</li>
-              <li>Career Analyzer (3 strategic paths with salary insights)</li>
-              <li>1 FREE Career Analyzer report</li>
-              <li>Global job market insights</li>
-            </ul>
-
-            <p><a href="${referralLink}" style="background: #1A44C2; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">Create Your Profile Now</a></p>
-
-            <p>Bonus: When you sign up, ${referrer.first_name} gets 1 free Career Analyzer credit!</p>
-
-            <p>Best,<br>The AGZIT Team</p>
-          `
-        })
-      });
-
-      if (!emailResponse.ok) {
-        console.error('Brevo email error:', await emailResponse.text());
-      }
-    } catch (emailErr) {
-      console.error('Email send failed:', emailErr.message);
-    }
-
-    res.json({
-      ok: true,
-      message: 'Referral invite sent!',
-      referral_id: referralId
-    });
-
-  } catch (error) {
-    console.error('Send referral error:', error);
-    res.status(500).json({ error: 'Failed to send referral' });
-  }
-});
-
-// ── GET /api/candidate/referral-stats ────────────────────────────────────────
-router.get('/referral-stats', ...guard, async (req, res) => {
-  try {
-    const userId = req.user.user_id || req.user.id;
-
-    const [[stats]] = await pool.execute(
-      `SELECT
-        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
-        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_count,
-        COUNT(CASE WHEN status = 'completed' THEN 1 END) as credits_earned
-      FROM agzit_referrals WHERE referrer_id = ?`,
-      [userId]
-    );
-
-    res.json({
-      ok: true,
-      pending_invites: stats.pending_count || 0,
-      successful_referrals: stats.completed_count || 0,
-      credits_earned: stats.credits_earned || 0
-    });
-
-  } catch (error) {
-    console.error('Referral stats error:', error);
-    res.status(500).json({ error: 'Failed to fetch stats' });
-  }
-});
-
-// ── GET /api/candidate/referral-history ──────────────────────────────────────
-router.get('/referral-history', ...guard, async (req, res) => {
-  try {
-    const userId = req.user.user_id || req.user.id;
-
-    const [referrals] = await pool.execute(
-      `SELECT
-        id, referral_email, status, referred_at, completed_at
-      FROM agzit_referrals
-      WHERE referrer_id = ?
-      ORDER BY referred_at DESC
-      LIMIT 50`,
-      [userId]
-    );
-
-    res.json({
-      ok: true,
-      referrals: referrals || []
-    });
-
-  } catch (error) {
-    console.error('Referral history error:', error);
-    res.status(500).json({ error: 'Failed to fetch referral history' });
   }
 });
 
@@ -1360,130 +997,6 @@ router.post('/interviews/start', ...guard, async (req, res) => {
     });
   } catch (err) {
     console.error('[candidate/interviews/start]', err);
-    res.status(500).json({ ok: false, error: 'Server error' });
-  }
-});
-
-// ── POST /api/candidate/interview-queue/join ─────────────────────────────────
-// Book a scheduled interview slot. preferred_time is required (confirmed time).
-router.post('/interview-queue/join', ...guard, async (req, res) => {
-  try {
-    const userId = req.user.user_id;
-    const scheduledTime = req.body.preferred_time;
-    if (!scheduledTime) return res.status(400).json({ ok: false, error: 'Scheduled time is required' });
-
-    // Cancel any existing waiting booking
-    await pool.execute(
-      'UPDATE agzit_interview_queue SET status = "expired" WHERE user_id = ? AND status = "waiting"',
-      [userId]
-    );
-
-    // Get user info
-    const [[user]] = await pool.execute(
-      'SELECT email, first_name FROM agzit_users WHERE id = ?', [userId]
-    );
-    if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
-
-    // Insert booking
-    const scheduledDt = new Date(scheduledTime);
-    const mysqlTime = scheduledDt.toISOString().replace('T', ' ').slice(0, 19);
-    const [result] = await pool.execute(
-      'INSERT INTO agzit_interview_queue (user_id, email, first_name, preferred_time) VALUES (?, ?, ?, ?)',
-      [userId, user.email, user.first_name || '', mysqlTime]
-    );
-
-    // Send booking confirmation email (Email 1)
-    const firstName = user.first_name || 'there';
-    const displayTime = scheduledDt.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
-
-    if (process.env.BREVO_API_KEY) {
-      await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: [{ email: user.email }],
-          sender: { email: 'noreply@agzit.com', name: 'AGZIT AI' },
-          subject: 'Your AGZIT interview is scheduled',
-          htmlContent: `
-            <div style="font-family:'Plus Jakarta Sans',system-ui,sans-serif;max-width:520px;margin:0 auto;padding:32px;">
-              <h2 style="color:#09101F;font-size:20px;">Hi ${firstName},</h2>
-              <p style="color:#3A4163;font-size:15px;line-height:1.7;">
-                Your AI mock interview is booked for <strong>${displayTime} IST</strong>.
-              </p>
-              <p style="color:#3A4163;font-size:15px;line-height:1.7;">
-                We'll send you a direct link when it's time to start. Your interview will take 20–30 minutes.
-              </p>
-              <div style="background:#F5F6FA;border:1px solid #E4E6EF;border-radius:12px;padding:16px;margin:20px 0;">
-                <div style="font-size:13px;color:#7C83A0;margin-bottom:4px;">SCHEDULED FOR</div>
-                <div style="font-size:16px;font-weight:700;color:#09101F;">${displayTime} IST</div>
-              </div>
-              <p style="color:#7C83A0;font-size:13px;">You can cancel or reschedule from your dashboard at any time.</p>
-              <hr style="border:none;border-top:1px solid #E4E6EF;margin:24px 0;">
-              <p style="color:#7C83A0;font-size:12px;">AGZIT Career Intelligence &middot; <a href="https://agzit.com" style="color:#1A44C2;">agzit.com</a></p>
-            </div>
-          `,
-        }),
-      }).catch(err => console.error('[schedule] Brevo confirmation error:', err.message));
-    }
-
-    res.json({ ok: true, booking_id: result.insertId, scheduled_time: mysqlTime });
-  } catch (err) {
-    console.error('[interview-queue/join]', err);
-    res.status(500).json({ ok: false, error: 'Server error' });
-  }
-});
-
-// ── GET /api/candidate/interview-queue/status ────────────────────────────────
-// Returns slot availability and any existing booking
-router.get('/interview-queue/status', ...guard, async (req, res) => {
-  try {
-    const userId = req.user.user_id;
-
-    // Check slot availability from daily backend
-    const renderUrl = (process.env.RENDER_BACKEND_URL || 'https://agzit-daily-backend.onrender.com').replace(/\/$/, '');
-    let slotsActive = 0, slotsMax = 10;
-    try {
-      const slotRes = await fetch(`${renderUrl}/interview/status`);
-      const slotData = await slotRes.json();
-      slotsActive = slotData.active || 0;
-      slotsMax = slotData.max || 10;
-    } catch (_) {}
-
-    // Check user's booking
-    const [entry] = await pool.execute(
-      'SELECT id, preferred_time, status, created_at FROM agzit_interview_queue WHERE user_id = ? AND status = "waiting" ORDER BY id DESC LIMIT 1',
-      [userId]
-    );
-
-    res.json({
-      ok: true,
-      slots_active: slotsActive,
-      slots_max: slotsMax,
-      slots_available: Math.max(0, slotsMax - slotsActive),
-      has_booking: entry.length > 0,
-      booking: entry.length ? {
-        id: entry[0].id,
-        scheduled_time: entry[0].preferred_time,
-        created_at: entry[0].created_at,
-      } : null,
-    });
-  } catch (err) {
-    console.error('[interview-queue/status]', err);
-    res.status(500).json({ ok: false, error: 'Server error' });
-  }
-});
-
-// ── DELETE /api/candidate/interview-queue/leave ──────────────────────────────
-// Cancel a scheduled interview booking
-router.delete('/interview-queue/leave', ...guard, async (req, res) => {
-  try {
-    await pool.execute(
-      'UPDATE agzit_interview_queue SET status = "expired" WHERE user_id = ? AND status = "waiting"',
-      [req.user.user_id]
-    );
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('[interview-queue/leave]', err);
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });
@@ -2318,10 +1831,6 @@ router.post('/dpr', requireAuth, async (req, res) => {
       ['profile_completeness',               profileCompleteness],
       ['profile_last_updated',               nowStr],
       ['has_resume',                         '1'],
-      ['is_fresher',                         s(personal.is_fresher) === '1' ? '1' : '0'],
-      ['project_title',                      s(personal.project_title)],
-      ['project_date',                       s(personal.project_date)],
-      ['project_summary',                    s(personal.project_summary)],
     ];
     for (const [key, value] of scalarMeta) {
       await pool.execute(
@@ -2394,33 +1903,7 @@ router.post('/dpr', requireAuth, async (req, res) => {
       }
     }
 
-    // 9b. Write compliance_tools repeater
-    const toolRows = (Array.isArray(skills.compliance_tools) ? skills.compliance_tools : [])
-      .filter(t => s(t.tool_name))
-      .map(t => ({ tool_name: s(t.tool_name) }));
-    await pool.execute('INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
-      [postId, 'compliance_tools', String(toolRows.length)]);
-    for (let i = 0; i < toolRows.length; i++) {
-      for (const [k, v] of Object.entries(toolRows[i])) {
-        await pool.execute('INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
-          [postId, `compliance_tools_${i}_${k}`, String(v ?? '')]);
-      }
-    }
-
-    // 9c. Write language_proficiency repeater
-    const langRows = (Array.isArray(skills.language_proficiency) ? skills.language_proficiency : [])
-      .filter(l => s(l.language))
-      .map(l => ({ language: s(l.language) }));
-    await pool.execute('INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
-      [postId, 'language_proficiency', String(langRows.length)]);
-    for (let i = 0; i < langRows.length; i++) {
-      for (const [k, v] of Object.entries(langRows[i])) {
-        await pool.execute('INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
-          [postId, `language_proficiency_${i}_${k}`, String(v ?? '')]);
-      }
-    }
-
-    // 9d. Write preferred_location repeater
+    // 9b. Write preferred_location repeater
     const prefLocRows = (Array.isArray(job_preferences.preferred_location) ? job_preferences.preferred_location : [])
       .filter(p => s(p.preferred_city_name) || s(p.preferred_country_name))
       .map(p => ({
@@ -2457,103 +1940,6 @@ router.post('/dpr', requireAuth, async (req, res) => {
       );
       await upsertUserMeta(wpUserId, 'first_name', s(personal.first_name));
       await upsertUserMeta(wpUserId, 'last_name',  s(personal.last_name));
-    }
-
-    // 13. Award DPR creation bonus (+1 credit, first time only)
-    try {
-      const [[existingBonus]] = await pool.execute(
-        "SELECT id FROM agzit_credit_transactions WHERE user_id = ? AND transaction_type = 'dpr_bonus' LIMIT 1",
-        [req.user.user_id]
-      );
-      if (!existingBonus) {
-        await pool.execute(
-          `INSERT INTO agzit_candidate_credits (user_id, credit_balance, total_credits_earned)
-           VALUES (?, 1, 1)
-           ON DUPLICATE KEY UPDATE
-             credit_balance = credit_balance + 1,
-             total_credits_earned = total_credits_earned + 1`,
-          [req.user.user_id]
-        );
-        await pool.execute(
-          "INSERT INTO agzit_credit_transactions (user_id, transaction_type, amount, description) VALUES (?, 'dpr_bonus', 1, 'DPR profile creation bonus')",
-          [req.user.user_id]
-        );
-        console.log(`[dpr] Awarded DPR bonus credit to user ${req.user.user_id}`);
-      }
-    } catch (creditErr) {
-      console.error('[dpr] DPR bonus credit error:', creditErr.message);
-    }
-
-    // 14. Award referral credit to referrer (triggered by DPR completion, not signup)
-    try {
-      const [[pendingRef]] = await pool.execute(
-        "SELECT id, referrer_id FROM agzit_referrals WHERE referred_user_id = ? AND status = 'pending' LIMIT 1",
-        [req.user.user_id]
-      );
-      if (pendingRef) {
-        const referrerId = pendingRef.referrer_id;
-
-        // Mark referral as completed
-        await pool.execute(
-          "UPDATE agzit_referrals SET status = 'completed', completed_at = NOW() WHERE id = ?",
-          [pendingRef.id]
-        );
-
-        // Award +1 credit to referrer
-        await pool.execute(
-          `INSERT INTO agzit_candidate_credits (user_id, credit_balance, total_credits_earned)
-           VALUES (?, 1, 1)
-           ON DUPLICATE KEY UPDATE
-             credit_balance = credit_balance + 1,
-             total_credits_earned = total_credits_earned + 1`,
-          [referrerId]
-        );
-
-        // Log transaction
-        const userEmail = req.user.email || '';
-        await pool.execute(
-          "INSERT INTO agzit_credit_transactions (user_id, transaction_type, amount, description) VALUES (?, 'referral', 1, ?)",
-          [referrerId, `Referral completed: ${userEmail}`]
-        );
-
-        // Send thank-you email to referrer
-        try {
-          const [[referrerUser]] = await pool.execute(
-            'SELECT email, first_name FROM agzit_users WHERE id = ?',
-            [referrerId]
-          );
-          if (referrerUser && process.env.BREVO_API_KEY) {
-            await fetch('https://api.brevo.com/v3/smtp/email', {
-              method: 'POST',
-              headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                to: [{ email: referrerUser.email }],
-                sender: { email: 'noreply@agzit.com', name: 'AGZIT' },
-                subject: 'Your referral completed their DPR! You earned 1 free credit',
-                htmlContent: `
-                  <div style="font-family:'Plus Jakarta Sans',system-ui,sans-serif;max-width:520px;margin:0 auto;padding:32px;">
-                    <h2 style="color:#09101F;font-size:20px;">Referral Success!</h2>
-                    <p style="color:#3A4163;font-size:15px;line-height:1.7;">Great news, ${referrerUser.first_name || 'there'}! Your friend signed up and completed their DPR profile.</p>
-                    <p style="color:#3A4163;font-size:15px;line-height:1.7;"><strong>You've earned 1 free credit!</strong> Use it for Career Analyzer or AI Resume Polish.</p>
-                    <p style="margin:24px 0;">
-                      <a href="https://app.agzit.com/dashboard" style="background:#1A44C2;color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block;">Go to Dashboard</a>
-                    </p>
-                    <p style="color:#7C83A0;font-size:13px;">Keep referring to earn more credits!</p>
-                    <hr style="border:none;border-top:1px solid #E4E6EF;margin:24px 0;">
-                    <p style="color:#7C83A0;font-size:12px;">AGZIT Career Intelligence &middot; <a href="https://agzit.com" style="color:#1A44C2;">agzit.com</a></p>
-                  </div>
-                `,
-              }),
-            }).catch(err => console.error('[dpr] Referral thank-you email error:', err.message));
-          }
-        } catch (emailErr) {
-          console.error('[dpr] Referral email error:', emailErr.message);
-        }
-
-        console.log(`[dpr] Awarded referral credit to user ${referrerId} (referred by user ${req.user.user_id})`);
-      }
-    } catch (refErr) {
-      console.error('[dpr] Referral credit error:', refErr.message);
     }
 
     console.log(`[dpr] Created ${dprId} (post ${postId}) for user ${req.user.user_id}`);
@@ -2664,14 +2050,14 @@ router.post('/dpr/:postId/resume', requireAuth, upload.single('resume'), async (
 
 // ── AI Polish Credits ─────────────────────────────────────────────────────────
 
-// GET /api/candidate/ai-polish/credits — now uses unified credit system
+// GET /api/candidate/ai-polish/credits
 router.get('/ai-polish/credits', ...guard, async (req, res) => {
   try {
     const [[row]] = await pool.execute(
-      'SELECT credit_balance FROM agzit_candidate_credits WHERE user_id = ?',
+      'SELECT credits_remaining FROM agzit_ai_polish_credits WHERE user_id = ?',
       [req.user.id]
     );
-    return res.json({ ok: true, credits_remaining: row ? row.credit_balance : 0 });
+    return res.json({ ok: true, credits_remaining: row ? row.credits_remaining : 0 });
   } catch (err) {
     console.error('[ai-polish/credits]', err.message);
     res.status(500).json({ ok: false, error: 'Server error' });
@@ -2742,41 +2128,37 @@ router.post('/ai-polish/verify-purchase', ...guard, async (req, res) => {
   }
 });
 
-// POST /api/candidate/ai-polish/use-credit — now uses unified credit system
+// POST /api/candidate/ai-polish/use-credit
 router.post('/ai-polish/use-credit', ...guard, async (req, res) => {
   try {
     const [[row]] = await pool.execute(
-      'SELECT credit_balance FROM agzit_candidate_credits WHERE user_id = ?',
+      'SELECT credits_remaining FROM agzit_ai_polish_credits WHERE user_id = ?',
       [req.user.id]
     );
-    if (!row || row.credit_balance < 1) {
-      return res.status(403).json({ ok: false, error: 'You need 1 credit. Earn free credits by referring a friend or completing your DPR profile.' });
+    if (!row || row.credits_remaining <= 0) {
+      return res.status(403).json({ ok: false, error: 'No AI Polish credits remaining' });
     }
     await pool.execute(
-      'UPDATE agzit_candidate_credits SET credit_balance = credit_balance - 1 WHERE user_id = ?',
+      'UPDATE agzit_ai_polish_credits SET credits_remaining = credits_remaining - 1 WHERE user_id = ?',
       [req.user.id]
     );
-    await pool.execute(
-      "INSERT INTO agzit_credit_transactions (user_id, transaction_type, amount, description) VALUES (?, 'usage', 1, 'AI Resume Polish')",
-      [req.user.id]
-    );
-    return res.json({ ok: true, credits_remaining: row.credit_balance - 1 });
+    return res.json({ ok: true, credits_remaining: row.credits_remaining - 1 });
   } catch (err) {
     console.error('[ai-polish/use-credit]', err.message);
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });
 
-// POST /api/candidate/ai-polish — Full profile polish with optional JD (unified credits)
+// POST /api/candidate/ai-polish — Full profile polish with optional JD
 router.post('/ai-polish', ...guard, async (req, res) => {
   try {
-    // Check unified credits
+    // Check credits
     const [[creditRow]] = await pool.execute(
-      'SELECT credit_balance FROM agzit_candidate_credits WHERE user_id = ?',
+      'SELECT credits_remaining FROM agzit_ai_polish_credits WHERE user_id = ?',
       [req.user.id]
     );
-    if (!creditRow || creditRow.credit_balance < 1) {
-      return res.status(403).json({ ok: false, error: 'You need 1 credit. Earn free credits by referring a friend or completing your DPR profile.' });
+    if (!creditRow || creditRow.credits_remaining <= 0) {
+      return res.status(403).json({ ok: false, error: 'No AI Polish credits remaining. Purchase more to continue.' });
     }
 
     const profile = req.body.profile;
@@ -2833,20 +2215,16 @@ Only include work_exp entries that had descriptions. Return valid JSON only, no 
       });
     }
 
-    // Deduct unified credit
+    // Deduct credit
     await pool.execute(
-      'UPDATE agzit_candidate_credits SET credit_balance = credit_balance - 1 WHERE user_id = ?',
-      [req.user.id]
-    );
-    await pool.execute(
-      "INSERT INTO agzit_credit_transactions (user_id, transaction_type, amount, description) VALUES (?, 'usage', 1, 'AI Resume Polish')",
+      'UPDATE agzit_ai_polish_credits SET credits_remaining = credits_remaining - 1 WHERE user_id = ?',
       [req.user.id]
     );
 
     return res.json({
       ok: true,
       polished_profile: polishedProfile,
-      credits_remaining: creditRow.credit_balance - 1,
+      credits_remaining: creditRow.credits_remaining - 1,
     });
   } catch (err) {
     console.error('[ai-polish]', err.message);

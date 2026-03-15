@@ -736,6 +736,46 @@ router.get('/google/callback',
         console.log(`[google-oauth] New user created: ${email} id=${user?.id}`);
       }
 
+      // 5. Ensure wp_users row exists (create if missing, backfill for existing Google users)
+      if (user && !user.wp_user_id) {
+        try {
+          // Check if wp_users row already exists by email
+          const [[existingWp]] = await db.query(
+            'SELECT ID FROM wp_users WHERE user_email = ? LIMIT 1', [email]
+          );
+          let wpUserId;
+          if (existingWp) {
+            wpUserId = existingWp.ID;
+          } else {
+            const displayName = `${firstName} ${lastName}`.trim() || email;
+            const userNicename = displayName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+            const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
+            const [wpIns] = await db.query(
+              `INSERT INTO wp_users (user_login, user_pass, user_nicename, user_email, display_name, user_registered)
+               VALUES (?, '', ?, ?, ?, ?)`,
+              [email, userNicename, email, displayName, nowStr]
+            );
+            wpUserId = wpIns.insertId;
+            // Set wp_usermeta: capabilities, user_level, nickname
+            await db.query(
+              `INSERT INTO wp_usermeta (user_id, meta_key, meta_value) VALUES
+               (?, 'wp_capabilities', 'a:1:{s:13:\"dpr_candidate\";b:1;}'),
+               (?, 'wp_user_level', '0'),
+               (?, 'nickname', ?),
+               (?, 'first_name', ?),
+               (?, 'last_name', ?)`,
+              [wpUserId, wpUserId, wpUserId, displayName, wpUserId, firstName, wpUserId, lastName]
+            );
+            console.log(`[google-oauth] Created wp_users row: ${email} wp_id=${wpUserId}`);
+          }
+          // Link wp_user_id in agzit_users
+          await db.query('UPDATE agzit_users SET wp_user_id = ? WHERE id = ?', [wpUserId, user.id]);
+          user.wp_user_id = wpUserId;
+        } catch (wpErr) {
+          console.error('[google-oauth] wp_users sync error (non-fatal):', wpErr.message);
+        }
+      }
+
       // Issue JWT + cookie
       const token = issueToken(user);
       setCookie(res, token);
