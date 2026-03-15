@@ -916,11 +916,14 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
           <label>Employment Status</label>
           <select class="input agzit-select" id="employment_status">
             <option value="">Select status</option>
-            <option value="employed">Employed</option>
-            <option value="freelancer">Freelancer</option>
-            <option value="self_employed">Self-employed</option>
+            <option value="employed_full_time">Employed Full Time</option>
+            <option value="employed_part_time">Employed Part Time</option>
+            <option value="freelance">Freelancing</option>
+            <option value="self_employed">Self Employed</option>
+            <option value="serving_notice">Serving Notice</option>
             <option value="student">Student</option>
             <option value="unemployed">Unemployed</option>
+            <option value="other">Other</option>
           </select>
         </div>
         <div class="field">
@@ -932,7 +935,8 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
             <option value="1_month">1 Month</option>
             <option value="2_months">2 Months</option>
             <option value="3_months">3 Months</option>
-            <option value="more_than_3_months">More than 3 Months</option>
+            <option value="6_months">6 Months</option>
+            <option value="serving_notice">Currently Serving Notice</option>
           </select>
         </div>
       </div>
@@ -947,14 +951,13 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
           <label>Work Level</label>
           <select class="input agzit-select" id="work_level">
             <option value="">Select level</option>
-            <option value="director">Director</option>
-            <option value="entry_level">Entry Level</option>
-            <option value="junior">Junior</option>
+            <option value="fresher">Fresher</option>
+            <option value="entry">Entry Level</option>
+            <option value="mid">Mid Level</option>
+            <option value="senior">Senior Level</option>
             <option value="lead">Lead</option>
             <option value="manager">Manager</option>
-            <option value="mid_level">Mid-Level</option>
-            <option value="senior">Senior</option>
-            <option value="vp_c_suite">VP / C-Suite</option>
+            <option value="executive">Executive / C-Suite</option>
           </select>
         </div>
       </div>
@@ -964,9 +967,9 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
           <label>Preferred Work Type</label>
           <select class="input agzit-select" id="preferred_work_type">
             <option value="">Select</option>
+            <option value="flexible">Flexible</option>
             <option value="hybrid">Hybrid</option>
             <option value="on_site">On-site</option>
-            <option value="open_to_all">Open to All</option>
             <option value="remote">Remote</option>
           </select>
         </div>

@@ -388,19 +388,28 @@
         <label class="label">Current Employment Status</label>
         <select id="f_current_employment_status">
           <option value="">Select status</option>
-          <option value="employed_full_time">Employed — Full Time</option>
-          <option value="employed_part_time">Employed — Part Time</option>
+          <option value="employed_full_time">Employed Full Time</option>
+          <option value="employed_part_time">Employed Part Time</option>
+          <option value="freelance">Freelancing</option>
           <option value="self_employed">Self Employed</option>
-          <option value="contract">Contract</option>
-          <option value="freelance">Freelance</option>
-          <option value="notice_period">On Notice Period</option>
-          <option value="unemployed">Unemployed</option>
+          <option value="serving_notice">Serving Notice</option>
           <option value="student">Student</option>
+          <option value="unemployed">Unemployed</option>
+          <option value="other">Other</option>
         </select>
       </div>
       <div class="field">
-        <label class="label">Notice Period (days)</label>
-        <input type="text" id="f_notice_period_in_days" placeholder="e.g. 30">
+        <label class="label">Notice Period</label>
+        <select id="f_notice_period_in_days">
+          <option value="">Select</option>
+          <option value="immediate">Immediate</option>
+          <option value="15_days">15 Days</option>
+          <option value="1_month">1 Month</option>
+          <option value="2_months">2 Months</option>
+          <option value="3_months">3 Months</option>
+          <option value="6_months">6 Months</option>
+          <option value="serving_notice">Currently Serving Notice</option>
+        </select>
       </div>
       <div class="field">
         <label class="label">Current Annual CTC</label>
@@ -678,22 +687,23 @@
         <label class="label">Work Level</label>
         <select id="f_work_level">
           <option value="">Select level</option>
-          <option value="junior">Junior</option>
-          <option value="mid">Mid-Level</option>
-          <option value="senior">Senior</option>
+          <option value="fresher">Fresher</option>
+          <option value="entry">Entry Level</option>
+          <option value="mid">Mid Level</option>
+          <option value="senior">Senior Level</option>
           <option value="lead">Lead</option>
           <option value="manager">Manager</option>
-          <option value="director">Director</option>
-          <option value="csuite">C-Suite</option>
+          <option value="executive">Executive / C-Suite</option>
         </select>
       </div>
       <div class="field">
         <label class="label">Preferred Work Type</label>
         <select id="f_preferred_work_type">
           <option value="">Select type</option>
-          <option value="onsite">On-site</option>
-          <option value="remote">Remote</option>
+          <option value="flexible">Flexible</option>
           <option value="hybrid">Hybrid</option>
+          <option value="on_site">On-site</option>
+          <option value="remote">Remote</option>
         </select>
       </div>
     </div>
