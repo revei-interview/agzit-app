@@ -2448,6 +2448,78 @@ router.post('/dpr', requireAuth, async (req, res) => {
       console.error('[dpr] DPR bonus credit error:', creditErr.message);
     }
 
+    // 14. Award referral credit to referrer (triggered by DPR completion, not signup)
+    try {
+      const [[pendingRef]] = await pool.execute(
+        "SELECT id, referrer_id FROM agzit_referrals WHERE referred_user_id = ? AND status = 'pending' LIMIT 1",
+        [req.user.user_id]
+      );
+      if (pendingRef) {
+        const referrerId = pendingRef.referrer_id;
+
+        // Mark referral as completed
+        await pool.execute(
+          "UPDATE agzit_referrals SET status = 'completed', completed_at = NOW() WHERE id = ?",
+          [pendingRef.id]
+        );
+
+        // Award +1 credit to referrer
+        await pool.execute(
+          `INSERT INTO agzit_candidate_credits (user_id, credit_balance, total_credits_earned)
+           VALUES (?, 1, 1)
+           ON DUPLICATE KEY UPDATE
+             credit_balance = credit_balance + 1,
+             total_credits_earned = total_credits_earned + 1`,
+          [referrerId]
+        );
+
+        // Log transaction
+        const userEmail = req.user.email || '';
+        await pool.execute(
+          "INSERT INTO agzit_credit_transactions (user_id, transaction_type, amount, description) VALUES (?, 'referral', 1, ?)",
+          [referrerId, `Referral completed: ${userEmail}`]
+        );
+
+        // Send thank-you email to referrer
+        try {
+          const [[referrerUser]] = await pool.execute(
+            'SELECT email, first_name FROM agzit_users WHERE id = ?',
+            [referrerId]
+          );
+          if (referrerUser && process.env.BREVO_API_KEY) {
+            await fetch('https://api.brevo.com/v3/smtp/email', {
+              method: 'POST',
+              headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: [{ email: referrerUser.email }],
+                sender: { email: 'noreply@agzit.com', name: 'AGZIT' },
+                subject: 'Your referral completed their DPR! You earned 1 free credit',
+                htmlContent: `
+                  <div style="font-family:'Plus Jakarta Sans',system-ui,sans-serif;max-width:520px;margin:0 auto;padding:32px;">
+                    <h2 style="color:#09101F;font-size:20px;">Referral Success!</h2>
+                    <p style="color:#3A4163;font-size:15px;line-height:1.7;">Great news, ${referrerUser.first_name || 'there'}! Your friend signed up and completed their DPR profile.</p>
+                    <p style="color:#3A4163;font-size:15px;line-height:1.7;"><strong>You've earned 1 free credit!</strong> Use it for Career Analyzer or AI Resume Polish.</p>
+                    <p style="margin:24px 0;">
+                      <a href="https://app.agzit.com/dashboard" style="background:#1A44C2;color:#fff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block;">Go to Dashboard</a>
+                    </p>
+                    <p style="color:#7C83A0;font-size:13px;">Keep referring to earn more credits!</p>
+                    <hr style="border:none;border-top:1px solid #E4E6EF;margin:24px 0;">
+                    <p style="color:#7C83A0;font-size:12px;">AGZIT Career Intelligence &middot; <a href="https://agzit.com" style="color:#1A44C2;">agzit.com</a></p>
+                  </div>
+                `,
+              }),
+            }).catch(err => console.error('[dpr] Referral thank-you email error:', err.message));
+          }
+        } catch (emailErr) {
+          console.error('[dpr] Referral email error:', emailErr.message);
+        }
+
+        console.log(`[dpr] Awarded referral credit to user ${referrerId} (referred by user ${req.user.user_id})`);
+      }
+    } catch (refErr) {
+      console.error('[dpr] Referral credit error:', refErr.message);
+    }
+
     console.log(`[dpr] Created ${dprId} (post ${postId}) for user ${req.user.user_id}`);
     return res.json({ ok: true, dpr_id: dprId, post_id: postId, redirectTo: '/dashboard' });
 

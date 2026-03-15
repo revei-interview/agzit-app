@@ -259,7 +259,7 @@ router.post('/verify-otp', async (req, res) => {
     const token = issueToken(user);
     setCookie(res, token);
 
-    // ── Referral completion ──────────────────────────────────────────────────
+    // ── Referral linking (credit awarded later when referred user completes DPR) ──
     const refId = req.query.ref || req.body.ref;
     if (refId) {
       try {
@@ -267,68 +267,15 @@ router.post('/verify-otp', async (req, res) => {
           'SELECT referrer_id FROM agzit_referrals WHERE id = ? AND status = "pending"',
           [refId]
         );
-
         if (referral) {
-          const referrerId = referral.referrer_id;
-
-          // Mark referral as completed
+          // Link referred user to the referral — credit is awarded on DPR completion
           await db.query(
-            'UPDATE agzit_referrals SET status = "completed", referred_user_id = ?, completed_at = NOW() WHERE id = ?',
+            'UPDATE agzit_referrals SET referred_user_id = ? WHERE id = ?',
             [user_id, refId]
           );
-
-          // Award 1 credit to referrer
-          await db.query(
-            `INSERT INTO agzit_candidate_credits (user_id, credit_balance, total_credits_earned)
-             VALUES (?, 1, 1)
-             ON DUPLICATE KEY UPDATE
-               credit_balance = credit_balance + 1,
-               total_credits_earned = total_credits_earned + 1`,
-            [referrerId]
-          );
-
-          // Log transaction
-          await db.query(
-            `INSERT INTO agzit_credit_transactions (user_id, transaction_type, amount, description)
-             VALUES (?, 'referral', 1, ?)`,
-            [referrerId, `Referral completed: ${email}`]
-          );
-
-          // Send thank-you email to referrer
-          try {
-            const [[referrerUser]] = await db.query(
-              'SELECT email, first_name FROM agzit_users WHERE id = ?',
-              [referrerId]
-            );
-            if (referrerUser) {
-              await fetch('https://api.brevo.com/v3/smtp/email', {
-                method: 'POST',
-                headers: {
-                  'api-key': process.env.BREVO_API_KEY,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  to: [{ email: referrerUser.email }],
-                  sender: { email: 'noreply@agzit.com', name: 'AGZIT' },
-                  subject: 'Your referral joined! You earned 1 free Career Analyzer credit',
-                  htmlContent: `
-                    <h2>Referral Success!</h2>
-                    <p>Great news, ${referrerUser.first_name || 'there'}! Your friend joined AGZIT.</p>
-                    <p><strong>You've earned 1 free Career Analyzer credit!</strong></p>
-                    <p>This credit is now in your account. Use it to generate your personalized career analysis.</p>
-                    <p><a href="https://app.agzit.com/dashboard?tab=career-analyzer" style="background:#1A44C2;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">View Career Analyzer</a></p>
-                    <p>Keep referring to earn more credits!</p>
-                  `
-                })
-              });
-            }
-          } catch (emailErr) {
-            console.error('Referral thank-you email error:', emailErr.message);
-          }
         }
       } catch (refErr) {
-        console.error('Referral completion error:', refErr);
-        // Don't fail signup if referral processing fails
+        console.error('Referral linking error:', refErr);
       }
     }
 
