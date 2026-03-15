@@ -445,6 +445,22 @@ async function initDB() {
     )
   `);
 
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_interview_queue (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      user_id INT NOT NULL,
+      email VARCHAR(255) NOT NULL,
+      first_name VARCHAR(100) DEFAULT '',
+      preferred_time DATETIME NULL,
+      status ENUM('waiting','scheduled','notified','expired') DEFAULT 'waiting',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      notified_at DATETIME NULL,
+      INDEX idx_user (user_id),
+      INDEX idx_status (status),
+      INDEX idx_created (created_at)
+    )
+  `);
+
   // Migration: rename post_id → profile_post_id and fix unique key if old schema exists
   try {
     await pool.execute('ALTER TABLE agzit_resume_files CHANGE COLUMN post_id profile_post_id INT NULL');

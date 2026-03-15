@@ -1350,6 +1350,187 @@ router.post('/interviews/start', ...guard, async (req, res) => {
   }
 });
 
+// ── POST /api/candidate/interview-queue/join ─────────────────────────────────
+// Candidate joins the interview queue when all slots are full
+router.post('/interview-queue/join', ...guard, async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+    const preferredTime = req.body.preferred_time || null; // ISO datetime or null
+
+    // Check if already in queue (waiting)
+    const [existing] = await pool.execute(
+      'SELECT id, status FROM agzit_interview_queue WHERE user_id = ? AND status = "waiting" LIMIT 1',
+      [userId]
+    );
+    if (existing.length) {
+      // Return current position
+      const [ahead] = await pool.execute(
+        'SELECT COUNT(*) AS cnt FROM agzit_interview_queue WHERE status = "waiting" AND id < ?',
+        [existing[0].id]
+      );
+      return res.json({ ok: true, already_queued: true, position: (ahead[0].cnt || 0) + 1, queue_id: existing[0].id });
+    }
+
+    // Get user info for email
+    const [[user]] = await pool.execute(
+      'SELECT email, first_name FROM agzit_users WHERE id = ?', [userId]
+    );
+    if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
+
+    const [result] = await pool.execute(
+      'INSERT INTO agzit_interview_queue (user_id, email, first_name, preferred_time) VALUES (?, ?, ?, ?)',
+      [userId, user.email, user.first_name || '', preferredTime]
+    );
+
+    // Calculate position
+    const [ahead] = await pool.execute(
+      'SELECT COUNT(*) AS cnt FROM agzit_interview_queue WHERE status = "waiting" AND id < ?',
+      [result.insertId]
+    );
+    const position = (ahead[0].cnt || 0) + 1;
+
+    res.json({ ok: true, queue_id: result.insertId, position, estimated_wait_minutes: position * 20 });
+  } catch (err) {
+    console.error('[interview-queue/join]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── GET /api/candidate/interview-queue/status ────────────────────────────────
+// Returns queue position, estimated wait, and slot availability
+router.get('/interview-queue/status', ...guard, async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+
+    // Check slot availability from daily backend
+    const renderUrl = (process.env.RENDER_BACKEND_URL || 'https://agzit-daily-backend.onrender.com').replace(/\/$/, '');
+    let slotsActive = 0, slotsMax = 10;
+    try {
+      const slotRes = await fetch(`${renderUrl}/interview/status`);
+      const slotData = await slotRes.json();
+      slotsActive = slotData.active || 0;
+      slotsMax = slotData.max || 10;
+    } catch (_) {}
+
+    // Check user's queue entry
+    const [entry] = await pool.execute(
+      'SELECT id, status, preferred_time, created_at FROM agzit_interview_queue WHERE user_id = ? AND status = "waiting" LIMIT 1',
+      [userId]
+    );
+
+    if (!entry.length) {
+      return res.json({
+        ok: true,
+        in_queue: false,
+        slots_active: slotsActive,
+        slots_max: slotsMax,
+        slots_available: Math.max(0, slotsMax - slotsActive),
+      });
+    }
+
+    const [ahead] = await pool.execute(
+      'SELECT COUNT(*) AS cnt FROM agzit_interview_queue WHERE status = "waiting" AND id < ?',
+      [entry[0].id]
+    );
+    const position = (ahead[0].cnt || 0) + 1;
+
+    res.json({
+      ok: true,
+      in_queue: true,
+      queue_id: entry[0].id,
+      position,
+      estimated_wait_minutes: position * 20,
+      preferred_time: entry[0].preferred_time,
+      queued_at: entry[0].created_at,
+      slots_active: slotsActive,
+      slots_max: slotsMax,
+      slots_available: Math.max(0, slotsMax - slotsActive),
+    });
+  } catch (err) {
+    console.error('[interview-queue/status]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── DELETE /api/candidate/interview-queue/leave ──────────────────────────────
+router.delete('/interview-queue/leave', ...guard, async (req, res) => {
+  try {
+    await pool.execute(
+      'UPDATE agzit_interview_queue SET status = "expired" WHERE user_id = ? AND status = "waiting"',
+      [req.user.user_id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[interview-queue/leave]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── POST /api/candidate/interview-queue/notify-next (internal) ───────────────
+// Called by daily backend when a slot is released
+router.post('/interview-queue/notify-next', async (req, res) => {
+  try {
+    // Verify internal secret
+    const secret = req.headers['x-wp-app-token'] || '';
+    if (!process.env.WP_APP_TOKEN || secret !== process.env.WP_APP_TOKEN) {
+      return res.status(401).json({ ok: false, error: 'unauthorized' });
+    }
+
+    // Get next waiting person
+    const [rows] = await pool.execute(
+      'SELECT id, user_id, email, first_name FROM agzit_interview_queue WHERE status = "waiting" ORDER BY id ASC LIMIT 1'
+    );
+
+    if (!rows.length) {
+      return res.json({ ok: true, notified: false, message: 'Queue is empty' });
+    }
+
+    const next = rows[0];
+
+    // Mark as notified
+    await pool.execute(
+      'UPDATE agzit_interview_queue SET status = "notified", notified_at = NOW() WHERE id = ?',
+      [next.id]
+    );
+
+    // Send Brevo email
+    if (process.env.BREVO_API_KEY) {
+      const firstName = next.first_name || 'there';
+      await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: [{ email: next.email }],
+          sender: { email: 'noreply@agzit.com', name: 'AGZIT AI' },
+          subject: 'An interview slot is now available!',
+          htmlContent: `
+            <div style="font-family:'Plus Jakarta Sans',system-ui,sans-serif;max-width:520px;margin:0 auto;padding:32px;">
+              <h2 style="color:#09101F;font-size:20px;">Hi ${firstName},</h2>
+              <p style="color:#3A4163;font-size:15px;line-height:1.7;">
+                Great news! An AI mock interview slot has opened up. Start your interview now before slots fill up again.
+              </p>
+              <p style="margin:24px 0;">
+                <a href="https://app.agzit.com/interview-start" style="background:#1A44C2;color:#ffffff;padding:13px 28px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;display:inline-block;">
+                  Start Interview Now
+                </a>
+              </p>
+              <p style="color:#7C83A0;font-size:13px;">This slot is available on a first-come, first-served basis. If all slots fill up before you start, you'll keep your queue position.</p>
+              <hr style="border:none;border-top:1px solid #E4E6EF;margin:24px 0;">
+              <p style="color:#7C83A0;font-size:12px;">AGZIT Career Intelligence &middot; <a href="https://agzit.com" style="color:#1A44C2;">agzit.com</a></p>
+            </div>
+          `,
+        }),
+      }).catch(err => console.error('[queue-notify] Brevo error:', err.message));
+    }
+
+    console.log(`[QUEUE] Notified ${next.email} (queue #${next.id}) — slot available`);
+    res.json({ ok: true, notified: true, email: next.email });
+  } catch (err) {
+    console.error('[interview-queue/notify-next]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
 // ── PUT /api/candidate/profile ────────────────────────────────────────────────
 // Update all editable DPR profile fields + repeaters.
 // Body: scalar fields + work_experience[], education[], certifications[] arrays.
