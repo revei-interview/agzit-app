@@ -1171,7 +1171,7 @@ function populateForm(p) {
   // Populate pref-loc-country dropdown
   var plSel = document.getElementById('pref-loc-country');
   if (plSel && plSel.options.length <= 1) {
-    COUNTRY_LIST.forEach(function(c) { var o = document.createElement('option'); o.value = c; o.textContent = c; plSel.appendChild(o); });
+    COUNTRY_LIST.forEach(function(c) { var o = document.createElement('option'); o.value = c.name; o.textContent = c.name; plSel.appendChild(o); });
   }
 
   // Resume
