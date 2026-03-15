@@ -16,6 +16,10 @@ const fs           = require('fs');
 const pdfParse     = require('pdf-parse');
 const sanitizeHtml = require('sanitize-html');
 const { matchJobsForCandidate } = require('../jobs/matcher');
+const { fetchJSearchLive }      = require('../jobs/fetcher');
+
+// In-memory cache for live per-candidate job searches (24h TTL)
+const liveJobCache = {};
 
 // Strip HTML tags from freeform text to prevent stored XSS.
 // Applied to textarea fields; short-text fields use trim-only s() helper.
@@ -3010,10 +3014,18 @@ router.post('/profile-photo', ...guard, (req, res, next) => {
   }
 });
 
+// ── Source labels for display ────────────────────────────────────────────────
+const SOURCE_LABELS = {
+  jsearch:         'Job Board',
+  remotive:        'Remotive',
+  jobicy:          'Jobicy',
+  weworkremotely:  'WeWorkRemotely',
+};
+
 // ── GET /api/candidate/jobs — Matched jobs for candidate ────────────────────
 router.get('/jobs', ...guard, async (req, res) => {
   try {
-    // Get candidate profile fields needed for matching
+    // STEP A — Read candidate profile
     const data = await loadProfile(req.user.user_id);
     if (!data) return res.json({ ok: true, jobs: [], message: 'Complete your DPR profile first' });
     const { meta } = data;
@@ -3034,12 +3046,58 @@ router.get('/jobs', ...guard, async (req, res) => {
       expected_annual_ctc_with_currency: meta.expected_annual_ctc_with_currency,
     };
 
-    // Fetch last 500 jobs
-    const [jobs] = await pool.execute(
+    // STEP B — Live per-candidate JSearch (1 call/user/24h, cached)
+    let liveJobs = [];
+    const userId = req.user.id;
+    const desiredRole = (meta.desired_role || '').trim();
+    const city    = (meta.residential_city || '').trim();
+    const country = (meta.residential_country || '').trim();
+
+    if (process.env.RAPIDAPI_KEY && desiredRole) {
+      const cached = liveJobCache[userId];
+      const now = Date.now();
+      const TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+      if (cached && (now - cached.fetchedAt) < TTL) {
+        liveJobs = cached.jobs;
+      } else {
+        const liveQuery = `${desiredRole} jobs in ${city || country || 'remote'}`;
+        console.log(`[jobs] Live search for user ${userId}: "${liveQuery}"`);
+        liveJobs = await fetchJSearchLive(liveQuery);
+        liveJobCache[userId] = { jobs: liveJobs, fetchedAt: now };
+      }
+    }
+
+    // STEP C — Fetch stored DB jobs
+    const [dbJobs] = await pool.execute(
       'SELECT * FROM agzit_job_listings ORDER BY date_posted DESC LIMIT 500'
     );
 
-    const matched = matchJobsForCandidate(profile, jobs);
+    // Combine: live results first, then DB, deduplicated by external_id
+    const seen = new Set();
+    const combined = [];
+
+    for (const job of liveJobs) {
+      if (job.external_id && !seen.has(job.external_id)) {
+        seen.add(job.external_id);
+        combined.push({ ...job, is_live: true });
+      }
+    }
+    for (const job of dbJobs) {
+      if (job.external_id && !seen.has(job.external_id)) {
+        seen.add(job.external_id);
+        combined.push({ ...job, is_live: false });
+      }
+    }
+
+    // Run matcher on combined pool
+    const matched = matchJobsForCandidate(profile, combined);
+
+    // STEP D — Add source labels
+    for (const job of matched) {
+      job.source_label = SOURCE_LABELS[job.source] || job.source || 'Job Board';
+    }
+
     return res.json({ ok: true, jobs: matched, total: matched.length });
   } catch (err) {
     console.error('[jobs/match]', err.message);

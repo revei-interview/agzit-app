@@ -713,13 +713,13 @@ async function processScheduledInterviews() {
 
 // ── Job fetcher cron ────────────────────────────────────────────────────────
 const { fetchAllJobs } = require('./jobs/fetcher');
-const JOB_FETCH_INTERVAL = 48 * 60 * 60 * 1000; // 48 hours (free tier: 200 req/mo ÷ 12 queries = ~16 runs)
+const JOB_FETCH_INTERVAL = 96 * 60 * 60 * 1000; // 96 hours (4 days) — 16 queries/run, ~7 runs/mo = 112 calls
 
 async function runJobFetcher() {
   console.log('[jobs] Starting job fetch...');
   try {
     await fetchAllJobs();
-    console.log('[jobs] Job fetch complete. Next fetch in 48 hours');
+    console.log('[jobs] Job fetch complete. Next fetch in 96 hours');
   } catch (err) {
     console.error('[jobs] Job fetch failed:', err.message);
   }
@@ -733,7 +733,7 @@ initDB().then(async () => {
   // Start the scheduled interview processor (every 60 seconds)
   setInterval(() => processScheduledInterviews().catch(() => {}), 60 * 1000);
 
-  // Run job fetcher once on startup, then every 48 hours
+  // Run job fetcher once on startup, then every 96 hours (4 days)
   runJobFetcher();
   setInterval(runJobFetcher, JOB_FETCH_INTERVAL);
 
@@ -742,7 +742,7 @@ initDB().then(async () => {
     console.log(`   ENV: ${process.env.NODE_ENV}`);
     console.log(`   WP:  ${process.env.WP_URL}`);
     console.log(`   Scheduled interview processor: running (60s interval)`);
-    console.log(`   Job fetcher: running (48h interval)`);
+    console.log(`   Job fetcher: running (96h interval)`);
   });
 }).catch(err => {
   console.error('[init] DB init failed:', err.message);

@@ -2760,7 +2760,8 @@ function renderJobCards() {
     var dateStr = formatJobDate(j.date_posted);
     var desc = esc((j.description || '').slice(0, 160));
     var empType = j.employment_type ? esc(j.employment_type.replace(/_/g, ' ')) : '';
-    var sourceLabel = { jsearch: 'JSearch', remotive: 'Remotive', jobicy: 'Jobicy', weworkremotely: 'WeWorkRemotely' }[j.source] || j.source || '';
+    var sourceLabel = j.source_label || j.source || 'Job Board';
+    if (j.is_live) sourceLabel += ' ⚡';
 
     var meta = [esc(j.location || ''), empType, sourceLabel, dateStr].filter(Boolean).join(' · ');
 

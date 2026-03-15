@@ -3,20 +3,37 @@ const pool  = require('../config/db');
 const fetch = require('node-fetch');
 const { parseStringPromise } = require('xml2js');
 
-// ── Source 1: JSearch (RapidAPI) ────────────────────────────────────────────
-const JSEARCH_QUERIES = [
+// ── Source 1: JSearch (RapidAPI) — 16 broad queries ─────────────────────────
+const SEARCH_QUERIES = [
+  // India — top industries
   'compliance jobs in India',
-  'finance jobs in India',
-  'HR jobs in India',
-  'audit jobs in India',
-  'risk management jobs in India',
-  'compliance jobs in Dubai',
-  'finance jobs in Dubai',
-  'HR manager jobs UAE',
-  'compliance jobs in London',
-  'finance jobs in Singapore',
-  'compliance jobs in Canada',
-  'finance jobs in Australia',
+  'finance accounting jobs in India',
+  'HR recruitment jobs in India',
+  'audit risk jobs in India',
+  'banking jobs in India',
+  'software IT jobs in India',
+
+  // UAE / Gulf
+  'compliance finance jobs in Dubai',
+  'HR jobs in UAE',
+  'banking risk jobs in Abu Dhabi',
+
+  // UK
+  'compliance audit jobs in London',
+  'finance jobs in United Kingdom',
+
+  // Singapore
+  'compliance finance jobs in Singapore',
+
+  // Canada
+  'compliance HR jobs in Canada',
+
+  // Australia
+  'finance compliance jobs in Australia',
+
+  // Remote — any location
+  'remote compliance jobs',
+  'remote finance jobs',
 ];
 
 async function fetchJSearch() {
@@ -24,7 +41,7 @@ async function fetchJSearch() {
   if (!key) { console.warn('[jobs] RAPIDAPI_KEY not set — skipping JSearch'); return 0; }
 
   let total = 0;
-  for (const query of JSEARCH_QUERIES) {
+  for (const query of SEARCH_QUERIES) {
     try {
       const url = `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query)}&page=1&num_pages=1&date_posted=today`;
       const res = await fetch(url, {
@@ -37,30 +54,55 @@ async function fetchJSearch() {
       const json = await res.json();
       const jobs = json.data || [];
       for (const job of jobs) {
-        await upsertJob({
-          external_id:     job.job_id,
-          title:           job.job_title,
-          company:         job.employer_name,
-          location:        [job.job_city, job.job_country].filter(Boolean).join(', '),
-          city:            job.job_city || null,
-          country:         job.job_country || null,
-          description:     (job.job_description || '').slice(0, 1000),
-          apply_url:       job.job_apply_link,
-          source_url:      job.job_apply_link,
-          source:          'jsearch',
-          date_posted:     job.job_posted_at_datetime_utc || null,
-          is_remote:       job.job_is_remote ? 1 : 0,
-          employment_type: job.job_employment_type || null,
-        });
+        await upsertJob(mapJSearchJob(job));
         total++;
       }
-      // Small delay to respect rate limits
       await sleep(500);
     } catch (err) {
       console.error(`[jobs] JSearch "${query}" error:`, err.message);
     }
   }
   return total;
+}
+
+// ── Live per-candidate JSearch (called from candidate.js) ───────────────────
+async function fetchJSearchLive(query) {
+  const key = process.env.RAPIDAPI_KEY;
+  if (!key) return [];
+
+  try {
+    const url = `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query)}&page=1&num_pages=1&date_posted=week`;
+    const res = await fetch(url, {
+      headers: {
+        'X-RapidAPI-Key': key,
+        'X-RapidAPI-Host': 'jsearch.p.rapidapi.com',
+      },
+    });
+    if (!res.ok) { console.warn(`[jobs] Live JSearch "${query}": HTTP ${res.status}`); return []; }
+    const json = await res.json();
+    return (json.data || []).map(mapJSearchJob);
+  } catch (err) {
+    console.error(`[jobs] Live JSearch "${query}" error:`, err.message);
+    return [];
+  }
+}
+
+function mapJSearchJob(job) {
+  return {
+    external_id:     job.job_id,
+    title:           job.job_title,
+    company:         job.employer_name,
+    location:        [job.job_city, job.job_country].filter(Boolean).join(', '),
+    city:            job.job_city || null,
+    country:         job.job_country || null,
+    description:     (job.job_description || '').slice(0, 1000),
+    apply_url:       job.job_apply_link,
+    source_url:      job.job_apply_link,
+    source:          'jsearch',
+    date_posted:     job.job_posted_at_datetime_utc || null,
+    is_remote:       job.job_is_remote ? 1 : 0,
+    employment_type: job.job_employment_type || null,
+  };
 }
 
 // ── Source 2: Remotive ──────────────────────────────────────────────────────
@@ -193,7 +235,6 @@ function stripHtml(html) {
 }
 
 function extractCompany(title) {
-  // WWR titles often look like "Company: Job Title"
   if (!title) return null;
   const m = title.match(/^(.+?):\s/);
   return m ? m[1].trim() : null;
@@ -214,7 +255,6 @@ async function upsertJob(job) {
       ]
     );
   } catch (err) {
-    // Ignore duplicates silently, log other errors
     if (err.code !== 'ER_DUP_ENTRY') {
       console.error('[jobs] upsert error:', err.message);
     }
@@ -248,4 +288,4 @@ async function fetchAllJobs() {
   return results;
 }
 
-module.exports = { fetchAllJobs };
+module.exports = { fetchAllJobs, fetchJSearchLive };
