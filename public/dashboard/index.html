@@ -2700,14 +2700,12 @@ var _jobsFilter = 'all';
 
 async function loadJobsForYou() {
   if (_jobsLoaded) return;
-  _jobsLoaded = true;
   try {
-    var token = localStorage.getItem('token');
-    var r = await fetch('/api/candidate/jobs', {
-      headers: { 'Authorization': 'Bearer ' + token },
-    });
+    var r = await fetch('/api/candidate/jobs', { credentials: 'include' });
     var d = await r.json();
+    console.log('[jobs-debug] API response:', JSON.stringify({ ok: d.ok, count: d.jobs?.length, first: d.jobs?.[0] ? { title: d.jobs[0].title, score: d.jobs[0].score, apply_url: d.jobs[0].apply_url } : null, error: d.error, message: d.message }));
     if (!d.ok) throw new Error(d.error || 'Failed');
+    _jobsLoaded = true;
     _jobsData = d.jobs || [];
 
     document.getElementById('jobs-loading').style.display = 'none';
@@ -2729,10 +2727,12 @@ async function loadJobsForYou() {
     document.getElementById('tab-btn-jobs').innerHTML = 'Jobs For You <span style="display:inline-block;background:#991B1B;color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px;vertical-align:middle;">' + _jobsData.length + '</span>';
 
     document.getElementById('jobs-content').style.display = '';
+    document.getElementById('jobs-empty').style.display = 'none';
     try { renderJobFilters(); } catch(e) { console.error('[jobs] filter render error:', e); }
     try { renderJobCards(); } catch(e) { console.error('[jobs] card render error:', e); }
   } catch (err) {
-    document.getElementById('jobs-loading').innerHTML = '<div style="color:var(--red);font-size:14px;">Could not load jobs. Try again later.</div>';
+    _jobsLoaded = false; // allow retry on next tab click
+    document.getElementById('jobs-loading').innerHTML = '<div style="color:#e53935;font-size:14px;">Could not load jobs. Try again later.</div>';
     console.error('[jobs]', err);
   }
 }
@@ -2774,17 +2774,20 @@ function renderJobCards() {
     });
   }
 
+  console.log('[jobs-debug] About to render', filtered.length, 'jobs, filter:', _jobsFilter);
+
   if (filtered.length === 0) {
     document.getElementById('jobs-list').innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);font-size:13px;">No jobs matching this filter.</div>';
     return;
   }
 
   var html = '';
+  var rendered = 0;
   for (var i = 0; i < filtered.length; i++) {
     try {
       var j = filtered[i];
       var matchPct = Math.min(100, Math.round(j.score || 0));
-      var badgeBg, badgeColor, showBadge = true;
+      var badgeBg = '', badgeColor = '', showBadge = true;
       if (matchPct >= 80)      { badgeBg = 'var(--green-lt)'; badgeColor = 'var(--green)'; }
       else if (matchPct >= 60) { badgeBg = 'var(--blue-lt)'; badgeColor = 'var(--blue)'; }
       else if (matchPct >= 40) { badgeBg = 'var(--surface)'; badgeColor = 'var(--muted)'; }
@@ -2807,29 +2810,34 @@ function renderJobCards() {
       var applyUrl = j.apply_url ? String(j.apply_url) : '';
       var jobId = j.id || 0;
 
-      html += '<div style="background:white;border-radius:12px;padding:18px 18px 18px 22px;margin-bottom:12px;border-left:4px solid var(--blue);box-shadow:var(--shadow-sm);position:relative;">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">';
-      html += '<div style="flex:1;min-width:0;">';
-      html += '<div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:2px;">' + title + company + '</div>';
-      html += '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">' + metaLine + '</div>';
-      if (desc) html += '<div style="font-size:13px;color:var(--soft);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + desc + '</div>';
-      html += '</div>';
+      var card = '<div style="background:white;border-radius:12px;padding:18px 18px 18px 22px;margin-bottom:12px;border-left:4px solid var(--blue);box-shadow:var(--shadow-sm);position:relative;">';
+      card += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">';
+      card += '<div style="flex:1;min-width:0;">';
+      card += '<div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:2px;">' + title + company + '</div>';
+      card += '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">' + metaLine + '</div>';
+      if (desc) card += '<div style="font-size:13px;color:var(--soft);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + desc + '</div>';
+      card += '</div>';
       if (showBadge) {
-        html += '<div title="' + esc(tooltip) + '" style="flex-shrink:0;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700;background:' + badgeBg + ';color:' + badgeColor + ';cursor:help;white-space:nowrap;">' + matchPct + '% match</div>';
+        card += '<div title="' + esc(tooltip) + '" style="flex-shrink:0;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700;background:' + badgeBg + ';color:' + badgeColor + ';cursor:help;white-space:nowrap;">' + matchPct + '% match</div>';
       }
-      html += '</div>';
-      html += '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">';
+      card += '</div>';
+      card += '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">';
       if (applyUrl) {
-        html += '<a href="' + esc(applyUrl) + '" target="_blank" rel="noopener" onclick="trackJobClick(' + jobId + ')" style="padding:8px 18px;background:var(--blue);color:white;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;transition:all .15s;" onmouseenter="this.style.opacity=\'0.9\'" onmouseleave="this.style.opacity=\'1\'">Apply →</a>';
+        card += '<a href="' + esc(applyUrl) + '" target="_blank" rel="noopener" onclick="trackJobClick(' + jobId + ')" style="padding:8px 18px;background:var(--blue);color:white;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;transition:all .15s;" onmouseenter="this.style.opacity=\'0.9\'" onmouseleave="this.style.opacity=\'1\'">Apply →</a>';
       }
-      html += '</div>';
-      html += '</div>';
+      card += '</div>';
+      card += '</div>';
+
+      if (i === 0) console.log('[jobs-debug] First job card HTML:', card.substring(0, 200));
+      html += card;
+      rendered++;
     } catch (cardErr) {
-      console.error('[jobs] Card render error at index ' + i + ':', cardErr, filtered[i]);
+      console.error('[jobs] Card render error at index ' + i + ':', cardErr, JSON.stringify(filtered[i]));
     }
   }
 
-  document.getElementById('jobs-list').innerHTML = html;
+  console.log('[jobs-debug] Rendered', rendered, '/', filtered.length, 'cards, html length:', html.length);
+  document.getElementById('jobs-list').innerHTML = html || '<div style="text-align:center;padding:32px;color:var(--muted);font-size:13px;">Job cards failed to render. Check console.</div>';
 }
 
 function timeAgo(dateStr) {
