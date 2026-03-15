@@ -558,7 +558,7 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
         </div>
       </div>
       <div class="form-row col2">
-        <div class="field">
+        <div class="field" id="experience-field-wrapper">
           <label>Total Experience <span class="req">*</span></label>
           <div class="exp-row">
             <input class="input" type="number" id="s1-exp" min="0" max="50" step="1" placeholder="Years">
@@ -703,10 +703,44 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
 
   <!-- STEP 2: Career (multi-entry) -->
   <div id="step2" style="display:none;">
+    <!-- Fresher checkbox -->
+    <div style="border:2px solid var(--blue);border-radius:12px;padding:16px 20px;margin-bottom:20px;background:var(--blue-lt);display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="document.getElementById('is_fresher').click()">
+      <input type="checkbox" id="is_fresher" name="is_fresher" onclick="event.stopPropagation()" onchange="toggleFresherMode(this.checked)" style="width:20px;height:20px;accent-color:var(--blue);cursor:pointer;">
+      <label for="is_fresher" style="font-size:14px;font-weight:700;color:var(--blue);cursor:pointer;margin:0;">I am a Fresher (0 experience)</label>
+    </div>
+
+    <!-- Career fields (hidden when fresher) -->
+    <div id="career-fields-wrapper">
     <div class="card">
       <div class="card-title">Work Experience <span class="opt-label">Optional for freshers</span></div>
       <div id="career-entries"></div>
       <button class="add-entry-btn" type="button" onclick="addCareerEntry()">+ Add Another Position</button>
+    </div>
+    </div>
+
+    <!-- Project fields (shown when fresher) -->
+    <div id="fresher-project-wrapper" style="display:none;">
+    <div class="card">
+      <div class="card-title">Project Experience</div>
+      <div class="form-row">
+        <div class="field">
+          <label>Project Title <span class="req">*</span></label>
+          <input class="input" type="text" id="project_title" name="project_title" placeholder="e.g. Final Year Capstone Project">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Project Date</label>
+          <input class="input" type="month" id="project_date" name="project_date">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label>Project Summary</label>
+          <textarea class="input" id="project_summary" name="project_summary" rows="4" placeholder="Describe the project, your role, technologies used, and key outcomes"></textarea>
+        </div>
+      </div>
+    </div>
     </div>
     <div class="form-nav">
       <button class="btn btn-outline" onclick="goStep(1)">← Back</button>
@@ -839,11 +873,11 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
         </div>
       </div>
     </div>
-    <!-- Resume Upload (Optional) -->
+    <!-- Resume Upload (Required) -->
     <div class="card" style="margin-top:16px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
         <div class="card-title" style="margin:0;">Upload Your Resume</div>
-        <span class="opt-label">Optional</span>
+        <span class="opt-label">Required</span>
       </div>
       <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5;">PDF, DOC or DOCX. Max 5 MB. You can replace it later from your dashboard.</p>
       <div class="resume-attached" id="resume-attached-s4">
@@ -1246,6 +1280,18 @@ function addCareerEntry(prefill) {
   div.querySelector('.entry-end-month').addEventListener('change', sortCareerEntries);
   div.querySelector('.entry-current').addEventListener('change', sortCareerEntries);
   updateEntryNums('.career-entry', 'Position');
+}
+
+function toggleFresherMode(checked) {
+  // Step 2: toggle career vs project fields
+  document.getElementById('career-fields-wrapper').style.display = checked ? 'none' : '';
+  document.getElementById('fresher-project-wrapper').style.display = checked ? '' : 'none';
+  // Step 1: hide/show experience field
+  const expWrapper = document.getElementById('experience-field-wrapper');
+  if (expWrapper) {
+    expWrapper.style.display = checked ? 'none' : '';
+    if (checked) document.getElementById('s1-exp').value = '0';
+  }
 }
 
 function toggleEndDate(cb, idx) {
@@ -1926,21 +1972,29 @@ function validateCurrentStep() {
     if (!v('s1-last'))       return err(errEl, 'Please enter your last name.');
     if (!v('s1-phone-num'))  return err(errEl, 'Please enter your phone number.');
     if (!v('s1-headline'))   return err(errEl, 'Please enter your professional headline.');
-    if (!v('s1-exp'))        return err(errEl, 'Please enter your years of experience.');
-    const expNum = parseInt(v('s1-exp'));
-    if (isNaN(expNum) || expNum < 0 || expNum > 50) return err(errEl, 'Years of experience must be between 0 and 50.');
+    const isFresher = document.getElementById('is_fresher')?.checked;
+    if (!isFresher) {
+      if (!v('s1-exp'))        return err(errEl, 'Please enter your years of experience.');
+      const expNum = parseInt(v('s1-exp'));
+      if (isNaN(expNum) || expNum < 0 || expNum > 50) return err(errEl, 'Years of experience must be between 0 and 50.');
+    }
     if (!v('nationality'))   return err(errEl, 'Please select your nationality.');
     if (!v('s1-industry'))   return err(errEl, 'Please select your industry.');
   }
 
   if (currentStep === 2) {
-    // Experience is optional (freshers may skip), but if entries have data, validate them
-    const entries = document.querySelectorAll('.career-entry');
-    const first = entries[0];
-    if (first && first.querySelector('.entry-title-input').value.trim()) {
-      if (!first.querySelector('.entry-company-input').value.trim()) return err(errEl, 'Please enter your company name.');
-      if (!first.querySelector('.entry-start-month').value)          return err(errEl, 'Please select a start month for your role.');
-      if (!first.querySelector('.entry-start-year').value)           return err(errEl, 'Please select a start year for your role.');
+    const isFresher = document.getElementById('is_fresher')?.checked;
+    if (isFresher) {
+      if (!v('project_title')) return err(errEl, 'Please enter your project title.');
+    } else {
+      // Experience is optional (freshers may skip), but if entries have data, validate them
+      const entries = document.querySelectorAll('.career-entry');
+      const first = entries[0];
+      if (first && first.querySelector('.entry-title-input').value.trim()) {
+        if (!first.querySelector('.entry-company-input').value.trim()) return err(errEl, 'Please enter your company name.');
+        if (!first.querySelector('.entry-start-month').value)          return err(errEl, 'Please select a start month for your role.');
+        if (!first.querySelector('.entry-start-year').value)           return err(errEl, 'Please select a start year for your role.');
+      }
     }
   }
 
@@ -2038,6 +2092,10 @@ async function submitDPR() {
       phone:                       (document.getElementById('s1-phone-code').value || '+1') + v('s1-phone-num'),
       headline:                    v('s1-headline'),
       experience:                  parseInt(v('s1-exp')) || 0,
+      is_fresher:                  document.getElementById('is_fresher')?.checked ? '1' : '0',
+      project_title:               v('project_title') || '',
+      project_date:                v('project_date') || '',
+      project_summary:             v('project_summary') || '',
       industry:                    v('s1-industry'),
       gender:                      v('gender'),
       dob:                         v('dob'),
@@ -2148,6 +2206,8 @@ function collectFormData() {
     addr_line1: v('addr_line1'), addr_line2: v('addr_line2'), addr_city: v('addr_city'),
     addr_state: v('addr_state'), addr_zip: v('addr_zip'), addr_country: v('addr_country'),
     // Step 2
+    is_fresher: document.getElementById('is_fresher')?.checked || false,
+    project_title: v('project_title'), project_date: v('project_date'), project_summary: v('project_summary'),
     career: getCareerData(),
     // Step 3
     education: getEduData(), certifications: getCertData(),
@@ -2200,6 +2260,13 @@ function restoreDraft() {
   set('nationality', d.nationality);
   set('addr_line1', d.addr_line1); set('addr_line2', d.addr_line2); set('addr_city', d.addr_city);
   set('addr_state', d.addr_state); set('addr_zip', d.addr_zip); set('addr_country', d.addr_country);
+
+  // Step 2: fresher mode
+  if (d.is_fresher) {
+    document.getElementById('is_fresher').checked = true;
+    toggleFresherMode(true);
+  }
+  set('project_title', d.project_title); set('project_date', d.project_date); set('project_summary', d.project_summary);
 
   // Step 2: career entries
   if (d.career && d.career.length) {

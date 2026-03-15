@@ -511,6 +511,12 @@ router.get('/profile', ...guard, async (req, res) => {
         issue_date:                       meta.issue_date,
         dpr_id_view_count:                meta.dpr_id_view_count,
 
+        // ── Fresher / project fields
+        is_fresher:                       meta.is_fresher,
+        project_title:                    meta.project_title,
+        project_date:                     meta.project_date,
+        project_summary:                  meta.project_summary,
+
         // ── Professional summary
         professional_summary_bio:         meta.professional_summary_bio,
         total_work_experience:            meta.total_work_experience,
@@ -2312,6 +2318,10 @@ router.post('/dpr', requireAuth, async (req, res) => {
       ['profile_completeness',               profileCompleteness],
       ['profile_last_updated',               nowStr],
       ['has_resume',                         '1'],
+      ['is_fresher',                         s(personal.is_fresher) === '1' ? '1' : '0'],
+      ['project_title',                      s(personal.project_title)],
+      ['project_date',                       s(personal.project_date)],
+      ['project_summary',                    s(personal.project_summary)],
     ];
     for (const [key, value] of scalarMeta) {
       await pool.execute(
