@@ -11,6 +11,8 @@ const crypto       = require('crypto');
 const https        = require('https');
 const jwt          = require('jsonwebtoken');
 const multer       = require('multer');
+const path         = require('path');
+const fs           = require('fs');
 const pdfParse     = require('pdf-parse');
 const sanitizeHtml = require('sanitize-html');
 
@@ -25,6 +27,24 @@ function sanitize(v) {
 const upload = multer({
   storage: multer.memoryStorage(),
   limits:  { fileSize: 5 * 1024 * 1024 },
+});
+
+// multer: disk storage for profile photos, 2 MB limit, images only
+const photoDir = path.join(__dirname, '..', 'public', 'uploads', 'profile-photos');
+if (!fs.existsSync(photoDir)) fs.mkdirSync(photoDir, { recursive: true });
+const photoUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, photoDir),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+      cb(null, `${req.user.id}-${Date.now()}${ext}`);
+    },
+  }),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (/^image\/(jpeg|png|webp|gif)$/.test(file.mimetype)) cb(null, true);
+    else cb(new Error('Only JPEG, PNG, WebP and GIF images are allowed'));
+  },
 });
 
 // Normalize req.user.id — JWT stores user_id, some routes reference req.user.id
@@ -507,7 +527,7 @@ router.get('/profile', ...guard, async (req, res) => {
         residential_state:                meta.residential_state,
         residential_country:              meta.residential_country,
         linkedin_url:                     meta.linkedin_url,
-        profile_photo:                    meta.profile_photo,
+        profile_photo_url:                meta.profile_photo_url,
         issue_date:                       meta.issue_date,
         dpr_id_view_count:                meta.dpr_id_view_count,
 
@@ -526,8 +546,6 @@ router.get('/profile', ...guard, async (req, res) => {
         current_annual_ctc_with_currency: meta.current_annual_ctc_with_currency,
         open_to_relocate:                 meta.open_to_relocate,
         open_for_work_badge:              meta.open_for_work_badge,
-        current_career_level:             meta.current_career_level,
-
         // ── Skills & expertise
         soft_skills:                      meta.soft_skills,          // ACF label: "Skills"
         compliance_tools:                 complianceTools,            // ACF label: "Tools & Software"
@@ -1602,7 +1620,7 @@ router.put('/profile', ...guard, async (req, res) => {
       'residential_city', 'residential_state', 'residential_zip_code',
       'country_of_nationality', 'residential_country', 'compliance_domains',
       'current_annual_ctc_with_currency', 'expected_annual_ctc_with_currency',
-      'preferred_work_type', 'work_level', 'current_career_level',
+      'preferred_work_type', 'work_level',
       'gender', 'date_of_birth',
       'email_visibility', 'phone_visibility',
     ];
@@ -2303,8 +2321,8 @@ router.post('/dpr', requireAuth, async (req, res) => {
       ['key_achievements',                   s(skills.achievements)],
       ['soft_skills',                        s(skills.skills_list)],
       ['linkedin_url',                       s(skills.linkedin)],
-      ['portfolio_url',                      s(skills.portfolio)],
       ['dpr_id',                             dprId],
+      ['issue_date',                         nowStr.slice(0, 10)],
       ['dpr_status',                         'approved'],
       ['profile_visibility',                 s(privacy.profile_visibility) || 'public'],
       ['email_visibility',                   s(privacy.email_visibility)   || 'co_public'],
@@ -2919,6 +2937,74 @@ router.delete('/saved-resumes/:id', ...guard, async (req, res) => {
     return res.json({ ok: true });
   } catch (err) {
     console.error('[saved-resumes/delete]', err.message);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── POST /api/candidate/profile-photo — Upload profile photo ────────────────
+router.post('/profile-photo', ...guard, (req, res, next) => {
+  photoUpload.single('photo')(req, res, (err) => {
+    if (err) {
+      const msg = err.code === 'LIMIT_FILE_SIZE' ? 'Image must be under 2 MB' : err.message;
+      return res.status(400).json({ ok: false, error: msg });
+    }
+    next();
+  });
+}, async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ ok: false, error: 'No image uploaded' });
+
+    const userId = req.user.id;
+    const photoUrl = `/uploads/profile-photos/${req.file.filename}`;
+
+    // Find wp_user_id
+    const [[user]] = await pool.execute(
+      'SELECT wp_user_id FROM agzit_users WHERE id = ?', [userId]
+    );
+    if (!user?.wp_user_id) return res.status(400).json({ ok: false, error: 'No linked WP account' });
+
+    // Find DPR post
+    const [[post]] = await pool.execute(
+      `SELECT p.ID FROM wp_posts p
+       JOIN wp_postmeta pm ON pm.post_id = p.ID AND pm.meta_key = 'candidate_user_id'
+       WHERE p.post_type = 'dpr_profile' AND p.post_status = 'publish'
+         AND pm.meta_value = ?
+       LIMIT 1`,
+      [String(user.wp_user_id)]
+    );
+    if (!post) return res.status(404).json({ ok: false, error: 'DPR profile not found' });
+
+    // Read old photo URL before upsert (for cleanup)
+    const [[existing]] = await pool.execute(
+      'SELECT meta_id, meta_value FROM wp_postmeta WHERE post_id = ? AND meta_key = ?',
+      [post.ID, 'profile_photo_url']
+    );
+    const oldPhotoUrl = existing?.meta_value;
+
+    // Upsert profile_photo_url in wp_postmeta
+    if (existing) {
+      await pool.execute(
+        'UPDATE wp_postmeta SET meta_value = ? WHERE post_id = ? AND meta_key = ?',
+        [photoUrl, post.ID, 'profile_photo_url']
+      );
+    } else {
+      await pool.execute(
+        'INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES (?, ?, ?)',
+        [post.ID, 'profile_photo_url', photoUrl]
+      );
+    }
+
+    // Delete old photo file if different
+    if (oldPhotoUrl && oldPhotoUrl !== photoUrl) {
+      try {
+        const oldPath = path.join(__dirname, '..', 'public', oldPhotoUrl);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      } catch (_) { /* ignore cleanup errors */ }
+    }
+
+    return res.json({ ok: true, profile_photo_url: photoUrl });
+  } catch (err) {
+    console.error('[profile-photo]', err.message);
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });
