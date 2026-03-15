@@ -773,6 +773,7 @@ select.jp-input {
             <button class="tab-btn" data-tab="profile">Profile</button>
             <button class="tab-btn" data-tab="scorecard">Scorecard</button>
             <button class="tab-btn" data-tab="interviews" id="tab-btn-interviews">Interviews</button>
+            <button class="tab-btn" data-tab="jobs-for-you" id="tab-btn-jobs">Jobs For You</button>
             <button class="tab-btn" data-tab="job">Job Preferences</button>
             <button class="tab-btn" data-tab="account">Account</button>
             <button class="tab-btn" data-tab="resumes">My Resumes</button>
@@ -955,6 +956,26 @@ select.jp-input {
                 <div class="empty-sub">Start an AI mock interview. Your recordings and scores will appear here.</div>
                 <a href="/interview-start" onclick="return checkSlotAvailability(event)" class="btn-blue" style="width:auto;padding:11px 22px;display:inline-flex;margin:12px auto 0;">Schedule Interview</a>
               </div>
+            </div>
+          </div>
+
+          <!-- ── Jobs For You ──────────────────────────────────────────── -->
+          <div class="tab-pane" id="tab-jobs-for-you">
+            <div id="jobs-loading" style="text-align:center;padding:48px 0;">
+              <div class="sk-ring" style="width:32px;height:32px;margin:0 auto 12px;"></div>
+              <div style="font-size:14px;color:var(--muted);">Finding jobs matched to your profile…</div>
+            </div>
+            <div id="jobs-content" style="display:none;">
+              <!-- Filter bar -->
+              <div id="jobs-filters" style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;"></div>
+              <!-- Job cards -->
+              <div id="jobs-list"></div>
+            </div>
+            <div id="jobs-empty" style="display:none;text-align:center;padding:48px 0;">
+              <div style="font-size:36px;margin-bottom:12px;">🔍</div>
+              <div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:6px;">No matched jobs yet</div>
+              <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Complete your DPR profile to get better matches.</div>
+              <button onclick="switchTab('profile')" style="padding:10px 22px;background:var(--blue);color:white;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Go to Profile</button>
             </div>
           </div>
 
@@ -2465,11 +2486,12 @@ window.deleteSavedResume = async function(id, btn) {
   } catch (e) { alert('Network error'); btn.disabled = false; btn.textContent = 'Delete'; }
 };
 
-// Load saved resumes when the tab is shown
+// Load saved resumes / jobs when the tab is shown
 var origSwitchTab = window.switchTab;
 window.switchTab = function(name) {
   origSwitchTab(name);
   if (name === 'resumes') loadSavedResumes();
+  if (name === 'jobs-for-you') loadJobsForYou();
 };
 
 /* ── Credit Info Panel Toggle ─────────────────────────────────────────────── */
@@ -2646,6 +2668,144 @@ async function uploadProfilePhoto(input) {
   if (btn) btn.disabled = false;
   input.value = '';
 }
+
+/* ── Jobs For You ────────────────────────────────────────────────────────── */
+var _jobsLoaded = false;
+var _jobsData = [];
+var _jobsFilter = 'all';
+
+async function loadJobsForYou() {
+  if (_jobsLoaded) return;
+  _jobsLoaded = true;
+  try {
+    var token = localStorage.getItem('token');
+    var r = await fetch('/api/candidate/jobs', {
+      headers: { 'Authorization': 'Bearer ' + token },
+    });
+    var d = await r.json();
+    if (!d.ok) throw new Error(d.error || 'Failed');
+    _jobsData = d.jobs || [];
+
+    document.getElementById('jobs-loading').style.display = 'none';
+    if (_jobsData.length === 0) {
+      document.getElementById('jobs-empty').style.display = '';
+      return;
+    }
+
+    // Update tab badge
+    document.getElementById('tab-btn-jobs').innerHTML = 'Jobs For You <span style="display:inline-block;background:#991B1B;color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px;vertical-align:middle;">' + _jobsData.length + '</span>';
+
+    document.getElementById('jobs-content').style.display = '';
+    renderJobFilters();
+    renderJobCards();
+  } catch (err) {
+    document.getElementById('jobs-loading').innerHTML = '<div style="color:var(--red);font-size:14px;">Could not load jobs. Try again later.</div>';
+    console.error('[jobs]', err);
+  }
+}
+
+function renderJobFilters() {
+  var countries = {};
+  var hasRemote = false;
+  _jobsData.forEach(function(j) {
+    if (j.is_remote) hasRemote = true;
+    if (j.country) {
+      var c = j.country.trim();
+      if (c) countries[c] = (countries[c] || 0) + 1;
+    }
+  });
+
+  var filters = [{ key: 'all', label: 'All' }];
+  // Show top countries
+  var sorted = Object.entries(countries).sort(function(a,b){ return b[1]-a[1]; });
+  sorted.slice(0, 4).forEach(function(e) { filters.push({ key: e[0], label: e[0] }); });
+  if (hasRemote) filters.push({ key: 'remote', label: 'Remote' });
+
+  var html = '';
+  filters.forEach(function(f) {
+    var active = _jobsFilter === f.key;
+    html += '<button onclick="filterJobs(\'' + f.key.replace(/'/g, "\\'") + '\')" style="padding:7px 16px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid ' + (active ? 'var(--blue)' : 'var(--line)') + ';background:' + (active ? 'var(--blue)' : 'white') + ';color:' + (active ? 'white' : 'var(--soft)') + ';transition:all .15s;">' + esc(f.label) + '</button>';
+  });
+  document.getElementById('jobs-filters').innerHTML = html;
+}
+
+window.filterJobs = function(key) {
+  _jobsFilter = key;
+  renderJobFilters();
+  renderJobCards();
+};
+
+function renderJobCards() {
+  var filtered = _jobsData;
+  if (_jobsFilter === 'remote') {
+    filtered = _jobsData.filter(function(j){ return j.is_remote; });
+  } else if (_jobsFilter !== 'all') {
+    filtered = _jobsData.filter(function(j){ return (j.country || '').toLowerCase() === _jobsFilter.toLowerCase(); });
+  }
+
+  if (filtered.length === 0) {
+    document.getElementById('jobs-list').innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);font-size:13px;">No jobs matching this filter.</div>';
+    return;
+  }
+
+  var html = '';
+  filtered.forEach(function(j) {
+    var pct = Math.min(j.score, 100);
+    var badgeBg, badgeColor;
+    if (pct >= 80) { badgeBg = 'var(--green-lt)'; badgeColor = 'var(--green)'; }
+    else if (pct >= 60) { badgeBg = 'var(--blue-lt)'; badgeColor = 'var(--blue)'; }
+    else { badgeBg = 'var(--surface)'; badgeColor = 'var(--muted)'; }
+
+    var bd = j.score_breakdown || {};
+    var tooltip = 'Industry: +' + (bd.industry||0) + ' | Role: +' + (bd.role||0) + ' | Location: +' + (bd.location||0) + ' | Skills: +' + (bd.skills||0) + ' | Fresh: +' + (bd.freshness||0);
+
+    var dateStr = formatJobDate(j.date_posted);
+    var desc = esc((j.description || '').slice(0, 160));
+    var empType = j.employment_type ? esc(j.employment_type.replace(/_/g, ' ')) : '';
+    var sourceLabel = { jsearch: 'JSearch', remotive: 'Remotive', jobicy: 'Jobicy', weworkremotely: 'WeWorkRemotely' }[j.source] || j.source || '';
+
+    var meta = [esc(j.location || ''), empType, sourceLabel, dateStr].filter(Boolean).join(' · ');
+
+    html += '<div style="background:white;border-radius:12px;padding:18px 18px 18px 22px;margin-bottom:12px;border-left:4px solid var(--blue);box-shadow:var(--shadow-sm);position:relative;">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">';
+    html += '<div style="flex:1;min-width:0;">';
+    html += '<div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:2px;">' + esc(j.title || 'Untitled') + (j.company ? ' <span style="font-weight:500;color:var(--soft);">— ' + esc(j.company) + '</span>' : '') + '</div>';
+    html += '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">' + meta + '</div>';
+    if (desc) html += '<div style="font-size:13px;color:var(--soft);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + desc + '</div>';
+    html += '</div>';
+    html += '<div title="' + esc(tooltip) + '" style="flex-shrink:0;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700;background:' + badgeBg + ';color:' + badgeColor + ';cursor:help;white-space:nowrap;">' + pct + '% match</div>';
+    html += '</div>';
+    html += '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">';
+    if (j.apply_url) {
+      html += '<a href="' + esc(j.apply_url) + '" target="_blank" rel="noopener" onclick="trackJobClick(' + j.id + ')" style="padding:8px 18px;background:var(--blue);color:white;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;transition:all .15s;" onmouseenter="this.style.opacity=\'0.9\'" onmouseleave="this.style.opacity=\'1\'">Apply →</a>';
+    }
+    html += '</div>';
+    html += '</div>';
+  });
+
+  document.getElementById('jobs-list').innerHTML = html;
+}
+
+function formatJobDate(d) {
+  if (!d) return '';
+  var posted = new Date(d);
+  var now = new Date();
+  var diff = Math.floor((now - posted) / (1000 * 60 * 60 * 24));
+  if (diff <= 0) return 'Today';
+  if (diff === 1) return '1 day ago';
+  if (diff < 7) return diff + ' days ago';
+  if (diff < 14) return '1 week ago';
+  if (diff < 30) return Math.floor(diff / 7) + ' weeks ago';
+  return posted.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+window.trackJobClick = function(jobId) {
+  var token = localStorage.getItem('token');
+  fetch('/api/candidate/jobs/' + jobId + '/click', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + token },
+  }).catch(function(){});
+};
 </script>
 <!-- Scheduled Interview Modal -->
 <div class="modal" id="modal-schedule" onclick="if(event.target===this)closeModal('modal-schedule')">

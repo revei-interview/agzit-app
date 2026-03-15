@@ -15,6 +15,7 @@ const path         = require('path');
 const fs           = require('fs');
 const pdfParse     = require('pdf-parse');
 const sanitizeHtml = require('sanitize-html');
+const { matchJobsForCandidate } = require('../jobs/matcher');
 
 // Strip HTML tags from freeform text to prevent stored XSS.
 // Applied to textarea fields; short-text fields use trim-only s() helper.
@@ -3005,6 +3006,52 @@ router.post('/profile-photo', ...guard, (req, res, next) => {
     return res.json({ ok: true, profile_photo_url: photoUrl });
   } catch (err) {
     console.error('[profile-photo]', err.message);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── GET /api/candidate/jobs — Matched jobs for candidate ────────────────────
+router.get('/jobs', ...guard, async (req, res) => {
+  try {
+    // Get candidate profile fields needed for matching
+    const data = await loadProfile(req.user.user_id);
+    if (!data) return res.json({ ok: true, jobs: [], message: 'Complete your DPR profile first' });
+    const { meta } = data;
+
+    const profile = {
+      compliance_domains:   meta.compliance_domains,
+      industry:             meta.industry,
+      desired_role:         meta.desired_role,
+      residential_city:     meta.residential_city,
+      residential_country:  meta.residential_country,
+      soft_skills:          meta.soft_skills,
+    };
+
+    // Fetch last 500 jobs
+    const [jobs] = await pool.execute(
+      'SELECT * FROM agzit_job_listings ORDER BY date_posted DESC LIMIT 500'
+    );
+
+    const matched = matchJobsForCandidate(profile, jobs);
+    return res.json({ ok: true, jobs: matched, total: matched.length });
+  } catch (err) {
+    console.error('[jobs/match]', err.message);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── POST /api/candidate/jobs/:jobId/click — Log job click ───────────────────
+router.post('/jobs/:jobId/click', ...guard, async (req, res) => {
+  try {
+    const jobId = parseInt(req.params.jobId);
+    if (!jobId) return res.status(400).json({ ok: false, error: 'Invalid job ID' });
+    await pool.execute(
+      'INSERT INTO agzit_job_clicks (user_id, job_id) VALUES (?, ?)',
+      [req.user.id, jobId]
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('[jobs/click]', err.message);
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });

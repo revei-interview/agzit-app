@@ -24,7 +24,8 @@
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "pdf-parse": "^1.1.1",
-    "sanitize-html": "^2.17.1"
+    "sanitize-html": "^2.17.1",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
