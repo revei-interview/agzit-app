@@ -120,6 +120,22 @@ function matchJobsForCandidate(profile, jobs) {
   // Expand country for alias matching
   const countryTerms = expandCountry(candidateCountry);
 
+  // Preferred locations from repeater
+  const preferredLocations = [];
+  if (Array.isArray(profile.preferred_location)) {
+    for (const loc of profile.preferred_location) {
+      const prefCity = (loc.preferred_city_name || '').toLowerCase().trim();
+      const prefCountry = (loc.preferred_country_name || '').toLowerCase().trim();
+      if (prefCity || prefCountry) {
+        preferredLocations.push({
+          city: prefCity,
+          country: prefCountry,
+          countryTerms: expandCountry(prefCountry),
+        });
+      }
+    }
+  }
+
   // Experience level keywords for candidate
   const levelKeywords = LEVEL_KEYWORDS[candidateLevel] || [];
 
@@ -144,7 +160,7 @@ function matchJobsForCandidate(profile, jobs) {
       if (match) breakdown.role = 25;
     }
 
-    // 3. Location match (+20) with country aliases
+    // 3. Location match (+20) with country aliases + preferred locations
     const jobCountry  = (job.country || '').toLowerCase();
     const jobCity     = (job.city || '').toLowerCase();
     const jobLocation = (job.location || '').toLowerCase();
@@ -153,10 +169,21 @@ function matchJobsForCandidate(profile, jobs) {
     if (job.is_remote) {
       breakdown.location += 10;
     }
+    // Check residential location
     if (countryTerms.length > 0 && countryTerms.some(t => jobLocAll.includes(t))) {
-      breakdown.location += 20;
+      breakdown.location = Math.max(breakdown.location, 20);
     } else if (candidateCity && (jobCity.includes(candidateCity) || jobLocation.includes(candidateCity))) {
-      breakdown.location += 15;
+      breakdown.location = Math.max(breakdown.location, 20);
+    }
+    // Check preferred locations
+    for (const loc of preferredLocations) {
+      if (loc.city && (jobCity.includes(loc.city) || jobLocation.includes(loc.city))) {
+        breakdown.location = Math.max(breakdown.location, 20);
+        break;
+      }
+      if (loc.countryTerms.length > 0 && loc.countryTerms.some(t => jobLocAll.includes(t))) {
+        breakdown.location = Math.max(breakdown.location, 15);
+      }
     }
     if (breakdown.location > 20) breakdown.location = 20;
 

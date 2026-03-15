@@ -2376,6 +2376,22 @@ function renderEmployerInterviews(list) {
 
 /* ── Job Preferences (read-only) ─────────────────────────────────────────── */
 function renderJobPrefs(p) {
+  // Build preferred locations display
+  var prefLocs = Array.isArray(p.preferred_location) ? p.preferred_location : [];
+  var prefLocsHtml = '';
+  if (prefLocs.length > 0) {
+    prefLocsHtml = '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+    prefLocs.forEach(function(loc) {
+      var city = loc.preferred_city_name || '';
+      var country = loc.preferred_country_name || '';
+      var label = [city, country].filter(Boolean).join(', ') || 'Unknown';
+      prefLocsHtml += '<span style="display:inline-block;padding:4px 12px;background:var(--blue-lt);color:var(--blue);border-radius:16px;font-size:12px;font-weight:600;">' + esc(label) + '</span>';
+    });
+    prefLocsHtml += '</div>';
+  } else {
+    prefLocsHtml = '<span style="color:var(--muted);font-size:13px;">Not specified</span>';
+  }
+
   const html = `
     <div class="jp-card">
       <div class="jp-heading">Job Preferences</div>
@@ -2389,6 +2405,10 @@ function renderJobPrefs(p) {
         ${fld('Open to Relocate',    p.open_to_relocate === '1' ? 'Yes' : p.open_to_relocate === '0' ? 'No' : '')}
         ${fld('Current CTC',         p.current_annual_ctc_with_currency)}
         ${fld('Expected CTC',        p.expected_annual_ctc_with_currency)}
+      </div>
+      <div style="margin-top:16px;">
+        <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;">Preferred Locations</div>
+        ${prefLocsHtml}
       </div>
       <div class="jp-footer">
         <a href="/profile-edit" class="jp-save-btn" style="text-decoration:none;display:inline-block;">Edit Job Preferences</a>
@@ -2696,8 +2716,8 @@ async function loadJobsForYou() {
     document.getElementById('tab-btn-jobs').innerHTML = 'Jobs For You <span style="display:inline-block;background:#991B1B;color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px;vertical-align:middle;">' + _jobsData.length + '</span>';
 
     document.getElementById('jobs-content').style.display = '';
-    renderJobFilters();
-    renderJobCards();
+    try { renderJobFilters(); } catch(e) { console.error('[jobs] filter render error:', e); }
+    try { renderJobCards(); } catch(e) { console.error('[jobs] card render error:', e); }
   } catch (err) {
     document.getElementById('jobs-loading').innerHTML = '<div style="color:var(--red);font-size:14px;">Could not load jobs. Try again later.</div>';
     console.error('[jobs]', err);
@@ -2736,7 +2756,7 @@ function renderJobCards() {
     var filterDef = JOB_FILTERS.find(function(f){ return f.key === _jobsFilter; });
     var terms = (filterDef && filterDef.match) || [_jobsFilter];
     filtered = _jobsData.filter(function(j){
-      var loc = ((j.country || '') + ' ' + (j.location || '') + ' ' + (j.city || '')).toLowerCase();
+      var loc = (String(j.country || '') + ' ' + String(j.location || '') + ' ' + String(j.city || '')).toLowerCase();
       return terms.some(function(t){ return loc.indexOf(t) !== -1; });
     });
   }
@@ -2747,55 +2767,73 @@ function renderJobCards() {
   }
 
   var html = '';
-  filtered.forEach(function(j) {
-    var pct = Math.min(j.score, 100);
-    var badgeBg, badgeColor;
-    if (pct >= 80) { badgeBg = 'var(--green-lt)'; badgeColor = 'var(--green)'; }
-    else if (pct >= 60) { badgeBg = 'var(--blue-lt)'; badgeColor = 'var(--blue)'; }
-    else { badgeBg = 'var(--surface)'; badgeColor = 'var(--muted)'; }
+  for (var i = 0; i < filtered.length; i++) {
+    try {
+      var j = filtered[i];
+      var matchPct = Math.min(100, Math.round(j.score || 0));
+      var badgeBg, badgeColor, showBadge = true;
+      if (matchPct >= 80)      { badgeBg = 'var(--green-lt)'; badgeColor = 'var(--green)'; }
+      else if (matchPct >= 60) { badgeBg = 'var(--blue-lt)'; badgeColor = 'var(--blue)'; }
+      else if (matchPct >= 40) { badgeBg = 'var(--surface)'; badgeColor = 'var(--muted)'; }
+      else                     { showBadge = false; }
 
-    var bd = j.score_breakdown || {};
-    var tooltip = 'Industry: +' + (bd.industry||0) + ' | Role: +' + (bd.role||0) + ' | Location: +' + (bd.location||0) + ' | Skills: +' + (bd.skills||0) + ' | Level: +' + (bd.level||0) + ' | Fresh: +' + (bd.freshness||0);
+      var bd = j.score_breakdown || {};
+      var tooltip = 'Industry: +' + (bd.industry||0) + ' | Role: +' + (bd.role||0) + ' | Location: +' + (bd.location||0) + ' | Skills: +' + (bd.skills||0) + ' | Level: +' + (bd.level||0) + ' | Fresh: +' + (bd.freshness||0);
 
-    var dateStr = formatJobDate(j.date_posted);
-    var desc = esc((j.description || '').slice(0, 160));
-    var empType = j.employment_type ? esc(j.employment_type.replace(/_/g, ' ')) : '';
-    var sourceLabel = j.source_label || j.source || 'Job Board';
-    if (j.is_live) sourceLabel += ' ⚡';
+      var dateStr = timeAgo(j.date_posted);
+      var desc = esc(String(j.description || '').slice(0, 160));
+      var empType = j.employment_type ? esc(String(j.employment_type).replace(/_/g, ' ')) : '';
+      var sourceLabel = esc(String(j.source_label || j.source || 'Job Board'));
+      if (j.is_live) sourceLabel += ' ⚡';
 
-    var meta = [esc(j.location || ''), empType, sourceLabel, dateStr].filter(Boolean).join(' · ');
+      var metaParts = [esc(String(j.location || '')), empType, sourceLabel, dateStr].filter(Boolean);
+      var metaLine = metaParts.join(' · ');
 
-    html += '<div style="background:white;border-radius:12px;padding:18px 18px 18px 22px;margin-bottom:12px;border-left:4px solid var(--blue);box-shadow:var(--shadow-sm);position:relative;">';
-    html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">';
-    html += '<div style="flex:1;min-width:0;">';
-    html += '<div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:2px;">' + esc(j.title || 'Untitled') + (j.company ? ' <span style="font-weight:500;color:var(--soft);">— ' + esc(j.company) + '</span>' : '') + '</div>';
-    html += '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">' + meta + '</div>';
-    if (desc) html += '<div style="font-size:13px;color:var(--soft);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + desc + '</div>';
-    html += '</div>';
-    html += '<div title="' + esc(tooltip) + '" style="flex-shrink:0;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700;background:' + badgeBg + ';color:' + badgeColor + ';cursor:help;white-space:nowrap;">' + pct + '% match</div>';
-    html += '</div>';
-    html += '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">';
-    if (j.apply_url) {
-      html += '<a href="' + esc(j.apply_url) + '" target="_blank" rel="noopener" onclick="trackJobClick(' + j.id + ')" style="padding:8px 18px;background:var(--blue);color:white;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;transition:all .15s;" onmouseenter="this.style.opacity=\'0.9\'" onmouseleave="this.style.opacity=\'1\'">Apply →</a>';
+      var title   = esc(String(j.title || 'Untitled Position'));
+      var company = j.company ? ' <span style="font-weight:500;color:var(--soft);">— ' + esc(String(j.company)) + '</span>' : '';
+      var applyUrl = j.apply_url ? String(j.apply_url) : '';
+      var jobId = j.id || 0;
+
+      html += '<div style="background:white;border-radius:12px;padding:18px 18px 18px 22px;margin-bottom:12px;border-left:4px solid var(--blue);box-shadow:var(--shadow-sm);position:relative;">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">';
+      html += '<div style="flex:1;min-width:0;">';
+      html += '<div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:2px;">' + title + company + '</div>';
+      html += '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">' + metaLine + '</div>';
+      if (desc) html += '<div style="font-size:13px;color:var(--soft);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">' + desc + '</div>';
+      html += '</div>';
+      if (showBadge) {
+        html += '<div title="' + esc(tooltip) + '" style="flex-shrink:0;padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700;background:' + badgeBg + ';color:' + badgeColor + ';cursor:help;white-space:nowrap;">' + matchPct + '% match</div>';
+      }
+      html += '</div>';
+      html += '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">';
+      if (applyUrl) {
+        html += '<a href="' + esc(applyUrl) + '" target="_blank" rel="noopener" onclick="trackJobClick(' + jobId + ')" style="padding:8px 18px;background:var(--blue);color:white;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;transition:all .15s;" onmouseenter="this.style.opacity=\'0.9\'" onmouseleave="this.style.opacity=\'1\'">Apply →</a>';
+      }
+      html += '</div>';
+      html += '</div>';
+    } catch (cardErr) {
+      console.error('[jobs] Card render error at index ' + i + ':', cardErr, filtered[i]);
     }
-    html += '</div>';
-    html += '</div>';
-  });
+  }
 
   document.getElementById('jobs-list').innerHTML = html;
 }
 
-function formatJobDate(d) {
-  if (!d) return '';
-  var posted = new Date(d);
-  var now = new Date();
-  var diff = Math.floor((now - posted) / (1000 * 60 * 60 * 24));
-  if (diff <= 0) return 'Today';
-  if (diff === 1) return '1 day ago';
-  if (diff < 7) return diff + ' days ago';
-  if (diff < 14) return '1 week ago';
-  if (diff < 30) return Math.floor(diff / 7) + ' weeks ago';
-  return posted.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+function timeAgo(dateStr) {
+  if (!dateStr) return 'Recently posted';
+  try {
+    var date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'Recently posted';
+    var hours = (Date.now() - date.getTime()) / 3600000;
+    if (hours < 0) return 'Today';
+    if (hours < 24) return 'Today';
+    if (hours < 48) return 'Yesterday';
+    var days = Math.floor(hours / 24);
+    if (days < 7) return days + ' days ago';
+    var weeks = Math.floor(days / 7);
+    if (weeks < 4) return weeks + ' week' + (weeks > 1 ? 's' : '') + ' ago';
+    return 'Over a month ago';
+  } catch(e) { return 'Recently posted'; }
 }
 
 window.trackJobClick = function(jobId) {

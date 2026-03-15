@@ -571,6 +571,7 @@ router.get('/profile', ...guard, async (req, res) => {
         work_experience:                  workExperience,
         education:                        education,
         certifications:                   certifications,
+        preferred_location:               prefLocations,
 
         // ── Verification badges (admin-set)
         id_verified:                      meta.id_verified,
@@ -1716,6 +1717,15 @@ router.put('/profile', ...guard, async (req, res) => {
         .map(r => ({ language: s(r.language_name), proficiency: s(r.proficiency) }));
       await clearRepeaterMeta(profileId, 'language_proficiency');
       await writeRepeater(profileId, 'language_proficiency', rows);
+    }
+
+    // ── Preferred locations repeater ─────────────────────────────────────────
+    if (Array.isArray(b.preferred_location)) {
+      const rows = b.preferred_location
+        .filter(r => s(r.preferred_city_name) || s(r.preferred_country_name))
+        .map(r => ({ preferred_city_name: s(r.preferred_city_name), preferred_country_name: s(r.preferred_country_name) }));
+      await clearRepeaterMeta(profileId, 'preferred_location');
+      await writeRepeater(profileId, 'preferred_location', rows);
     }
 
     // ── Resume upload attachment ID (L1: also rename WP attachment title) ─────
@@ -3030,6 +3040,11 @@ router.get('/jobs', ...guard, async (req, res) => {
     if (!data) return res.json({ ok: true, jobs: [], message: 'Complete your DPR profile first' });
     const { meta } = data;
 
+    // Parse preferred_location repeater for matching
+    const prefLocs = parseRepeater(meta, 'preferred_location', [
+      'preferred_city_name', 'preferred_country_name',
+    ]);
+
     const profile = {
       compliance_domains:               meta.compliance_domains,
       industry:                         meta.industry,
@@ -3044,6 +3059,7 @@ router.get('/jobs', ...guard, async (req, res) => {
       professional_headline:            meta.professional_headline,
       current_employment_status:        meta.current_employment_status,
       expected_annual_ctc_with_currency: meta.expected_annual_ctc_with_currency,
+      preferred_location:               prefLocs,
     };
 
     // STEP B — Live per-candidate JSearch (1 call/user/24h, cached)

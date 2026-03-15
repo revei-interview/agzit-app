@@ -709,6 +709,29 @@
     </div>
   </div>
 
+  <!-- 10. Preferred Job Locations -->
+  <div class="sec">
+    <div class="sec-hd">
+      <div class="sec-num">10</div>
+      <div>
+        <div class="sec-title">Preferred Job Locations</div>
+        <span class="sec-sub">Where would you like to work?</span>
+      </div>
+    </div>
+    <div id="pref-loc-tags" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;"></div>
+    <div class="grid2">
+      <div class="field">
+        <label class="label">City</label>
+        <input type="text" id="pref-loc-city" placeholder="e.g. Mumbai">
+      </div>
+      <div class="field">
+        <label class="label">Country</label>
+        <select id="pref-loc-country"><option value="">Select country</option></select>
+      </div>
+    </div>
+    <button type="button" onclick="addPrefLocation()" style="margin-top:8px;padding:8px 18px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">+ Add Location</button>
+  </div>
+
   <!-- Save bar -->
   <div class="save-bar">
     <a href="/dashboard" class="btn-cancel">Cancel</a>
@@ -725,6 +748,7 @@ let eduRows  = [];
 let certRows = [];
 let toolRows = [];
 let langRows = [];
+let prefLocRows = [];
 let _wxDragIdx = null;
 
 // ── Countries list (ISO codes — must match register/index.html) ──────────────
@@ -1137,6 +1161,19 @@ function populateForm(p) {
   langRows = [];
   (p.language_proficiency || []).forEach(row => addLang(row));
 
+  // Preferred locations — clear and repopulate
+  prefLocRows = [];
+  (p.preferred_location || []).forEach(row => {
+    prefLocRows.push({ preferred_city_name: row.preferred_city_name || '', preferred_country_name: row.preferred_country_name || '' });
+  });
+  renderPrefLocTags();
+
+  // Populate pref-loc-country dropdown
+  var plSel = document.getElementById('pref-loc-country');
+  if (plSel && plSel.options.length <= 1) {
+    COUNTRY_LIST.forEach(function(c) { var o = document.createElement('option'); o.value = c; o.textContent = c; plSel.appendChild(o); });
+  }
+
   // Resume
   renderResumeSection(p);
 }
@@ -1294,6 +1331,40 @@ function collectLang() {
   }).filter(r => r.language_name);
 }
 
+// ── Preferred Locations ──────────────────────────────────────────────────────
+function renderPrefLocTags() {
+  var container = document.getElementById('pref-loc-tags');
+  if (!container) return;
+  if (prefLocRows.length === 0) {
+    container.innerHTML = '<span style="color:var(--muted);font-size:13px;">No locations added yet</span>';
+    return;
+  }
+  var html = '';
+  prefLocRows.forEach(function(loc, i) {
+    var label = [loc.preferred_city_name, loc.preferred_country_name].filter(Boolean).join(', ');
+    html += '<span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:var(--blue-lt);color:var(--blue);border-radius:16px;font-size:13px;font-weight:600;">';
+    html += label;
+    html += ' <button onclick="removePrefLocation(' + i + ')" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:16px;line-height:1;padding:0;">&times;</button>';
+    html += '</span>';
+  });
+  container.innerHTML = html;
+}
+
+window.addPrefLocation = function() {
+  var city = (document.getElementById('pref-loc-city').value || '').trim();
+  var country = (document.getElementById('pref-loc-country').value || '').trim();
+  if (!city && !country) return;
+  prefLocRows.push({ preferred_city_name: city, preferred_country_name: country });
+  document.getElementById('pref-loc-city').value = '';
+  document.getElementById('pref-loc-country').value = '';
+  renderPrefLocTags();
+};
+
+window.removePrefLocation = function(idx) {
+  prefLocRows.splice(idx, 1);
+  renderPrefLocTags();
+};
+
 async function saveProfile() {
   const btn = document.getElementById('btn-save');
   btn.disabled = true;
@@ -1336,6 +1407,7 @@ async function saveProfile() {
     certifications:               collectCert(),
     compliance_tools:             collectTools(),
     language_proficiency:         collectLang(),
+    preferred_location:           prefLocRows.filter(r => r.preferred_city_name || r.preferred_country_name),
   };
 
   try {
