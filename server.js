@@ -557,6 +557,7 @@ async function fixCandidatePassword() {
 
 // ── Scheduled interview processor (runs every 60s) ──────────────────────────
 async function processScheduledInterviews() {
+  const pool = require('./config/db');
   try {
     // Find bookings whose scheduled time has arrived
     const [rows] = await pool.execute(
