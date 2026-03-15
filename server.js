@@ -9,6 +9,8 @@ const helmet       = require('helmet');
 const rateLimit    = require('express-rate-limit');
 const { requireAuth, requireRole } = require('./middleware/auth');
 
+const passport = require('passport');
+
 const app = express();
 app.set('trust proxy', 1); // Render sits behind a load balancer — trust first proxy hop for correct IP in rate limiting
 app.disable('x-powered-by'); // Don't advertise Express version
@@ -61,6 +63,7 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(passport.initialize());
 
 // ── Webhooks ───────────────────────────────────────────────────────────────
 app.use('/api/webhooks', require('./routes/webhooks'));
@@ -460,6 +463,15 @@ async function initDB() {
       INDEX idx_created (created_at)
     )
   `);
+
+  // Migration: add google_id column for Google OAuth
+  try {
+    await pool.execute('ALTER TABLE agzit_users ADD COLUMN google_id VARCHAR(255) DEFAULT NULL');
+    console.log('[init] Added google_id column to agzit_users');
+  } catch (_) { /* already exists */ }
+  try {
+    await pool.execute('CREATE INDEX idx_google_id ON agzit_users (google_id)');
+  } catch (_) { /* already exists */ }
 
   // Migration: rename post_id → profile_post_id and fix unique key if old schema exists
   try {

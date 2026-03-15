@@ -11,6 +11,8 @@ const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
 const { BrevoClient, BrevoEnvironment } = require('@getbrevo/brevo');
 const crypto   = require('crypto');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const db       = require('../config/db');
 const { requireAuth } = require('../middleware/auth');
 
@@ -675,5 +677,135 @@ router.get('/me', requireAuth, async (req, res) => {
     res.json({ ok: true, user: req.user });
   }
 });
+
+// ── Google OAuth Strategy ────────────────────────────────────────────────────
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(new GoogleStrategy({
+    clientID:     process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL:  'https://app.agzit.com/api/auth/google/callback',
+  }, (accessToken, refreshToken, profile, done) => {
+    // Pass profile to callback handler
+    done(null, profile);
+  }));
+  console.log('[auth] Google OAuth strategy registered');
+} else {
+  console.log('[auth] Google OAuth disabled — GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set');
+}
+
+// Passport serialization (not used — we issue JWT, not sessions)
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((user, done) => done(null, user));
+
+// ── GET /api/auth/google — redirect to Google consent ────────────────────────
+router.get('/google', passport.authenticate('google', {
+  scope: ['profile', 'email'],
+  session: false,
+}));
+
+// ── GET /api/auth/google/callback — handle Google redirect ───────────────────
+router.get('/google/callback',
+  passport.authenticate('google', { session: false, failureRedirect: '/login?error=google_failed' }),
+  async (req, res) => {
+    try {
+      const profile   = req.user;
+      const googleId  = profile.id;
+      const email     = (profile.emails?.[0]?.value || '').toLowerCase();
+      const firstName = profile.name?.givenName || profile.displayName?.split(' ')[0] || '';
+      const lastName  = profile.name?.familyName || '';
+
+      if (!email) {
+        return res.redirect('/login?error=no_email');
+      }
+
+      // 1. Check agzit_users by google_id
+      let [[user]] = await db.query(
+        'SELECT * FROM agzit_users WHERE google_id = ? LIMIT 1',
+        [googleId]
+      );
+
+      // 2. Check agzit_users by email
+      if (!user) {
+        [[user]] = await db.query(
+          'SELECT * FROM agzit_users WHERE email = ? LIMIT 1',
+          [email]
+        );
+        if (user) {
+          // Link Google ID to existing account
+          await db.query('UPDATE agzit_users SET google_id = ? WHERE id = ?', [googleId, user.id]);
+        }
+      }
+
+      // 3. Check wp_users by email and auto-migrate
+      if (!user) {
+        const [[wpUser]] = await db.query(
+          'SELECT ID, user_email, display_name FROM wp_users WHERE user_email = ? LIMIT 1',
+          [email]
+        );
+        if (wpUser) {
+          const [[capRow]] = await db.query(
+            "SELECT meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'wp_capabilities' LIMIT 1",
+            [wpUser.ID]
+          );
+          const role = parseWpRole(capRow?.meta_value || '');
+
+          const [nameMeta] = await db.query(
+            "SELECT meta_key, meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key IN ('first_name','last_name')",
+            [wpUser.ID]
+          );
+          const nameLookup = {};
+          nameMeta.forEach(m => { nameLookup[m.meta_key] = m.meta_value; });
+          const wpFirst = nameLookup.first_name || wpUser.display_name.split(' ')[0] || '';
+          const wpLast  = nameLookup.last_name  || '';
+
+          const [[profileMeta]] = await db.query(
+            "SELECT meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'dpr_profile_post_id' LIMIT 1",
+            [wpUser.ID]
+          ).catch(() => [[null]]);
+          const dprProfileId = profileMeta?.meta_value ? parseInt(profileMeta.meta_value) : null;
+
+          const placeholderHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 8);
+          const [ins] = await db.query(
+            `INSERT INTO agzit_users (email, password_hash, role, first_name, last_name, wp_user_id, dpr_profile_id, google_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE google_id = VALUES(google_id), wp_user_id = VALUES(wp_user_id)`,
+            [email, placeholderHash, role, wpFirst, wpLast, wpUser.ID, dprProfileId, googleId]
+          );
+          const newId = ins.insertId || null;
+          [[user]] = await db.query('SELECT * FROM agzit_users WHERE email = ? LIMIT 1', [email]);
+          console.log(`[google-oauth] WP user migrated: ${email} id=${user?.id}`);
+        }
+      }
+
+      // 4. Brand new user — create account as dpr_candidate
+      if (!user) {
+        const placeholderHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 8);
+        const [ins] = await db.query(
+          `INSERT INTO agzit_users (email, password_hash, role, first_name, last_name, google_id, created_at)
+           VALUES (?, ?, 'dpr_candidate', ?, ?, ?, NOW())`,
+          [email, placeholderHash, firstName, lastName, googleId]
+        );
+        [[user]] = await db.query('SELECT * FROM agzit_users WHERE id = ? LIMIT 1', [ins.insertId]);
+        console.log(`[google-oauth] New user created: ${email} id=${user?.id}`);
+      }
+
+      // Issue JWT + cookie
+      const token = issueToken(user);
+      setCookie(res, token);
+
+      // Role-based redirect
+      let redirectTo = '/dashboard';
+      if (user.role === 'verified_employer') redirectTo = '/employer';
+      else if (user.role === 'dpr_employer') redirectTo = '/employer-review';
+
+      console.log(`[google-oauth] Login success: ${email} role=${user.role}`);
+      res.redirect(redirectTo);
+
+    } catch (err) {
+      console.error('[google-oauth] callback error:', err);
+      res.redirect('/login?error=google_failed');
+    }
+  }
+);
 
 module.exports = router;
