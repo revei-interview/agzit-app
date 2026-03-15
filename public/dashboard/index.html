@@ -868,7 +868,7 @@ select.jp-input {
                   <div style="position:absolute;top:0;left:0;bottom:0;width:3px;background:#1a44c2;"></div>
                   <h3 style="font-size:13px;font-weight:700;color:#1a44c2;margin:0 0 16px;text-transform:uppercase;letter-spacing:0.3px;">Next Steps</h3>
                   <div id="ov-next-steps" style="font-size:13px;color:#3a4163;"></div>
-                  <a href="/interview-start" style="display:block;width:100%;margin-top:16px;padding:11px;background:#1a44c2;color:white;border:none;border-radius:8px;font-weight:600;text-align:center;text-decoration:none;font-size:13px;transition:background 0.2s;box-sizing:border-box;" onmouseenter="this.style.background='#153ab0'" onmouseleave="this.style.background='#1a44c2'">Start Mock Interview</a>
+                  <a href="/interview-start" onclick="return checkSlotAvailability(event)" style="display:block;width:100%;margin-top:16px;padding:11px;background:#1a44c2;color:white;border:none;border-radius:8px;font-weight:600;text-align:center;text-decoration:none;font-size:13px;transition:background 0.2s;box-sizing:border-box;" onmouseenter="this.style.background='#153ab0'" onmouseleave="this.style.background='#1a44c2'">Start Mock Interview</a>
                 </div>
               </div>
 
@@ -936,7 +936,7 @@ select.jp-input {
               <div class="empty">
                 <div class="empty-heading">No interviews yet</div>
                 <div class="empty-sub">Start an AI mock interview. Your recordings and scores will appear here.</div>
-                <a href="/interview-start" class="btn-blue" style="width:auto;padding:11px 22px;display:inline-flex;margin:12px auto 0;">Schedule Interview</a>
+                <a href="/interview-start" onclick="return checkSlotAvailability(event)" class="btn-blue" style="width:auto;padding:11px 22px;display:inline-flex;margin:12px auto 0;">Schedule Interview</a>
               </div>
             </div>
           </div>
