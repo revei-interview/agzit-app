@@ -464,6 +464,11 @@ async function initDB() {
     )
   `);
 
+  // Migration: add 'dpr_bonus' to credit transaction_type ENUM
+  try {
+    await pool.execute("ALTER TABLE agzit_credit_transactions MODIFY COLUMN transaction_type ENUM('purchase','referral','usage','dpr_bonus') NOT NULL");
+  } catch (_) { /* already updated or table doesn't exist yet */ }
+
   // Migration: add google_id column for Google OAuth
   try {
     await pool.execute('ALTER TABLE agzit_users ADD COLUMN google_id VARCHAR(255) DEFAULT NULL');

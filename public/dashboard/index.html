@@ -843,12 +843,27 @@ select.jp-input {
                   <div style="font-size:28px;font-weight:700;color:#ff9800;line-height:1;" id="ov-stat-badges">--</div>
                   <div style="font-size:11px;color:#7c83a0;margin-top:6px;" id="ov-stat-badges-sub">Do 3 Interviews</div>
                 </div>
-                <div style="background:white;border:1px solid #e8eaf0;padding:20px 16px;border-radius:12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.04);position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.2s;" onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 1px 3px rgba(0,0,0,0.04)'">
+                <div style="background:white;border:1px solid #e8eaf0;padding:20px 16px;border-radius:12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.04);position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.2s;cursor:pointer;" onclick="toggleCreditInfo()" onmouseenter="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 1px 3px rgba(0,0,0,0.04)'">
                   <div style="position:absolute;top:0;left:0;right:0;height:3px;background:#e53935;border-radius:12px 12px 0 0;"></div>
                   <div style="font-size:11px;font-weight:600;letter-spacing:0.5px;color:#7c83a0;margin-bottom:10px;text-transform:uppercase;">Credits Left</div>
                   <div style="font-size:28px;font-weight:700;color:#e53935;line-height:1;" id="ov-stat-credits">0</div>
-                  <div style="font-size:11px;color:#7c83a0;margin-top:6px;" id="ov-stat-credits-sub">Buy or Refer</div>
+                  <div style="font-size:11px;color:#1a44c2;margin-top:6px;font-weight:600;" id="ov-stat-credits-sub">Buy or Refer</div>
                 </div>
+              </div>
+
+              <!-- Credit Info Panel (toggled by clicking Credits Left card) -->
+              <div id="credit-info-panel" style="display:none;background:white;border:1px solid #e8eaf0;border-radius:12px;padding:20px 24px;margin-bottom:28px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                  <h4 style="margin:0;font-size:14px;font-weight:700;color:#09101f;text-transform:uppercase;letter-spacing:0.3px;">Earn Free Credits</h4>
+                  <button onclick="toggleCreditInfo()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#7c83a0;padding:0;line-height:1;">&times;</button>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:8px 16px;font-size:13px;color:#3a4163;line-height:2;">
+                  <div>Refer a friend</div><div style="font-weight:600;color:#0b7a47;">+1 credit</div>
+                  <div>Complete DPR profile</div><div style="font-weight:600;color:#0b7a47;">+1 credit</div>
+                </div>
+                <div style="border-top:1px solid #f0f1f5;margin:14px 0;"></div>
+                <h4 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#09101f;text-transform:uppercase;letter-spacing:0.3px;">Buy Credits</h4>
+                <div style="font-size:13px;color:#3a4163;">$5 = 5 credits <span style="display:inline-block;background:#FFF3E0;color:#E65100;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;margin-left:8px;">Coming soon</span></div>
               </div>
 
               <!-- ROW 2: Profile Overview + Next Steps -->
@@ -898,7 +913,7 @@ select.jp-input {
                 <a href="#" onclick="switchTab('career-analyzer');return false;" style="padding:13px 12px;background:#0b7a47;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;text-align:center;text-decoration:none;transition:all 0.2s;box-shadow:0 2px 6px rgba(11,122,71,0.2);" onmouseenter="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(11,122,71,0.3)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 2px 6px rgba(11,122,71,0.2)'">Career Analyzer</a>
                 <a href="/resume-builder" style="padding:13px 12px;background:#6366f1;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;text-align:center;text-decoration:none;transition:all 0.2s;box-shadow:0 2px 6px rgba(99,102,241,0.2);" onmouseenter="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(99,102,241,0.3)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 2px 6px rgba(99,102,241,0.2)'">Resume Builder</a>
                 <a href="#" onclick="switchTab('referral');return false;" style="padding:13px 12px;background:#ff9800;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;text-align:center;text-decoration:none;transition:all 0.2s;box-shadow:0 2px 6px rgba(255,152,0,0.2);" onmouseenter="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 12px rgba(255,152,0,0.3)'" onmouseleave="this.style.transform='';this.style.boxShadow='0 2px 6px rgba(255,152,0,0.2)'">Refer Friends</a>
-                <a href="https://agzit.com/pricing/" style="padding:13px 12px;background:white;color:#1a44c2;border:1.5px solid #1a44c2;border-radius:10px;font-size:13px;font-weight:600;text-align:center;text-decoration:none;transition:all 0.2s;" onmouseenter="this.style.background='#f0f4ff';this.style.transform='translateY(-1px)'" onmouseleave="this.style.background='white';this.style.transform=''">Buy Credits</a>
+                <a href="#" onclick="toggleCreditInfo();return false;" style="padding:13px 12px;background:white;color:#1a44c2;border:1.5px solid #1a44c2;border-radius:10px;font-size:13px;font-weight:600;text-align:center;text-decoration:none;transition:all 0.2s;" onmouseenter="this.style.background='#f0f4ff';this.style.transform='translateY(-1px)'" onmouseleave="this.style.background='white';this.style.transform=''">Buy Credits</a>
               </div>
 
               <a id="ov-preview-link" href="#" target="_blank" style="font-size:13px;color:var(--blue);text-decoration:none;display:none;margin-top:12px;text-align:center;display:none;"></a>
@@ -924,7 +939,7 @@ select.jp-input {
               <div class="empty">
                 <div class="empty-heading">No scorecard yet</div>
                 <div class="empty-sub">Complete a mock interview. Your score, band, and competency breakdown will appear here automatically.</div>
-                <a href="https://agzit.com/pricing/" class="btn-blue" style="width:auto;padding:11px 22px;display:inline-flex;margin:0 auto;">Buy a Session</a>
+                <a href="/interview-start" onclick="return checkSlotAvailability(event)" class="btn-blue" style="width:auto;padding:11px 22px;display:inline-flex;margin:0 auto;">Start Interview</a>
               </div>
             </div>
           </div>
@@ -1007,7 +1022,7 @@ select.jp-input {
             <div style="max-width:800px;">
               <div style="text-align:center;margin-bottom:40px;">
                 <h2 style="font-size:24px;color:var(--ink,#09101F);margin:0 0 8px;">Refer Friends & Earn Credits</h2>
-                <p style="color:var(--soft,#3A4163);margin:0;">Get 1 free Career Analyzer credit for each friend who signs up</p>
+                <p style="color:var(--soft,#3A4163);margin:0;">Get 1 free credit for each friend who signs up</p>
               </div>
 
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:40px;">
@@ -1773,17 +1788,14 @@ function render(d, pd, id) {
   /* ── Entitlement strip ───────────────────────────────────────────────────── */
   const strip = el('ent-strip');
   strip.innerHTML = `<span class="ent-label">Credits</span>
-    <span class="ent-chip c20">20-min: ${ent.sessions_20||0}</span>
-    <span class="ent-chip c30">30-min: ${ent.sessions_30||0}</span>
-    ${ent.valid_until ? `<span class="ent-meta">Valid until: ${fmtDate(ent.valid_until)}</span>` : ''}
-    <a href="https://agzit.com/checkout/?add-to-cart=19594" style="margin-left:auto;padding:8px 16px;border-radius:9px;font-size:12.5px;font-weight:700;background:var(--blue);color:#fff;white-space:nowrap;">Buy Sessions</a>`;
+    <span class="ent-chip c20">${d.credit_balance || 0} credits</span>
+    <a href="#" onclick="toggleCreditInfo();return false;" style="margin-left:auto;padding:8px 16px;border-radius:9px;font-size:12.5px;font-weight:700;background:var(--blue);color:#fff;white-space:nowrap;">Buy or Earn</a>`;
 
   /* ── Sidebar credits ─────────────────────────────────────────────────────── */
   el('sidebar-credits').innerHTML = [
-    ['20-min sessions', ent.sessions_20||0],
-    ['30-min sessions', ent.sessions_30||0],
-    ['Valid until', ent.valid_until ? fmtDate(ent.valid_until) : '—'],
-  ].map(([k,v]) => `<div class="info-row"><span class="info-key">${esc(k)}</span><span class="info-val" style="${!v||v==='—'?'color:var(--muted);':''}">${esc(String(v))}</span></div>`).join('');
+    ['Credit balance', d.credit_balance || 0],
+    ['Credits never expire', ''],
+  ].map(([k,v]) => `<div class="info-row"><span class="info-key">${esc(k)}</span><span class="info-val" style="${!v&&v!==0?'color:var(--muted);':''}">${esc(String(v))}</span></div>`).join('');
 
   /* ── Overview panel ──────────────────────────────────────────────────────── */
   /* ROW 1: Stats */
@@ -1802,10 +1814,10 @@ function render(d, pd, id) {
   el('ov-stat-badges').style.color = badgeCount > 0 ? '#0b7a47' : '#ff9800';
   el('ov-stat-badges-sub').textContent = badgeCount > 0 ? badgeCount + ' verified' : 'Do 3 interviews';
 
-  const totalCredits = (ent.sessions_20 || 0) + (ent.sessions_30 || 0);
+  const totalCredits = d.credit_balance || 0;
   el('ov-stat-credits').textContent = totalCredits;
   el('ov-stat-credits').style.color = totalCredits > 0 ? '#0b7a47' : '#e53935';
-  el('ov-stat-credits-sub').textContent = totalCredits > 0 ? '20-min: ' + (ent.sessions_20||0) + ' \u2022 30-min: ' + (ent.sessions_30||0) : 'Buy or Refer';
+  el('ov-stat-credits-sub').textContent = 'Buy or Refer';
 
   /* ROW 2: Profile summary */
   const industry = parseIndustry(prof.compliance_domains);
@@ -2417,6 +2429,15 @@ var origSwitchTab = window.switchTab;
 window.switchTab = function(name) {
   origSwitchTab(name);
   if (name === 'resumes') loadSavedResumes();
+};
+
+/* ── Credit Info Panel Toggle ─────────────────────────────────────────────── */
+window.toggleCreditInfo = function() {
+  var panel = el('credit-info-panel');
+  if (!panel) return;
+  var visible = panel.style.display !== 'none';
+  panel.style.display = visible ? 'none' : '';
+  if (!visible) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 };
 
 /* ── Scheduled Interview Booking ──────────────────────────────────────────── */

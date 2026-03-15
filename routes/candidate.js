@@ -248,6 +248,13 @@ router.get('/dashboard', ...guard, async (req, res) => {
         ])
       : {};
 
+    // Unified credit balance
+    const [[creditRow]] = await pool.execute(
+      'SELECT credit_balance FROM agzit_candidate_credits WHERE user_id = ?',
+      [user.id]
+    );
+    const creditBalance = creditRow ? creditRow.credit_balance : 0;
+
     res.json({
       ok: true,
       user: {
@@ -257,6 +264,7 @@ router.get('/dashboard', ...guard, async (req, res) => {
         last_name:  user.last_name,
         created_at: user.created_at,
       },
+      credit_balance: creditBalance,
       profile: meta ? {
         dpr_id:               meta.dpr_id,
         full_name:            meta.full_name,
@@ -2415,6 +2423,31 @@ router.post('/dpr', requireAuth, async (req, res) => {
       await upsertUserMeta(wpUserId, 'last_name',  s(personal.last_name));
     }
 
+    // 13. Award DPR creation bonus (+1 credit, first time only)
+    try {
+      const [[existingBonus]] = await pool.execute(
+        "SELECT id FROM agzit_credit_transactions WHERE user_id = ? AND transaction_type = 'dpr_bonus' LIMIT 1",
+        [req.user.user_id]
+      );
+      if (!existingBonus) {
+        await pool.execute(
+          `INSERT INTO agzit_candidate_credits (user_id, credit_balance, total_credits_earned)
+           VALUES (?, 1, 1)
+           ON DUPLICATE KEY UPDATE
+             credit_balance = credit_balance + 1,
+             total_credits_earned = total_credits_earned + 1`,
+          [req.user.user_id]
+        );
+        await pool.execute(
+          "INSERT INTO agzit_credit_transactions (user_id, transaction_type, amount, description) VALUES (?, 'dpr_bonus', 1, 'DPR profile creation bonus')",
+          [req.user.user_id]
+        );
+        console.log(`[dpr] Awarded DPR bonus credit to user ${req.user.user_id}`);
+      }
+    } catch (creditErr) {
+      console.error('[dpr] DPR bonus credit error:', creditErr.message);
+    }
+
     console.log(`[dpr] Created ${dprId} (post ${postId}) for user ${req.user.user_id}`);
     return res.json({ ok: true, dpr_id: dprId, post_id: postId, redirectTo: '/dashboard' });
 
@@ -2523,14 +2556,14 @@ router.post('/dpr/:postId/resume', requireAuth, upload.single('resume'), async (
 
 // ── AI Polish Credits ─────────────────────────────────────────────────────────
 
-// GET /api/candidate/ai-polish/credits
+// GET /api/candidate/ai-polish/credits — now uses unified credit system
 router.get('/ai-polish/credits', ...guard, async (req, res) => {
   try {
     const [[row]] = await pool.execute(
-      'SELECT credits_remaining FROM agzit_ai_polish_credits WHERE user_id = ?',
+      'SELECT credit_balance FROM agzit_candidate_credits WHERE user_id = ?',
       [req.user.id]
     );
-    return res.json({ ok: true, credits_remaining: row ? row.credits_remaining : 0 });
+    return res.json({ ok: true, credits_remaining: row ? row.credit_balance : 0 });
   } catch (err) {
     console.error('[ai-polish/credits]', err.message);
     res.status(500).json({ ok: false, error: 'Server error' });
@@ -2601,37 +2634,41 @@ router.post('/ai-polish/verify-purchase', ...guard, async (req, res) => {
   }
 });
 
-// POST /api/candidate/ai-polish/use-credit
+// POST /api/candidate/ai-polish/use-credit — now uses unified credit system
 router.post('/ai-polish/use-credit', ...guard, async (req, res) => {
   try {
     const [[row]] = await pool.execute(
-      'SELECT credits_remaining FROM agzit_ai_polish_credits WHERE user_id = ?',
+      'SELECT credit_balance FROM agzit_candidate_credits WHERE user_id = ?',
       [req.user.id]
     );
-    if (!row || row.credits_remaining <= 0) {
-      return res.status(403).json({ ok: false, error: 'No AI Polish credits remaining' });
+    if (!row || row.credit_balance < 1) {
+      return res.status(403).json({ ok: false, error: 'You need 1 credit. Earn free credits by referring a friend or completing your DPR profile.' });
     }
     await pool.execute(
-      'UPDATE agzit_ai_polish_credits SET credits_remaining = credits_remaining - 1 WHERE user_id = ?',
+      'UPDATE agzit_candidate_credits SET credit_balance = credit_balance - 1 WHERE user_id = ?',
       [req.user.id]
     );
-    return res.json({ ok: true, credits_remaining: row.credits_remaining - 1 });
+    await pool.execute(
+      "INSERT INTO agzit_credit_transactions (user_id, transaction_type, amount, description) VALUES (?, 'usage', 1, 'AI Resume Polish')",
+      [req.user.id]
+    );
+    return res.json({ ok: true, credits_remaining: row.credit_balance - 1 });
   } catch (err) {
     console.error('[ai-polish/use-credit]', err.message);
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });
 
-// POST /api/candidate/ai-polish — Full profile polish with optional JD
+// POST /api/candidate/ai-polish — Full profile polish with optional JD (unified credits)
 router.post('/ai-polish', ...guard, async (req, res) => {
   try {
-    // Check credits
+    // Check unified credits
     const [[creditRow]] = await pool.execute(
-      'SELECT credits_remaining FROM agzit_ai_polish_credits WHERE user_id = ?',
+      'SELECT credit_balance FROM agzit_candidate_credits WHERE user_id = ?',
       [req.user.id]
     );
-    if (!creditRow || creditRow.credits_remaining <= 0) {
-      return res.status(403).json({ ok: false, error: 'No AI Polish credits remaining. Purchase more to continue.' });
+    if (!creditRow || creditRow.credit_balance < 1) {
+      return res.status(403).json({ ok: false, error: 'You need 1 credit. Earn free credits by referring a friend or completing your DPR profile.' });
     }
 
     const profile = req.body.profile;
@@ -2688,16 +2725,20 @@ Only include work_exp entries that had descriptions. Return valid JSON only, no 
       });
     }
 
-    // Deduct credit
+    // Deduct unified credit
     await pool.execute(
-      'UPDATE agzit_ai_polish_credits SET credits_remaining = credits_remaining - 1 WHERE user_id = ?',
+      'UPDATE agzit_candidate_credits SET credit_balance = credit_balance - 1 WHERE user_id = ?',
+      [req.user.id]
+    );
+    await pool.execute(
+      "INSERT INTO agzit_credit_transactions (user_id, transaction_type, amount, description) VALUES (?, 'usage', 1, 'AI Resume Polish')",
       [req.user.id]
     );
 
     return res.json({
       ok: true,
       polished_profile: polishedProfile,
-      credits_remaining: creditRow.credits_remaining - 1,
+      credits_remaining: creditRow.credit_balance - 1,
     });
   } catch (err) {
     console.error('[ai-polish]', err.message);

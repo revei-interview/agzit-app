@@ -412,57 +412,61 @@ async function doAIRewrite() {
 
 function showPolishPurchaseModal() {
   var m = document.getElementById('ai-modal');
-  document.getElementById('ai-modal-title').textContent = 'AI Polish Credits';
+  document.getElementById('ai-modal-title').textContent = 'AI Resume Polish';
   document.getElementById('ai-suggestions').innerHTML =
     '<div style="text-align:center;padding:32px 16px;">' +
     '<div style="font-size:40px;margin-bottom:12px;">&#10024;</div>' +
-    '<div style="font-size:18px;font-weight:700;color:#0A1A3A;margin-bottom:8px;">No AI Polish Credits</div>' +
-    '<p style="font-size:14px;color:#64748B;line-height:1.6;margin-bottom:20px;">You have used all your AI Polish credits.<br>Purchase 3 more uses for <strong>$5</strong>.</p>' +
-    '<a href="https://agzit.com/?p=20640" target="_blank" style="display:inline-block;padding:12px 32px;background:#1A44C2;color:#fff;border-radius:10px;font-weight:700;text-decoration:none;font-size:14px;">Buy Now &mdash; $5</a>' +
-    '<p style="margin-top:20px;font-size:13px;color:#64748B;line-height:1.6;">After completing payment, return to this page &mdash; your credits will be available automatically within a few seconds.</p>' +
-    '<button onclick="checkPolishCredits()" id="polish-check-btn" style="margin-top:12px;padding:10px 24px;background:#0B7A47;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;">I\'ve completed payment &mdash; Check Now</button>' +
-    '<div id="polish-verify-msg" style="margin-top:8px;font-size:12px;min-height:16px;"></div>' +
+    '<div style="font-size:18px;font-weight:700;color:#0A1A3A;margin-bottom:8px;">No Credits Available</div>' +
+    '<p style="font-size:14px;color:#64748B;line-height:1.6;margin-bottom:24px;">You need 1 credit to polish your resume.<br>Earn free credits or buy more:</p>' +
+    '<div style="text-align:left;max-width:320px;margin:0 auto 24px;background:#F8F9FC;border-radius:12px;padding:20px;">' +
+    '<div style="font-size:12px;font-weight:700;color:#09101F;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Earn Free Credits</div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:13px;color:#3A4163;margin-bottom:6px;"><span>Refer a friend</span><span style="font-weight:600;color:#0B7A47;">+1 credit</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:13px;color:#3A4163;margin-bottom:16px;"><span>Complete DPR profile</span><span style="font-weight:600;color:#0B7A47;">+1 credit</span></div>' +
+    '<div style="border-top:1px solid #E4E6EF;padding-top:12px;margin-top:4px;">' +
+    '<div style="font-size:12px;font-weight:700;color:#09101F;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Buy Credits</div>' +
+    '<div style="font-size:13px;color:#3A4163;">$5 = 5 credits <span style="background:#FFF3E0;color:#E65100;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;margin-left:6px;">Coming soon</span></div>' +
+    '</div></div>' +
+    '<a href="/dashboard?tab=referral" style="display:inline-block;padding:12px 32px;background:#1A44C2;color:#fff;border-radius:10px;font-weight:700;text-decoration:none;font-size:14px;">Refer a Friend</a>' +
     '</div>';
   document.getElementById('ai-apply-btn').style.display = 'none';
   m.style.display = 'block';
   document.body.style.overflow = 'hidden';
 }
 
+// checkPolishCredits kept for backward compatibility but no longer used
 async function checkPolishCredits() {
-  var btn = document.getElementById('polish-check-btn');
-  var msg = document.getElementById('polish-verify-msg');
-  btn.disabled = true; btn.textContent = 'Checking...';
-  msg.innerHTML = '';
   try {
     var r = await fetch('/api/candidate/ai-polish/credits', { credentials: 'include' });
     var d = await r.json();
     var credits = d.ok ? d.credits_remaining : 0;
     if (credits > 0) {
-      msg.innerHTML = '<span style="color:#0B7A47;">&#10003; ' + credits + ' credit' + (credits !== 1 ? 's' : '') + ' found!</span>';
-      setTimeout(function() { aiModalClose(); showPolishModal(credits); }, 1200);
-    } else {
-      msg.innerHTML = '<span style="color:#DC2626;">No credits found yet. Please complete payment first, then wait a few seconds and try again.</span>';
-      btn.disabled = false; btn.textContent = "I've completed payment \u2014 Check Now";
+      aiModalClose(); showPolishModal(credits);
     }
-  } catch (e) {
-    msg.innerHTML = '<span style="color:#DC2626;">Network error. Please try again.</span>';
-    btn.disabled = false; btn.textContent = "I've completed payment \u2014 Check Now";
-  }
+  } catch (e) {}
 }
 
 function showPolishModal(credits) {
   var m = document.getElementById('ai-modal');
-  document.getElementById('ai-modal-title').textContent = 'AI Polish Resume';
+  document.getElementById('ai-modal-title').textContent = 'AI Resume Polish';
   document.getElementById('ai-suggestions').innerHTML =
     '<div style="padding:8px 0;">' +
     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">' +
-    '<span style="background:#EAF0FF;color:#1A44C2;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;">&#10024; ' + credits + ' AI Polish use' + (credits !== 1 ? 's' : '') + ' remaining</span>' +
+    '<span style="background:#EAF0FF;color:#1A44C2;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;">&#10024; ' + credits + ' credit' + (credits !== 1 ? 's' : '') + ' available</span>' +
+    '<span style="font-size:12px;color:#64748B;">1 credit per use</span>' +
     '</div>' +
+    '<ul style="font-size:13px;color:#334155;line-height:1.8;list-style:none;padding:0;margin:0 0 16px;">' +
+    '<li>&#10003; AI rewrites summary & bullets</li>' +
+    '<li>&#10003; Paste any JD \u2014 resume tailored to it</li>' +
+    '<li>&#10003; Save with custom name</li>' +
+    '<li>&#10003; Preview in all 18 templates</li>' +
+    '<li>&#10003; Higher ATS keyword match</li>' +
+    '<li>&#10003; Download immediately after polish</li>' +
+    '</ul>' +
     '<div style="margin-bottom:16px;">' +
     '<label style="font-size:13px;font-weight:600;color:#334155;display:block;margin-bottom:6px;">Paste Job Description (optional)</label>' +
     '<textarea id="polish-jd-input" rows="5" placeholder="Paste the target job description here — AI will tailor your resume to this role. Leave empty for a general polish." style="width:100%;padding:10px 12px;border:1px solid #E2E8F0;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;"></textarea>' +
     '</div>' +
-    '<p style="font-size:12.5px;color:#64748B;line-height:1.5;">AI will rewrite your summary and job bullet points to be more impactful and ATS-friendly.' + (credits <= 1 ? ' <strong>This is your last credit.</strong>' : '') + '</p>' +
+    '<p style="font-size:12.5px;color:#64748B;line-height:1.5;">Credits never expire.' + (credits <= 1 ? ' <strong>This is your last credit.</strong>' : '') + '</p>' +
     '</div>';
   document.getElementById('ai-apply-btn').style.display = '';
   document.getElementById('ai-apply-btn').textContent = 'Polish Resume';
@@ -504,7 +508,7 @@ async function runAIPolish() {
 
 function showSaveResumePrompt(creditsLeft) {
   var btn = document.getElementById('ai-btn');
-  btn.textContent = '\u2705 Resume polished (' + creditsLeft + ' credits left)';
+  btn.textContent = '\u2705 Resume polished (' + creditsLeft + ' credit' + (creditsLeft !== 1 ? 's' : '') + ' remaining)';
   btn.disabled = true;
 
   // Add save button if not already present
