@@ -295,7 +295,16 @@ async function upsertJob(job) {
     return true;
   } catch (err) {
     if (err.code !== 'ER_DUP_ENTRY') {
-      console.error('[jobs] upsert error:', err.message, '| external_id:', job.external_id);
+      console.error('[jobs] upsert error:', err.message);
+      console.error('[jobs] upsert failed values:', JSON.stringify({
+        external_id: job.external_id,
+        title: job.title,
+        date_posted: job.date_posted,
+        is_remote: job.is_remote,
+        employment_type: job.employment_type,
+        _params_types: params.map(p => typeof p),
+        _params_snapshot: params.map(p => p === null ? 'NULL' : String(p).slice(0, 60)),
+      }));
     }
     return false;
   }
