@@ -555,14 +555,123 @@ async function fixCandidatePassword() {
   }
 }
 
+// ── Scheduled interview processor (runs every 60s) ──────────────────────────
+async function processScheduledInterviews() {
+  try {
+    // Find bookings whose scheduled time has arrived
+    const [rows] = await pool.execute(
+      'SELECT id, user_id, email, first_name, preferred_time FROM agzit_interview_queue WHERE status = "waiting" AND preferred_time <= NOW()'
+    );
+    if (!rows.length) return;
+
+    // Check slot availability
+    const renderUrl = (process.env.RENDER_BACKEND_URL || 'https://agzit-daily-backend.onrender.com').replace(/\/$/, '');
+    let slotsAvailable = 0;
+    try {
+      const r = await fetch(`${renderUrl}/interview/status`);
+      const d = await r.json();
+      slotsAvailable = Math.max(0, (d.max || 10) - (d.active || 0));
+    } catch (_) {}
+
+    for (const row of rows) {
+      const firstName = row.first_name || 'there';
+
+      if (slotsAvailable > 0) {
+        // Slot is free — send "ready to start" email (Email 2)
+        await pool.execute(
+          'UPDATE agzit_interview_queue SET status = "notified", notified_at = NOW() WHERE id = ?',
+          [row.id]
+        );
+        slotsAvailable--;
+
+        if (process.env.BREVO_API_KEY) {
+          await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: [{ email: row.email }],
+              sender: { email: 'noreply@agzit.com', name: 'AGZIT AI' },
+              subject: 'Your interview slot is ready — start now',
+              htmlContent: `
+                <div style="font-family:'Plus Jakarta Sans',system-ui,sans-serif;max-width:520px;margin:0 auto;padding:32px;">
+                  <h2 style="color:#09101F;font-size:20px;">Hi ${firstName},</h2>
+                  <p style="color:#3A4163;font-size:15px;line-height:1.7;">
+                    Your scheduled interview time is here. Click below to start your AI mock interview.
+                  </p>
+                  <p style="margin:24px 0;">
+                    <a href="https://app.agzit.com/interview-start?scheduled=true" style="background:#1A44C2;color:#ffffff;padding:14px 32px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block;">
+                      Start Interview Now
+                    </a>
+                  </p>
+                  <p style="color:#7C83A0;font-size:13px;">This link is valid for 30 minutes. Your interview will take 20–30 minutes.</p>
+                  <hr style="border:none;border-top:1px solid #E4E6EF;margin:24px 0;">
+                  <p style="color:#7C83A0;font-size:12px;">AGZIT Career Intelligence &middot; <a href="https://agzit.com" style="color:#1A44C2;">agzit.com</a></p>
+                </div>
+              `,
+            }),
+          }).catch(err => console.error('[scheduler] Brevo ready email error:', err.message));
+        }
+        console.log(`[SCHEDULER] Notified ${row.email} — slot ready (booking #${row.id})`);
+      } else {
+        // No slot free — push 15 minutes, send delay email (Email 3)
+        const newTime = new Date(new Date(row.preferred_time).getTime() + 15 * 60000);
+        const newTimeMysql = newTime.toISOString().replace('T', ' ').slice(0, 19);
+        const displayTime = newTime.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' });
+
+        await pool.execute(
+          'UPDATE agzit_interview_queue SET preferred_time = ? WHERE id = ?',
+          [newTimeMysql, row.id]
+        );
+
+        if (process.env.BREVO_API_KEY) {
+          await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: [{ email: row.email }],
+              sender: { email: 'noreply@agzit.com', name: 'AGZIT AI' },
+              subject: 'Small delay — your interview is rescheduled +15 min',
+              htmlContent: `
+                <div style="font-family:'Plus Jakarta Sans',system-ui,sans-serif;max-width:520px;margin:0 auto;padding:32px;">
+                  <h2 style="color:#09101F;font-size:20px;">Hi ${firstName},</h2>
+                  <p style="color:#3A4163;font-size:15px;line-height:1.7;">
+                    All interview slots were in use at your scheduled time. Your interview has been pushed to <strong>${displayTime} IST</strong>.
+                  </p>
+                  <p style="color:#3A4163;font-size:15px;line-height:1.7;">
+                    We'll send you the start link as soon as a slot opens.
+                  </p>
+                  <div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:12px;padding:16px;margin:20px 0;">
+                    <div style="font-size:13px;color:#92400E;margin-bottom:4px;">NEW TIME</div>
+                    <div style="font-size:16px;font-weight:700;color:#09101F;">${displayTime} IST</div>
+                  </div>
+                  <hr style="border:none;border-top:1px solid #E4E6EF;margin:24px 0;">
+                  <p style="color:#7C83A0;font-size:12px;">AGZIT Career Intelligence &middot; <a href="https://agzit.com" style="color:#1A44C2;">agzit.com</a></p>
+                </div>
+              `,
+            }),
+          }).catch(err => console.error('[scheduler] Brevo delay email error:', err.message));
+        }
+        console.log(`[SCHEDULER] Delayed ${row.email} → ${displayTime} (booking #${row.id})`);
+      }
+    }
+  } catch (err) {
+    console.error('[SCHEDULER] processScheduledInterviews error:', err.message);
+  }
+}
+
 // ── Start — only after tables are confirmed to exist ────────────────────────
 const PORT = process.env.PORT || 3000;
 initDB().then(async () => {
   await fixCandidatePassword();
+
+  // Start the scheduled interview processor (every 60 seconds)
+  setInterval(() => processScheduledInterviews().catch(() => {}), 60 * 1000);
+
   app.listen(PORT, () => {
     console.log(`🚀 AGZIT App running on port ${PORT}`);
     console.log(`   ENV: ${process.env.NODE_ENV}`);
     console.log(`   WP:  ${process.env.WP_URL}`);
+    console.log(`   Scheduled interview processor: running (60s interval)`);
   });
 }).catch(err => {
   console.error('[init] DB init failed:', err.message);

@@ -2419,148 +2419,177 @@ window.switchTab = function(name) {
   if (name === 'resumes') loadSavedResumes();
 };
 
-/* ── Interview Queue ──────────────────────────────────────────────────────── */
+/* ── Scheduled Interview Booking ──────────────────────────────────────────── */
+var _schedSelectedTime = null;
+
 window.checkSlotAvailability = async function(e) {
   try {
-    const r = await fetch('/api/candidate/interview-queue/status', { credentials: 'include' });
-    const d = await r.json();
-    if (!d.ok) return true; // let link navigate normally on error
+    var r = await fetch('/api/candidate/interview-queue/status', { credentials: 'include' });
+    var d = await r.json();
+    if (!d.ok) return true;
 
-    if (d.slots_available > 0 && !d.in_queue) {
-      return true; // slots available — proceed to /interview-start
-    }
+    // If slots available and no existing booking, go straight to interview
+    if (d.slots_available > 0 && !d.has_booking) return true;
 
-    // Slots full or already in queue — show modal
     e.preventDefault();
-    showQueueModal(d);
+
+    // If already has a booking, show confirmation state
+    if (d.has_booking && d.booking) {
+      showBookingConfirmation(new Date(d.booking.scheduled_time));
+    } else {
+      el('sched-slot-count').textContent = d.slots_active + '/' + d.slots_max;
+      el('sched-pick').style.display = '';
+      el('sched-confirmed').style.display = 'none';
+      clearSchedPresets();
+      _schedSelectedTime = null;
+      el('sched-book-btn').disabled = true;
+      el('sched-book-btn').style.opacity = '0.5';
+    }
+    openModal('modal-schedule');
     return false;
   } catch (_) {
-    return true; // on error, let them try anyway
+    return true;
   }
 };
 
-function showQueueModal(data) {
-  var statusBar = el('queue-status-bar');
-  var options   = el('queue-options');
-  var leaveWrap = el('queue-leave-wrap');
+window.selectSchedPreset = function(mins) {
+  document.querySelectorAll('.sched-preset').forEach(function(b) {
+    b.classList.remove('selected');
+    b.style.borderColor = 'var(--line)';
+    b.style.background = 'var(--surface)';
+  });
+  event.target.classList.add('selected');
+  event.target.style.borderColor = 'var(--blue)';
+  event.target.style.background = 'var(--blue-lt)';
+  el('sched-custom-time').value = '';
 
-  if (data.in_queue) {
-    el('queue-position-text').textContent = "You're #" + data.position + ' in queue';
-    el('queue-wait-text').textContent = 'Estimated wait: ~' + data.estimated_wait_minutes + ' min';
-    statusBar.style.display = '';
-    options.style.display = 'none';
-    leaveWrap.style.display = '';
-  } else {
-    statusBar.style.display = 'none';
-    options.style.display = '';
-    leaveWrap.style.display = 'none';
-  }
-  openModal('modal-queue');
-}
-
-window.joinQueue = async function(offsetMinutes) {
-  var preferredTime = null;
-  if (offsetMinutes === 'tomorrow') {
+  if (mins === 'tomorrow') {
     var t = new Date();
     t.setDate(t.getDate() + 1);
     t.setHours(9, 0, 0, 0);
-    preferredTime = t.toISOString();
-  } else if (offsetMinutes) {
-    preferredTime = new Date(Date.now() + offsetMinutes * 60000).toISOString();
+    _schedSelectedTime = t;
+  } else {
+    _schedSelectedTime = new Date(Date.now() + mins * 60000);
   }
+  el('sched-book-btn').disabled = false;
+  el('sched-book-btn').style.opacity = '1';
+};
+
+window.clearSchedPresets = function() {
+  document.querySelectorAll('.sched-preset').forEach(function(b) {
+    b.classList.remove('selected');
+    b.style.borderColor = 'var(--line)';
+    b.style.background = 'var(--surface)';
+  });
+  var v = el('sched-custom-time').value;
+  if (v) {
+    _schedSelectedTime = new Date(v);
+    el('sched-book-btn').disabled = false;
+    el('sched-book-btn').style.opacity = '1';
+  }
+};
+
+window.bookInterview = async function() {
+  if (!_schedSelectedTime) return;
+  var btn = el('sched-book-btn');
+  btn.disabled = true;
+  btn.textContent = 'Booking...';
 
   try {
     var r = await fetch('/api/candidate/interview-queue/join', {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ preferred_time: preferredTime }),
+      body: JSON.stringify({ preferred_time: _schedSelectedTime.toISOString() }),
     });
     var d = await r.json();
-    if (!d.ok) return;
-
-    el('queue-position-text').textContent = "You're #" + d.position + ' in queue';
-    el('queue-wait-text').textContent = d.estimated_wait_minutes
-      ? 'Estimated wait: ~' + d.estimated_wait_minutes + ' min'
-      : 'We\'ll email you when a slot opens';
-    el('queue-status-bar').style.display = '';
-    el('queue-options').style.display = 'none';
-    el('queue-leave-wrap').style.display = '';
-  } catch (_) {}
+    if (!d.ok) { btn.disabled = false; btn.textContent = 'Book My Interview Slot'; return; }
+    showBookingConfirmation(_schedSelectedTime);
+  } catch (_) {
+    btn.disabled = false;
+    btn.textContent = 'Book My Interview Slot';
+  }
 };
 
-window.joinQueueCustom = function() {
-  var input = el('queue-custom-time');
-  if (!input || !input.value) return;
-  var preferredTime = new Date(input.value).toISOString();
-  fetch('/api/candidate/interview-queue/join', {
-    method: 'POST', credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ preferred_time: preferredTime }),
-  }).then(function(r) { return r.json(); }).then(function(d) {
-    if (!d.ok) return;
-    el('queue-position-text').textContent = "You're #" + d.position + ' in queue';
-    el('queue-wait-text').textContent = 'Scheduled — we\'ll email you when ready';
-    el('queue-status-bar').style.display = '';
-    el('queue-options').style.display = 'none';
-    el('queue-leave-wrap').style.display = '';
-  });
-};
+function showBookingConfirmation(dt) {
+  var opts = { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true };
+  var display = dt.toLocaleString('en-US', opts);
+  el('sched-confirm-time').textContent = display;
 
-window.leaveQueue = async function() {
+  // Google Calendar link
+  var start = dt.toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  var end = new Date(dt.getTime() + 30 * 60000).toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  var gcal = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    + '&text=' + encodeURIComponent('AGZIT AI Mock Interview')
+    + '&dates=' + start + '/' + end
+    + '&details=' + encodeURIComponent('Start your interview at: https://app.agzit.com/interview-start');
+  el('sched-gcal-link').href = gcal;
+
+  el('sched-pick').style.display = 'none';
+  el('sched-confirmed').style.display = '';
+}
+
+window.cancelBooking = async function() {
   try {
     await fetch('/api/candidate/interview-queue/leave', { method: 'DELETE', credentials: 'include' });
-    el('queue-status-bar').style.display = 'none';
-    el('queue-options').style.display = '';
-    el('queue-leave-wrap').style.display = 'none';
+    el('sched-confirmed').style.display = 'none';
+    el('sched-pick').style.display = '';
+    _schedSelectedTime = null;
+    el('sched-book-btn').disabled = true;
+    el('sched-book-btn').style.opacity = '0.5';
+    el('sched-book-btn').textContent = 'Book My Interview Slot';
   } catch (_) {}
 };
 
 }());
 </script>
-<!-- Interview Queue Modal -->
-<div class="modal" id="modal-queue" onclick="if(event.target===this)closeModal('modal-queue')">
-  <div class="modal-inner" style="max-width:480px;">
+<!-- Scheduled Interview Modal -->
+<div class="modal" id="modal-schedule" onclick="if(event.target===this)closeModal('modal-schedule')">
+  <div class="modal-inner" style="max-width:460px;">
     <div class="modal-head">
-      <div class="modal-title">Interview Slots Full</div>
-      <button class="modal-close" onclick="closeModal('modal-queue')">Close</button>
+      <div class="modal-title">Schedule Interview</div>
+      <button class="modal-close" onclick="closeModal('modal-schedule')">Close</button>
     </div>
-    <div class="modal-body" id="queue-modal-body">
-      <div style="text-align:center;padding:8px 0 16px;">
-        <div style="width:56px;height:56px;background:var(--amber-lt);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:12px;">&#9202;</div>
-        <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px;">All 10 interview slots are currently in use</div>
-        <div style="font-size:13px;color:var(--muted);line-height:1.6;">Interviews typically last 20–30 minutes. Get notified when a slot opens or schedule for later.</div>
-      </div>
+    <div class="modal-body">
+      <!-- State 1: Pick a time -->
+      <div id="sched-pick">
+        <div style="text-align:center;padding:4px 0 16px;">
+          <div style="width:52px;height:52px;background:var(--amber-lt);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:10px;">&#128337;</div>
+          <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:4px;">All interview slots are busy right now</div>
+          <div style="font-size:13px;color:var(--muted);"><span id="sched-slot-count">10/10</span> slots in use &middot; Pick a time and we'll hold your spot</div>
+        </div>
 
-      <!-- Queue status (shown if already in queue) -->
-      <div id="queue-status-bar" style="display:none;background:var(--blue-lt);border:1px solid #c5d0f0;border-radius:10px;padding:14px 16px;margin-bottom:16px;text-align:center;">
-        <div style="font-size:14px;font-weight:700;color:var(--blue);" id="queue-position-text"></div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px;" id="queue-wait-text"></div>
-      </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+          <button onclick="selectSchedPreset(30)" class="sched-preset" style="padding:11px;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;transition:all 0.15s;" onmouseenter="this.style.borderColor='var(--blue)';this.style.background='var(--blue-lt)'" onmouseleave="if(!this.classList.contains('selected')){this.style.borderColor='var(--line)';this.style.background='var(--surface)'}">In 30 minutes</button>
+          <button onclick="selectSchedPreset(60)" class="sched-preset" style="padding:11px;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;transition:all 0.15s;" onmouseenter="this.style.borderColor='var(--blue)';this.style.background='var(--blue-lt)'" onmouseleave="if(!this.classList.contains('selected')){this.style.borderColor='var(--line)';this.style.background='var(--surface)'}">In 1 hour</button>
+          <button onclick="selectSchedPreset(120)" class="sched-preset" style="padding:11px;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;transition:all 0.15s;" onmouseenter="this.style.borderColor='var(--blue)';this.style.background='var(--blue-lt)'" onmouseleave="if(!this.classList.contains('selected')){this.style.borderColor='var(--line)';this.style.background='var(--surface)'}">In 2 hours</button>
+          <button onclick="selectSchedPreset('tomorrow')" class="sched-preset" style="padding:11px;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;transition:all 0.15s;" onmouseenter="this.style.borderColor='var(--blue)';this.style.background='var(--blue-lt)'" onmouseleave="if(!this.classList.contains('selected')){this.style.borderColor='var(--line)';this.style.background='var(--surface)'}">Tomorrow 9 AM</button>
+        </div>
 
-      <!-- Options (hidden when already in queue) -->
-      <div id="queue-options">
-        <button onclick="joinQueue(null)" style="width:100%;padding:13px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:10px;transition:background 0.2s;" onmouseenter="this.style.background='#153ab0'" onmouseleave="this.style.background='var(--blue)'">
-          Notify Me When a Slot Opens
+        <div style="margin-bottom:16px;">
+          <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px;">Or pick a custom time:</label>
+          <input type="datetime-local" id="sched-custom-time" onchange="clearSchedPresets()" style="width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:13px;font-family:var(--font);color:var(--ink);box-sizing:border-box;">
+        </div>
+
+        <button id="sched-book-btn" onclick="bookInterview()" disabled style="width:100%;padding:13px;background:var(--blue);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.2s;opacity:0.5;" onmouseenter="if(!this.disabled)this.style.background='#153ab0'" onmouseleave="this.style.background='var(--blue)'">
+          Book My Interview Slot
         </button>
-
-        <div style="font-size:12px;color:var(--muted);text-align:center;margin:12px 0 10px;">Or schedule for later:</div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
-          <button onclick="joinQueue(30)" class="queue-preset" style="padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:8px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;transition:all 0.15s;" onmouseenter="this.style.borderColor='var(--blue)';this.style.background='var(--blue-lt)'" onmouseleave="this.style.borderColor='var(--line)';this.style.background='var(--surface)'">In 30 minutes</button>
-          <button onclick="joinQueue(60)" class="queue-preset" style="padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:8px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;transition:all 0.15s;" onmouseenter="this.style.borderColor='var(--blue)';this.style.background='var(--blue-lt)'" onmouseleave="this.style.borderColor='var(--line)';this.style.background='var(--surface)'">In 1 hour</button>
-          <button onclick="joinQueue(120)" class="queue-preset" style="padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:8px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;transition:all 0.15s;" onmouseenter="this.style.borderColor='var(--blue)';this.style.background='var(--blue-lt)'" onmouseleave="this.style.borderColor='var(--line)';this.style.background='var(--surface)'">In 2 hours</button>
-          <button onclick="joinQueue('tomorrow')" class="queue-preset" style="padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:8px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;transition:all 0.15s;" onmouseenter="this.style.borderColor='var(--blue)';this.style.background='var(--blue-lt)'" onmouseleave="this.style.borderColor='var(--line)';this.style.background='var(--surface)'">Tomorrow 9 AM</button>
-        </div>
-
-        <div style="display:flex;align-items:center;gap:8px;">
-          <input type="datetime-local" id="queue-custom-time" style="flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:var(--font);color:var(--ink);">
-          <button onclick="joinQueueCustom()" style="padding:9px 16px;background:var(--ink);color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;">Schedule</button>
-        </div>
       </div>
 
-      <!-- Leave queue -->
-      <div id="queue-leave-wrap" style="display:none;text-align:center;margin-top:12px;">
-        <button onclick="leaveQueue()" style="padding:8px 20px;background:transparent;color:var(--red);border:1px solid var(--red-lt);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Leave Queue</button>
+      <!-- State 2: Confirmation -->
+      <div id="sched-confirmed" style="display:none;text-align:center;padding:8px 0;">
+        <div style="width:52px;height:52px;background:var(--green-lt);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:12px;">&#10003;</div>
+        <div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:6px;">Interview Booked!</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Check your email for confirmation.</div>
+
+        <div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left;">
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px;">Scheduled For</div>
+          <div style="font-size:15px;font-weight:700;color:var(--ink);" id="sched-confirm-time"></div>
+        </div>
+
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <a id="sched-gcal-link" href="#" target="_blank" style="padding:9px 18px;background:white;color:var(--blue);border:1.5px solid var(--blue);border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;transition:all 0.15s;" onmouseenter="this.style.background='var(--blue-lt)'" onmouseleave="this.style.background='white'">Add to Calendar</a>
+          <button onclick="cancelBooking()" style="padding:9px 18px;background:white;color:var(--red);border:1.5px solid var(--red-lt);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;" onmouseenter="this.style.background='var(--red-lt)'" onmouseleave="this.style.background='white'">Cancel Booking</button>
+        </div>
       </div>
     </div>
   </div>
