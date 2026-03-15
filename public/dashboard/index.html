@@ -1918,7 +1918,11 @@ function render(d, pd, id) {
   }
 
   /* ── Job Preferences tab ────────────────────────────────────────────────── */
-  if (pd && pd.profile) renderJobPrefs(pd.profile);
+  if (pd && pd.profile) {
+    renderJobPrefs(pd.profile);
+  } else {
+    el('job-prefs-content').innerHTML = '<div style="text-align:center;padding:40px 24px;"><div style="font-size:36px;margin-bottom:8px;">📋</div><div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px;">Complete Your DPR Profile</div><div style="font-size:13px;color:var(--muted);line-height:1.5;">Build your DPR profile to set and view your job preferences.</div><a href="/register" style="display:inline-block;margin-top:12px;padding:10px 22px;background:var(--blue);color:white;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;">Build DPR Profile</a></div>';
+  }
 
   /* ── Account tab ────────────────────────────────────────────────────────── */
   el('acc-details').innerHTML = [
@@ -2707,8 +2711,17 @@ async function loadJobsForYou() {
     _jobsData = d.jobs || [];
 
     document.getElementById('jobs-loading').style.display = 'none';
+
+    // If backend returned a message (no profile), show it
+    if (d.message && _jobsData.length === 0) {
+      document.getElementById('jobs-empty').style.display = '';
+      document.getElementById('jobs-empty').innerHTML = '<div style="text-align:center;padding:48px 0;"><div style="font-size:36px;margin-bottom:12px;">📋</div><div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:6px;">Complete Your DPR Profile</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Build your DPR profile to see jobs matched to your skills and preferences.</div><a href="/register" style="padding:10px 22px;background:var(--blue);color:white;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block;">Build DPR Profile</a></div>';
+      return;
+    }
+
     if (_jobsData.length === 0) {
       document.getElementById('jobs-empty').style.display = '';
+      document.getElementById('jobs-empty').innerHTML = '<div style="text-align:center;padding:48px 0;"><div style="font-size:36px;margin-bottom:12px;">🔍</div><div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:6px;">No matched jobs found yet</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Check back soon — we refresh job listings regularly.</div><button onclick="switchTab(\'profile\')" style="padding:10px 22px;background:var(--blue);color:white;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Go to Profile</button></div>';
       return;
     }
 

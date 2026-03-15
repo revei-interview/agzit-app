@@ -115,10 +115,62 @@ async function callOpenAI(systemPrompt, userContent, maxTokens = 1500) {
 
 async function getProfileId(userId) {
   const [[user]] = await pool.execute(
-    'SELECT dpr_profile_id FROM agzit_users WHERE id = ?',
+    'SELECT dpr_profile_id, wp_user_id, email FROM agzit_users WHERE id = ?',
     [userId]
   );
-  return user?.dpr_profile_id || null;
+  if (!user) return null;
+
+  // Method 1: cached dpr_profile_id (fast path)
+  if (user.dpr_profile_id) return user.dpr_profile_id;
+
+  // Method 2: find by post_author = wp_user_id
+  let postId = null;
+  if (user.wp_user_id) {
+    const [[row]] = await pool.execute(
+      "SELECT ID FROM wp_posts WHERE post_author = ? AND post_type = 'dpr_profile' AND post_status IN ('publish','draft') ORDER BY ID DESC LIMIT 1",
+      [user.wp_user_id]
+    );
+    if (row) postId = row.ID;
+  }
+
+  // Method 3: find by email_address in wp_postmeta
+  if (!postId && user.email) {
+    const [[row]] = await pool.execute(
+      `SELECT p.ID FROM wp_posts p
+       JOIN wp_postmeta pm ON pm.post_id = p.ID AND pm.meta_key = 'email_address'
+       WHERE p.post_type = 'dpr_profile' AND p.post_status IN ('publish','draft')
+         AND pm.meta_value = ?
+       ORDER BY p.ID DESC LIMIT 1`,
+      [user.email]
+    );
+    if (row) postId = row.ID;
+  }
+
+  // Method 4: find by wp_users with same email → post_author
+  if (!postId && user.email) {
+    const [[wpUser]] = await pool.execute(
+      'SELECT ID FROM wp_users WHERE user_email = ? LIMIT 1',
+      [user.email]
+    );
+    if (wpUser) {
+      const [[row]] = await pool.execute(
+        "SELECT ID FROM wp_posts WHERE post_author = ? AND post_type = 'dpr_profile' AND post_status IN ('publish','draft') ORDER BY ID DESC LIMIT 1",
+        [wpUser.ID]
+      );
+      if (row) postId = row.ID;
+    }
+  }
+
+  // Auto-heal: cache the found profile ID in agzit_users
+  if (postId) {
+    console.log(`[getProfileId] Auto-healed user ${userId}: dpr_profile_id = ${postId}`);
+    await pool.execute(
+      'UPDATE agzit_users SET dpr_profile_id = ? WHERE id = ? AND (dpr_profile_id IS NULL OR dpr_profile_id = 0)',
+      [postId, userId]
+    ).catch(err => console.error('[getProfileId] Auto-heal failed:', err.message));
+  }
+
+  return postId || null;
 }
 
 // Fetch all non-private postmeta for a WP post (excludes ACF field-key rows)
@@ -494,6 +546,10 @@ router.get('/profile', ...guard, async (req, res) => {
       language_name: r.language || '',
       proficiency:   r.proficiency || '',
     })).filter(r => r.language_name);
+
+    const prefLocations = parseRepeater(meta, 'preferred_location', [
+      'preferred_city_name', 'preferred_country_name',
+    ]);
 
     // Check agzit_resume_files for actual resume existence (fixes stale meta)
     let resumeRow = null;
