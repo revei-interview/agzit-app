@@ -2704,27 +2704,20 @@ async function loadJobsForYou() {
   }
 }
 
+// Fixed filter tabs: All | India | UAE | UK | Remote
+var JOB_FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'india', label: 'India', match: ['india'] },
+  { key: 'uae', label: 'UAE', match: ['uae', 'united arab emirates', 'dubai', 'abu dhabi'] },
+  { key: 'uk', label: 'UK', match: ['uk', 'united kingdom', 'england', 'london', 'britain'] },
+  { key: 'remote', label: 'Remote' },
+];
+
 function renderJobFilters() {
-  var countries = {};
-  var hasRemote = false;
-  _jobsData.forEach(function(j) {
-    if (j.is_remote) hasRemote = true;
-    if (j.country) {
-      var c = j.country.trim();
-      if (c) countries[c] = (countries[c] || 0) + 1;
-    }
-  });
-
-  var filters = [{ key: 'all', label: 'All' }];
-  // Show top countries
-  var sorted = Object.entries(countries).sort(function(a,b){ return b[1]-a[1]; });
-  sorted.slice(0, 4).forEach(function(e) { filters.push({ key: e[0], label: e[0] }); });
-  if (hasRemote) filters.push({ key: 'remote', label: 'Remote' });
-
   var html = '';
-  filters.forEach(function(f) {
+  JOB_FILTERS.forEach(function(f) {
     var active = _jobsFilter === f.key;
-    html += '<button onclick="filterJobs(\'' + f.key.replace(/'/g, "\\'") + '\')" style="padding:7px 16px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid ' + (active ? 'var(--blue)' : 'var(--line)') + ';background:' + (active ? 'var(--blue)' : 'white') + ';color:' + (active ? 'white' : 'var(--soft)') + ';transition:all .15s;">' + esc(f.label) + '</button>';
+    html += '<button onclick="filterJobs(\'' + f.key + '\')" style="padding:7px 16px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid ' + (active ? 'var(--blue)' : 'var(--line)') + ';background:' + (active ? 'var(--blue)' : 'white') + ';color:' + (active ? 'white' : 'var(--soft)') + ';transition:all .15s;">' + esc(f.label) + '</button>';
   });
   document.getElementById('jobs-filters').innerHTML = html;
 }
@@ -2740,7 +2733,12 @@ function renderJobCards() {
   if (_jobsFilter === 'remote') {
     filtered = _jobsData.filter(function(j){ return j.is_remote; });
   } else if (_jobsFilter !== 'all') {
-    filtered = _jobsData.filter(function(j){ return (j.country || '').toLowerCase() === _jobsFilter.toLowerCase(); });
+    var filterDef = JOB_FILTERS.find(function(f){ return f.key === _jobsFilter; });
+    var terms = (filterDef && filterDef.match) || [_jobsFilter];
+    filtered = _jobsData.filter(function(j){
+      var loc = ((j.country || '') + ' ' + (j.location || '') + ' ' + (j.city || '')).toLowerCase();
+      return terms.some(function(t){ return loc.indexOf(t) !== -1; });
+    });
   }
 
   if (filtered.length === 0) {
@@ -2757,7 +2755,7 @@ function renderJobCards() {
     else { badgeBg = 'var(--surface)'; badgeColor = 'var(--muted)'; }
 
     var bd = j.score_breakdown || {};
-    var tooltip = 'Industry: +' + (bd.industry||0) + ' | Role: +' + (bd.role||0) + ' | Location: +' + (bd.location||0) + ' | Skills: +' + (bd.skills||0) + ' | Fresh: +' + (bd.freshness||0);
+    var tooltip = 'Industry: +' + (bd.industry||0) + ' | Role: +' + (bd.role||0) + ' | Location: +' + (bd.location||0) + ' | Skills: +' + (bd.skills||0) + ' | Level: +' + (bd.level||0) + ' | Fresh: +' + (bd.freshness||0);
 
     var dateStr = formatJobDate(j.date_posted);
     var desc = esc((j.description || '').slice(0, 160));

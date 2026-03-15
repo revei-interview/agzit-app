@@ -12,7 +12,7 @@ const JSEARCH_QUERIES = [
   'risk management jobs in India',
   'compliance jobs in Dubai',
   'finance jobs in Dubai',
-  'HR jobs in UAE',
+  'HR manager jobs UAE',
   'compliance jobs in London',
   'finance jobs in Singapore',
   'compliance jobs in Canada',

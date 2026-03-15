@@ -3019,12 +3019,19 @@ router.get('/jobs', ...guard, async (req, res) => {
     const { meta } = data;
 
     const profile = {
-      compliance_domains:   meta.compliance_domains,
-      industry:             meta.industry,
-      desired_role:         meta.desired_role,
-      residential_city:     meta.residential_city,
-      residential_country:  meta.residential_country,
-      soft_skills:          meta.soft_skills,
+      compliance_domains:               meta.compliance_domains,
+      industry:                         meta.industry,
+      desired_role:                     meta.desired_role,
+      residential_city:                 meta.residential_city,
+      residential_country:              meta.residential_country,
+      soft_skills:                      meta.soft_skills,
+      total_work_experience:            meta.total_work_experience,
+      preferred_work_type:              meta.preferred_work_type,
+      work_level:                       meta.work_level,
+      open_to_relocate:                 meta.open_to_relocate,
+      professional_headline:            meta.professional_headline,
+      current_employment_status:        meta.current_employment_status,
+      expected_annual_ctc_with_currency: meta.expected_annual_ctc_with_currency,
     };
 
     // Fetch last 500 jobs
