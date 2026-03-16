@@ -3335,7 +3335,7 @@ router.get('/naukri-jobs', ...guard, async (req, res) => {
       } catch (_) { /* corrupted cache, refetch */ }
     }
 
-    // Call Apify
+    // Call Apify (async polling pattern)
     const apifyToken = process.env.APIFY_API_TOKEN;
     if (!apifyToken) {
       return res.status(503).json({ ok: false, error: 'Job search service not configured' });
@@ -3344,27 +3344,65 @@ router.get('/naukri-jobs', ...guard, async (req, res) => {
     const countryLabel = SUPPORTED_COUNTRIES.find(c => c.code === countryCode)?.label || '';
     const location = countryCode === 'IN' ? 'India' : countryLabel;
 
-    console.log(`[naukri-jobs] Apify call: keyword="${keyword}", location="${location}"`);
+    console.log(`[naukri-jobs] Apify async call: keyword="${keyword}", location="${location}"`);
 
-    const apifyUrl = `https://api.apify.com/v2/acts/nuclear_quietude~naukri-job-scraper/run-sync-get-dataset-items?token=${encodeURIComponent(apifyToken)}`;
-    const apifyRes = await fetch(apifyUrl, {
+    // Step 1: Start actor run
+    const startUrl = `https://api.apify.com/v2/acts/nuclear_quietude~naukri-job-scraper/runs?token=${encodeURIComponent(apifyToken)}`;
+    const startRes = await fetch(startUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        keyword,
-        location,
-        maxResults: 20,
-      }),
-      signal: AbortSignal.timeout(120000), // 2 min timeout
+      body: JSON.stringify({ keyword, location, maxResults: 20 }),
+      signal: AbortSignal.timeout(15000),
     });
 
-    if (!apifyRes.ok) {
-      const errText = await apifyRes.text().catch(() => '');
-      console.error(`[naukri-jobs] Apify error: ${apifyRes.status}`, errText.slice(0, 500));
+    if (!startRes.ok) {
+      const errText = await startRes.text().catch(() => '');
+      console.error(`[naukri-jobs] Apify start error: ${startRes.status}`, errText.slice(0, 500));
       return res.status(502).json({ ok: false, error: 'Job search service error' });
     }
 
-    const rawItems = await apifyRes.json();
+    const runData = await startRes.json();
+    const runId = runData?.data?.id;
+    const datasetId = runData?.data?.defaultDatasetId;
+    if (!runId) {
+      console.error('[naukri-jobs] Apify did not return runId', JSON.stringify(runData).slice(0, 500));
+      return res.status(502).json({ ok: false, error: 'Job search service error' });
+    }
+
+    console.log(`[naukri-jobs] Apify run started: runId=${runId}, datasetId=${datasetId}`);
+
+    // Step 2: Poll for completion (max 10 attempts, 5s apart, ~50s total)
+    const pollUrl = `https://api.apify.com/v2/actor-runs/${runId}?token=${encodeURIComponent(apifyToken)}`;
+    let runStatus = runData?.data?.status;
+    const MAX_POLLS = 10;
+    const POLL_INTERVAL = 5000;
+
+    for (let i = 0; i < MAX_POLLS && runStatus !== 'SUCCEEDED' && runStatus !== 'FAILED' && runStatus !== 'ABORTED' && runStatus !== 'TIMED-OUT'; i++) {
+      await new Promise(r => setTimeout(r, POLL_INTERVAL));
+      const pollRes = await fetch(pollUrl, { signal: AbortSignal.timeout(10000) });
+      if (!pollRes.ok) {
+        console.error(`[naukri-jobs] Apify poll error: ${pollRes.status}`);
+        continue;
+      }
+      const pollData = await pollRes.json();
+      runStatus = pollData?.data?.status;
+      console.log(`[naukri-jobs] poll ${i + 1}/${MAX_POLLS}: status=${runStatus}`);
+    }
+
+    if (runStatus !== 'SUCCEEDED') {
+      console.error(`[naukri-jobs] Apify run did not succeed: status=${runStatus}`);
+      return res.status(504).json({ ok: false, error: 'Job search timed out. Please try again.' });
+    }
+
+    // Step 3: Fetch dataset items
+    const itemsUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?token=${encodeURIComponent(apifyToken)}`;
+    const itemsRes = await fetch(itemsUrl, { signal: AbortSignal.timeout(10000) });
+    if (!itemsRes.ok) {
+      console.error(`[naukri-jobs] Apify dataset fetch error: ${itemsRes.status}`);
+      return res.status(502).json({ ok: false, error: 'Job search service error' });
+    }
+
+    const rawItems = await itemsRes.json();
 
     // Normalize to standard format, max 20
     const jobs = (Array.isArray(rawItems) ? rawItems : []).slice(0, 20).map(item => ({

@@ -2870,20 +2870,21 @@ function initJobsTab() {
 function updateSubIndustries(industryKey) {
   var container = document.getElementById('jobs-sub-container');
   var list = document.getElementById('jobs-sub-list');
-  if (!industryKey || !SUPPORTED_INDUSTRIES[industryKey]) {
+  if (!container || !list) return;
+  var indData = (typeof SUPPORTED_INDUSTRIES !== 'undefined' && SUPPORTED_INDUSTRIES) ? SUPPORTED_INDUSTRIES[industryKey] : null;
+  if (!industryKey || !indData) {
     container.style.display = 'none';
     list.innerHTML = '';
     return;
   }
-  var subs = SUPPORTED_INDUSTRIES[industryKey].subs;
+  var subs = indData.subs || [];
   container.style.display = '';
   list.innerHTML = '';
   subs.slice().sort(function(a, b) { return a.localeCompare(b); }).forEach(function(sub) {
-    var id = 'jsub_' + sub.replace(/[^a-zA-Z0-9]/g, '_');
-    var label = document.createElement('label');
-    label.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;transition:all .15s;';
-    label.innerHTML = '<input type="checkbox" class="jobs-sub-cb" value="' + esc(sub) + '" style="accent-color:var(--blue);"> ' + esc(sub);
-    list.appendChild(label);
+    var lbl = document.createElement('label');
+    lbl.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;transition:all .15s;';
+    lbl.innerHTML = '<input type="checkbox" class="jobs-sub-cb" value="' + esc(sub) + '" style="accent-color:var(--blue);"> ' + esc(sub);
+    list.appendChild(lbl);
   });
 }
 
@@ -2892,7 +2893,7 @@ async function findNaukriJobs() {
   if (!industry) { alert('Please select an industry.'); return; }
   var country = document.getElementById('jobs-country').value || 'IN';
   var subs = [];
-  document.querySelectorAll('.jobs-sub-cb:checked').forEach(function(cb) { subs.push(cb.value); });
+  document.querySelectorAll('#jobs-sub-list input[type="checkbox"]:checked').forEach(function(cb) { subs.push(cb.value); });
 
   var btn = document.getElementById('jobs-find-btn');
   btn.disabled = true; btn.textContent = 'Searching...';
