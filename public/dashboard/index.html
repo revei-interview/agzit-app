@@ -1835,11 +1835,30 @@ function render(d, pd, id) {
 
   /* ── Entitlement strip (interview sessions) ──────────────────────────────── */
   const strip = el('ent-strip');
-  const totalSessions = (ent.sessions_20 || 0) + (ent.sessions_30 || 0);
-  strip.innerHTML = `<span class="ent-label">Interview Sessions</span>
-    <span class="ent-chip c20">${ent.sessions_20 || 0} × 20 min</span>
-    <span class="ent-chip c30">${ent.sessions_30 || 0} × 30 min</span>
-    <a href="https://agzit.com/product/ai-mock-interview/" target="_blank" style="margin-left:auto;padding:8px 16px;border-radius:9px;font-size:12.5px;font-weight:700;background:var(--blue);color:#fff;white-space:nowrap;text-decoration:none;">Buy Interview Session &rarr;</a>`;
+  const s20 = ent.sessions_20 || 0;
+  const s30 = ent.sessions_30 || 0;
+  const totalSessions = s20 + s30;
+  const validDate = ent.valid_until ? new Date(parseInt(ent.valid_until) * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
+
+  if (totalSessions === 0) {
+    strip.innerHTML = `<div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;width:100%;">
+      <div style="font-size:14px;font-weight:700;color:var(--muted);margin-bottom:6px;">No interview sessions available</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">Buy a session to start your AI mock interview</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a href="https://agzit.com/?p=19594" target="_blank" style="padding:9px 18px;border-radius:9px;font-size:12.5px;font-weight:700;background:var(--blue);color:#fff;text-decoration:none;white-space:nowrap;">Buy 20-Min Session &rarr;</a>
+        <a href="https://agzit.com/?p=19596" target="_blank" style="padding:9px 18px;border-radius:9px;font-size:12.5px;font-weight:700;background:var(--blue);color:#fff;text-decoration:none;white-space:nowrap;">Buy 30-Min Session &rarr;</a>
+      </div>
+    </div>`;
+  } else {
+    strip.innerHTML = `<div style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;width:100%;">
+      <div style="font-size:13px;line-height:2;color:var(--soft);">
+        ${s20 > 0 ? '<div><span style="color:var(--green);font-weight:700;">&#10003;</span> 20-min sessions: <strong>' + s20 + ' available</strong></div>' : ''}
+        ${s30 > 0 ? '<div><span style="color:var(--green);font-weight:700;">&#10003;</span> 30-min sessions: <strong>' + s30 + ' available</strong></div>' : ''}
+        ${validDate ? '<div style="font-size:12px;color:var(--muted);">Valid until: ' + validDate + '</div>' : ''}
+      </div>
+      <a href="/interview-start" onclick="return checkSlotAvailability(event)" style="display:inline-block;margin-top:10px;padding:9px 20px;border-radius:9px;font-size:13px;font-weight:700;background:var(--blue);color:#fff;text-decoration:none;">Start Interview &rarr;</a>
+    </div>`;
+  }
 
   /* ── Sidebar credits ─────────────────────────────────────────────────────── */
   el('sidebar-credits').innerHTML = [
