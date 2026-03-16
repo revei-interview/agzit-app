@@ -1833,9 +1833,6 @@ function render(d, pd, id) {
     }
   }
 
-  // Populate Jobs For You dropdowns eagerly (constants are static, DOM exists)
-  populateJobsDropdowns();
-
   const firstName = user.first_name || (user.email || '').split('@')[0] || 'there';
 
   /* ── Onboarding toggle ────────────────────────────────────────────────────── */
@@ -2827,61 +2824,53 @@ async function uploadProfilePhoto(input) {
 }
 
 /* ── Jobs For You ────────────────────────────────────────────────────────── */
-var _jobsDropdownsPopulated = false;
-var _jobsHandlerAttached = false;
+var _jobsInited = false;
 var _jobsData = [];
 
-/* Populate industry + country dropdowns (called from render, safe to call multiple times) */
-function populateJobsDropdowns() {
-  var indSel = document.getElementById('jobs-industry');
-  var countrySel = document.getElementById('jobs-country');
-  if (!indSel || !countrySel) return;
+function initJobsTab() {
+  if (_jobsInited) return;
+  _jobsInited = true;
 
-  if (!_jobsDropdownsPopulated) {
-    _jobsDropdownsPopulated = true;
-
+  try {
     // Populate industry dropdown (alphabetical by label)
-    var keys = Object.keys(SUPPORTED_INDUSTRIES).sort(function(a, b) {
-      return SUPPORTED_INDUSTRIES[a].label.localeCompare(SUPPORTED_INDUSTRIES[b].label);
-    });
-    keys.forEach(function(k) {
-      var o = document.createElement('option');
-      o.value = k; o.textContent = SUPPORTED_INDUSTRIES[k].label;
-      indSel.appendChild(o);
-    });
+    var indSel = document.getElementById('jobs-industry');
+    if (indSel) {
+      var keys = Object.keys(SUPPORTED_INDUSTRIES).sort(function(a, b) {
+        return SUPPORTED_INDUSTRIES[a].label.localeCompare(SUPPORTED_INDUSTRIES[b].label);
+      });
+      keys.forEach(function(k) {
+        var o = document.createElement('option');
+        o.value = k; o.textContent = SUPPORTED_INDUSTRIES[k].label;
+        indSel.appendChild(o);
+      });
+
+      // Pre-select candidate's industry if supported
+      if (_candidateIndustryKey && SUPPORTED_INDUSTRIES[_candidateIndustryKey]) {
+        indSel.value = _candidateIndustryKey;
+        updateSubIndustries(_candidateIndustryKey);
+      }
+
+      // Industry change handler
+      indSel.addEventListener('change', function() {
+        updateSubIndustries(this.value);
+      });
+    }
 
     // Populate country dropdown (alphabetical)
-    countrySel.innerHTML = '';
-    SUPPORTED_COUNTRIES.slice().sort(function(a, b) {
-      return a.label.localeCompare(b.label);
-    }).forEach(function(c) {
-      var o = document.createElement('option');
-      o.value = c.code; o.textContent = c.label;
-      countrySel.appendChild(o);
-    });
-    countrySel.value = 'IN'; // default
-  }
-
-  // Pre-select candidate's industry if supported (runs each render in case data changes)
-  if (_candidateIndustryKey && SUPPORTED_INDUSTRIES[_candidateIndustryKey]) {
-    indSel.value = _candidateIndustryKey;
-    updateSubIndustries(_candidateIndustryKey);
-  }
-}
-
-/* Attach event handler (called on first tab visit) */
-function initJobsTab() {
-  if (_jobsHandlerAttached) return;
-  _jobsHandlerAttached = true;
-
-  // Ensure dropdowns are populated (fallback if render hasn't run yet)
-  populateJobsDropdowns();
-
-  var indSel = document.getElementById('jobs-industry');
-  if (indSel) {
-    indSel.addEventListener('change', function() {
-      updateSubIndustries(this.value);
-    });
+    var countrySel = document.getElementById('jobs-country');
+    if (countrySel) {
+      countrySel.innerHTML = '';
+      SUPPORTED_COUNTRIES.slice().sort(function(a, b) {
+        return a.label.localeCompare(b.label);
+      }).forEach(function(c) {
+        var o = document.createElement('option');
+        o.value = c.code; o.textContent = c.label;
+        countrySel.appendChild(o);
+      });
+      countrySel.value = 'IN'; // default
+    }
+  } catch (err) {
+    console.error('[Jobs For You] dropdown init error:', err);
   }
 }
 
