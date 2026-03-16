@@ -3122,11 +3122,13 @@ router.get('/jobs', ...guard, async (req, res) => {
       const now = Date.now();
       const TTL = 24 * 60 * 60 * 1000;
 
+      const cacheAge = cached ? ((now - cached.fetchedAt) / 3600000).toFixed(1) : 'none';
       if (cached && (now - cached.fetchedAt) < TTL) {
         liveJobs = cached.jobs;
+        console.log(`[jobs-live] cache HIT for user ${userId}, age: ${cacheAge}h, jobs: ${liveJobs.length}`);
       } else {
         const liveQuery = `${desiredRole} jobs in ${prefCity || prefCountry || 'remote'}`;
-        console.log(`[jobs] Live search for user ${userId}: "${liveQuery}"`);
+        console.log(`[jobs-live] query: "${liveQuery}", cache age: ${cacheAge}h`);
         liveJobs = await fetchJSearchLive(liveQuery);
         liveJobCache[userId] = { jobs: liveJobs, fetchedAt: now };
       }

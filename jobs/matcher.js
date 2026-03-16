@@ -43,7 +43,7 @@ function getCountryCode(countryName) {
 
 // ── Industry keyword map — all 53 AGZIT industries ──────────────────────────
 const INDUSTRY_KEYWORDS = {
-  compliance:       ['compliance','regulatory','regulation','aml','kyc','fincrime','financial crime','governance','cdd','sanctions','anti-money','bsa','mlro','cco','know your customer'],
+  compliance:       ['compliance','regulatory','regulation','aml','kyc','fincrime','financial crime','governance','cdd','sanctions','anti-money','anti money laundering','bsa','mlro','cco','know your customer','due diligence','fatf','pep screening','transaction monitoring'],
   finance:          ['finance','financial','cfo','treasurer','treasury','fp&a','financial planning','financial analyst','budgeting','fintech'],
   accounting:       ['accounting','accountant','cpa','chartered accountant','bookkeeping','ca ','accounts payable','accounts receivable','cima'],
   banking:          ['banking','banker','branch','retail bank','commercial bank','investment bank','private banking','wealth management','nbfc'],
@@ -186,11 +186,17 @@ function matchJobsForCandidate(profile, jobs) {
       : [];
     if (_specificWords.length > 0) {
       const titleCheck = _specificWords.some(w => jobTitle.includes(w));
-      const descCheck  = _specificWords.some(w => jobText.substring(0, 200).includes(w));
+      const descCheck  = _specificWords.some(w => jobText.substring(0, 500).includes(w));
 
       // Common words like "data", "sales" must appear in TITLE to avoid false matches
       const hasCommonWord = _specificWords.some(w => COMMON_SPECIFIC_WORDS.has(w));
-      const roleFound = hasCommonWord ? titleCheck : (titleCheck || descCheck);
+      let roleFound = hasCommonWord ? titleCheck : (titleCheck || descCheck);
+
+      // KYC equivalent roles — AML/FinCrime jobs are relevant for KYC candidates
+      if (!roleFound && desiredRole.includes('kyc')) {
+        const kycEquivalents = ['aml','anti money','financial crime','fincrime','due diligence','sanctions','compliance analyst'];
+        roleFound = kycEquivalents.some(kw => jobTitle.includes(kw));
+      }
 
       if (!roleFound) {
         return { ...job, score: 0, score_breakdown: { filtered: 'role' } };
@@ -224,6 +230,11 @@ function matchJobsForCandidate(profile, jobs) {
           if (genericHits.length >= 1) roleScore = 8;
         }
       }
+    }
+    // KYC equivalent role bonus
+    if (desiredRole.includes('kyc') && roleScore === 0) {
+      const kycEquivalents = ['aml','anti money','financial crime','fincrime','due diligence','sanctions','compliance analyst'];
+      if (kycEquivalents.some(kw => jobTitle.includes(kw))) roleScore = 12;
     }
     score += roleScore;
     breakdown.role = roleScore;
@@ -299,7 +310,7 @@ function matchJobsForCandidate(profile, jobs) {
   });
 
   return deduped
-    .filter(j => j.score >= 80)
+    .filter(j => j.score >= 65)
     .sort((a, b) => b.score - a.score || new Date(b.date_posted || 0) - new Date(a.date_posted || 0))
     .slice(0, 25);
 }
