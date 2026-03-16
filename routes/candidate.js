@@ -3310,13 +3310,30 @@ router.get('/naukri-jobs', ...guard, async (req, res) => {
     }
 
     // Build search keyword
+    const INDUSTRY_KEYWORDS = {
+      compliance: 'Compliance KYC AML',
+      finance: 'Finance Treasury',
+      accounting: 'Accounts Payable Receivable',
+      banking: 'Banking Financial Services',
+      risk: 'Risk Management',
+      fraud: 'Fraud Analyst',
+      audit: 'Internal Audit',
+      hr: 'HR Recruiter',
+      it: 'IT Systems Administrator',
+      software: 'Software Developer',
+      cybersecurity: 'Cybersecurity InfoSec',
+    };
     const ind = SUPPORTED_INDUSTRIES[industry];
     let keyword;
     if (sub_industries) {
       const subs = sub_industries.split(',').map(s => s.trim()).filter(Boolean);
-      keyword = subs.join(' ');
+      if (subs.length) {
+        keyword = subs.join(' ');
+      } else {
+        keyword = INDUSTRY_KEYWORDS[industry] || ind.label;
+      }
     } else {
-      keyword = ind.label;
+      keyword = INDUSTRY_KEYWORDS[industry] || ind.label;
     }
 
     // Cache key: deterministic hash of industry + subs + country
@@ -3371,11 +3388,11 @@ router.get('/naukri-jobs', ...guard, async (req, res) => {
 
     console.log(`[naukri-jobs] Apify run started: runId=${runId}, datasetId=${datasetId}`);
 
-    // Step 2: Poll for completion (max 10 attempts, 5s apart, ~50s total)
+    // Step 2: Poll for completion (max 15 attempts, 4s apart, ~60s total)
     const pollUrl = `https://api.apify.com/v2/actor-runs/${runId}?token=${encodeURIComponent(apifyToken)}`;
     let runStatus = runData?.data?.status;
-    const MAX_POLLS = 10;
-    const POLL_INTERVAL = 5000;
+    const MAX_POLLS = 15;
+    const POLL_INTERVAL = 4000;
 
     for (let i = 0; i < MAX_POLLS && runStatus !== 'SUCCEEDED' && runStatus !== 'FAILED' && runStatus !== 'ABORTED' && runStatus !== 'TIMED-OUT'; i++) {
       await new Promise(r => setTimeout(r, POLL_INTERVAL));
