@@ -3295,6 +3295,7 @@ router.get('/jobs', ...guard, async (req, res) => {
 router.get('/naukri-jobs', ...guard, async (req, res) => {
   try {
     const { industry, sub_industries, country } = req.query;
+    console.log(`[naukri-jobs] hit: industry=${industry}, sub_industries=${sub_industries}, country=${country}`);
 
     // Validate industry
     if (!industry || !SUPPORTED_INDUSTRIES[industry]) {
@@ -3389,8 +3390,11 @@ router.get('/naukri-jobs', ...guard, async (req, res) => {
     console.log(`[naukri-jobs] Apify returned ${jobs.length} jobs for "${keyword}" in ${location}`);
     return res.json({ ok: true, jobs, total: jobs.length, cached: false });
   } catch (err) {
-    console.error('[naukri-jobs]', err.message);
-    res.status(500).json({ ok: false, error: 'Server error' });
+    console.error('[naukri-jobs] error:', err.name, err.message, err.stack?.split('\n').slice(0, 3).join(' '));
+    if (err.name === 'TimeoutError' || err.name === 'AbortError') {
+      return res.status(504).json({ ok: false, error: 'Job search timed out. Please try again.' });
+    }
+    res.status(500).json({ ok: false, error: 'Server error fetching jobs' });
   }
 });
 

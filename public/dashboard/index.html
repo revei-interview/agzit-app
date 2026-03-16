@@ -2849,12 +2849,14 @@ function initJobsTab() {
   _jobsInited = true;
 
   try {
-    // Options are baked into HTML — just pre-select candidate's industry + attach handler
     var indSel = document.getElementById('jobs-industry');
     if (indSel) {
-      if (_candidateIndustryKey && SUPPORTED_INDUSTRIES[_candidateIndustryKey]) {
-        indSel.value = _candidateIndustryKey;
-        updateSubIndustries(_candidateIndustryKey);
+      // Read defensively — render() may not have run yet
+      var industryKey = (typeof _candidateIndustryKey !== 'undefined' && _candidateIndustryKey)
+        ? _candidateIndustryKey : null;
+      if (industryKey && SUPPORTED_INDUSTRIES[industryKey]) {
+        indSel.value = industryKey;
+        updateSubIndustries(industryKey);
       }
       indSel.addEventListener('change', function() {
         updateSubIndustries(this.value);
@@ -2902,7 +2904,9 @@ async function findNaukriJobs() {
     var url = '/api/candidate/naukri-jobs?industry=' + encodeURIComponent(industry) + '&country=' + encodeURIComponent(country);
     if (subs.length) url += '&sub_industries=' + encodeURIComponent(subs.join(','));
     var r = await fetch(url, { credentials: 'include' });
-    var d = await r.json();
+    var text = await r.text();
+    var d;
+    try { d = JSON.parse(text); } catch (_) { throw new Error('Server returned an invalid response (status ' + r.status + ')'); }
     if (!d.ok) throw new Error(d.error || 'Failed');
 
     _jobsData = d.jobs || [];
