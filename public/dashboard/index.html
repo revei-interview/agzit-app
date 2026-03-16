@@ -991,10 +991,90 @@ select.jp-input {
                   </select>
                 </div>
               </div>
-              <!-- Sub-industry checkboxes (shown after industry selected) -->
-              <div id="jobs-sub-container" style="display:none;margin-top:14px;">
+              <!-- Sub-industry checkboxes (static, toggled by industry dropdown) -->
+              <div id="jobs-sub-container" style="margin-top:14px;">
                 <label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;display:block;margin-bottom:8px;">Specialisation (select one or more)</label>
-                <div id="jobs-sub-list" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+                <div id="subs-accounting" class="sub-group" style="display:none;flex-wrap:wrap;gap:8px;">
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Accounts Payable" style="accent-color:var(--blue);"> Accounts Payable</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Accounts Receivable" style="accent-color:var(--blue);"> Accounts Receivable</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="GST" style="accent-color:var(--blue);"> GST</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Taxation" style="accent-color:var(--blue);"> Taxation</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Bookkeeping" style="accent-color:var(--blue);"> Bookkeeping</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Reconciliation" style="accent-color:var(--blue);"> Reconciliation</label>
+                </div>
+                <div id="subs-audit" class="sub-group" style="display:none;flex-wrap:wrap;gap:8px;">
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Internal Audit" style="accent-color:var(--blue);"> Internal Audit</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="External Audit" style="accent-color:var(--blue);"> External Audit</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="SOX Compliance" style="accent-color:var(--blue);"> SOX Compliance</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Statutory Audit" style="accent-color:var(--blue);"> Statutory Audit</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="IS Audit" style="accent-color:var(--blue);"> IS Audit</label>
+                </div>
+                <div id="subs-banking" class="sub-group" style="display:none;flex-wrap:wrap;gap:8px;">
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Retail Banking" style="accent-color:var(--blue);"> Retail Banking</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Trade Finance" style="accent-color:var(--blue);"> Trade Finance</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Loan Processing" style="accent-color:var(--blue);"> Loan Processing</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Credit Analysis" style="accent-color:var(--blue);"> Credit Analysis</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="NBFC" style="accent-color:var(--blue);"> NBFC</label>
+                </div>
+                <div id="subs-compliance" class="sub-group" style="display:none;flex-wrap:wrap;gap:8px;">
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="KYC" style="accent-color:var(--blue);"> KYC</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="AML" style="accent-color:var(--blue);"> AML</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Transaction Monitoring" style="accent-color:var(--blue);"> Transaction Monitoring</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Sanctions" style="accent-color:var(--blue);"> Sanctions</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="CKYC" style="accent-color:var(--blue);"> CKYC</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="FATF Compliance" style="accent-color:var(--blue);"> FATF Compliance</label>
+                </div>
+                <div id="subs-cybersecurity" class="sub-group" style="display:none;flex-wrap:wrap;gap:8px;">
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="SOC Analyst" style="accent-color:var(--blue);"> SOC Analyst</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="VAPT" style="accent-color:var(--blue);"> VAPT</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="InfoSec" style="accent-color:var(--blue);"> InfoSec</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Penetration Testing" style="accent-color:var(--blue);"> Penetration Testing</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Vulnerability Assessment" style="accent-color:var(--blue);"> Vulnerability Assessment</label>
+                </div>
+                <div id="subs-finance" class="sub-group" style="display:none;flex-wrap:wrap;gap:8px;">
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Treasury" style="accent-color:var(--blue);"> Treasury</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Cash Management" style="accent-color:var(--blue);"> Cash Management</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="FP&amp;A" style="accent-color:var(--blue);"> FP&amp;A</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Corporate Finance" style="accent-color:var(--blue);"> Corporate Finance</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Financial Planning" style="accent-color:var(--blue);"> Financial Planning</label>
+                </div>
+                <div id="subs-fraud" class="sub-group" style="display:none;flex-wrap:wrap;gap:8px;">
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Fraud Analyst" style="accent-color:var(--blue);"> Fraud Analyst</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Anti-Money Laundering" style="accent-color:var(--blue);"> Anti-Money Laundering</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Chargeback" style="accent-color:var(--blue);"> Chargeback</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Fraud Investigation" style="accent-color:var(--blue);"> Fraud Investigation</label>
+                </div>
+                <div id="subs-hr" class="sub-group" style="display:none;flex-wrap:wrap;gap:8px;">
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Talent Acquisition" style="accent-color:var(--blue);"> Talent Acquisition</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Recruiter" style="accent-color:var(--blue);"> Recruiter</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="HRBP" style="accent-color:var(--blue);"> HRBP</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Learning and Development" style="accent-color:var(--blue);"> Learning and Development</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Payroll" style="accent-color:var(--blue);"> Payroll</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="HR Generalist" style="accent-color:var(--blue);"> HR Generalist</label>
+                </div>
+                <div id="subs-it" class="sub-group" style="display:none;flex-wrap:wrap;gap:8px;">
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="System Admin" style="accent-color:var(--blue);"> System Admin</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Network Admin" style="accent-color:var(--blue);"> Network Admin</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="IT Support" style="accent-color:var(--blue);"> IT Support</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Infrastructure" style="accent-color:var(--blue);"> Infrastructure</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="ERP" style="accent-color:var(--blue);"> ERP</label>
+                </div>
+                <div id="subs-risk" class="sub-group" style="display:none;flex-wrap:wrap;gap:8px;">
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Credit Risk" style="accent-color:var(--blue);"> Credit Risk</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Market Risk" style="accent-color:var(--blue);"> Market Risk</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Operational Risk" style="accent-color:var(--blue);"> Operational Risk</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Basel" style="accent-color:var(--blue);"> Basel</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Risk Analyst" style="accent-color:var(--blue);"> Risk Analyst</label>
+                </div>
+                <div id="subs-software" class="sub-group" style="display:none;flex-wrap:wrap;gap:8px;">
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="React" style="accent-color:var(--blue);"> React</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Node.js" style="accent-color:var(--blue);"> Node.js</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Python" style="accent-color:var(--blue);"> Python</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Java" style="accent-color:var(--blue);"> Java</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Full Stack Developer" style="accent-color:var(--blue);"> Full Stack Developer</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Backend" style="accent-color:var(--blue);"> Backend</label>
+                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Frontend" style="accent-color:var(--blue);"> Frontend</label>
+                </div>
               </div>
               <div style="margin-top:16px;">
                 <button id="jobs-find-btn" onclick="findNaukriJobs()" style="padding:10px 28px;background:var(--blue);color:white;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:opacity .15s;" onmouseenter="this.style.opacity='0.9'" onmouseleave="this.style.opacity='1'">Find Jobs</button>
@@ -2844,6 +2924,12 @@ async function uploadProfilePhoto(input) {
 var _jobsInited = false;
 var _jobsData = [];
 
+function showSubGroup(industryKey) {
+  document.querySelectorAll('.sub-group').forEach(function(d) { d.style.display = 'none'; });
+  var sg = document.getElementById('subs-' + industryKey);
+  if (sg) sg.style.display = 'flex';
+}
+
 function initJobsTab() {
   if (_jobsInited) return;
   _jobsInited = true;
@@ -2851,15 +2937,14 @@ function initJobsTab() {
   try {
     var indSel = document.getElementById('jobs-industry');
     if (indSel) {
-      // Read defensively — render() may not have run yet
       var industryKey = (typeof _candidateIndustryKey !== 'undefined' && _candidateIndustryKey)
         ? _candidateIndustryKey : null;
-      if (industryKey && SUPPORTED_INDUSTRIES[industryKey]) {
+      if (industryKey) {
         indSel.value = industryKey;
-        updateSubIndustries(industryKey);
+        showSubGroup(industryKey);
       }
       indSel.addEventListener('change', function() {
-        updateSubIndustries(this.value);
+        showSubGroup(this.value);
       });
     }
   } catch (err) {
@@ -2867,37 +2952,12 @@ function initJobsTab() {
   }
 }
 
-function updateSubIndustries(industryKey) {
-  var container = document.getElementById('jobs-sub-container');
-  var list = document.getElementById('jobs-sub-list');
-  if (!container || !list) return;
-  var indData = (typeof SUPPORTED_INDUSTRIES !== 'undefined' && SUPPORTED_INDUSTRIES) ? SUPPORTED_INDUSTRIES[industryKey] : null;
-  if (!industryKey || !indData) {
-    container.style.display = 'none';
-    list.innerHTML = '';
-    return;
-  }
-  var subs = indData.subs || [];
-  container.style.display = '';
-  list.innerHTML = '';
-  subs.slice().sort(function(a, b) { return a.localeCompare(b); }).forEach(function(sub) {
-    var lbl = document.createElement('label');
-    lbl.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;transition:all .15s;';
-    lbl.innerHTML = '<input type="checkbox" class="jobs-sub-cb" value="' + esc(sub) + '" style="accent-color:var(--blue);"> ' + esc(sub);
-    list.appendChild(lbl);
-  });
-}
-
 async function findNaukriJobs() {
   var industry = document.getElementById('jobs-industry').value;
   if (!industry) { alert('Please select an industry.'); return; }
   var country = document.getElementById('jobs-country').value || 'IN';
   var subs = [];
-  var allCbs = document.querySelectorAll('#jobs-sub-list input[type="checkbox"]');
-  var checkedCbs = document.querySelectorAll('#jobs-sub-list input[type="checkbox"]:checked');
-  console.log('[Jobs] total checkboxes:', allCbs.length, 'checked:', checkedCbs.length);
-  checkedCbs.forEach(function(cb) { subs.push(cb.value); });
-  console.log('[Jobs] subs to send:', subs);
+  document.querySelectorAll('.sub-group input[type="checkbox"]:checked').forEach(function(cb) { subs.push(cb.value); });
 
   var btn = document.getElementById('jobs-find-btn');
   btn.disabled = true; btn.textContent = 'Searching...';

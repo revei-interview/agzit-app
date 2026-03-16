@@ -500,6 +500,8 @@ async function initDB() {
       INDEX idx_expires (expires_at)
     )
   `);
+  // One-time cleanup: remove empty/null cached results
+  await pool.execute(`DELETE FROM agzit_jobs_cache WHERE jobs_json = '[]' OR jobs_json = 'null' OR jobs_json IS NULL`).catch(() => {});
 
   // Job click tracking
   await pool.execute(`

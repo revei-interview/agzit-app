@@ -3433,14 +3433,16 @@ router.get('/naukri-jobs', ...guard, async (req, res) => {
       postedDate: item.postedDate || item.datePosted || '',
     }));
 
-    // Store in cache (6h TTL)
-    const jobsJson = JSON.stringify(jobs);
-    await pool.execute(
-      `INSERT INTO agzit_jobs_cache (cache_key, jobs_json, fetched_at, expires_at)
-       VALUES (?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 6 HOUR))
-       ON DUPLICATE KEY UPDATE jobs_json = VALUES(jobs_json), fetched_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL 6 HOUR)`,
-      [cacheKey, jobsJson]
-    );
+    // Store in cache (6h TTL) — only cache non-empty results
+    if (jobs.length > 0) {
+      const jobsJson = JSON.stringify(jobs);
+      await pool.execute(
+        `INSERT INTO agzit_jobs_cache (cache_key, jobs_json, fetched_at, expires_at)
+         VALUES (?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 6 HOUR))
+         ON DUPLICATE KEY UPDATE jobs_json = VALUES(jobs_json), fetched_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL 6 HOUR)`,
+        [cacheKey, jobsJson]
+      );
+    }
 
     console.log(`[naukri-jobs] Apify returned ${jobs.length} jobs for "${keyword}" in ${location}`);
     return res.json({ ok: true, jobs, total: jobs.length, cached: false });
