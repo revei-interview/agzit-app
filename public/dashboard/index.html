@@ -1833,11 +1833,13 @@ function render(d, pd, id) {
 
   const pct = parseInt(prof.profile_completeness) || 0;
 
-  /* ── Entitlement strip ───────────────────────────────────────────────────── */
+  /* ── Entitlement strip (interview sessions) ──────────────────────────────── */
   const strip = el('ent-strip');
-  strip.innerHTML = `<span class="ent-label">Credits</span>
-    <span class="ent-chip c20">${d.credit_balance || 0} credits</span>
-    <a href="#" onclick="toggleCreditInfo();return false;" style="margin-left:auto;padding:8px 16px;border-radius:9px;font-size:12.5px;font-weight:700;background:var(--blue);color:#fff;white-space:nowrap;">Buy or Earn</a>`;
+  const totalSessions = (ent.sessions_20 || 0) + (ent.sessions_30 || 0);
+  strip.innerHTML = `<span class="ent-label">Interview Sessions</span>
+    <span class="ent-chip c20">${ent.sessions_20 || 0} × 20 min</span>
+    <span class="ent-chip c30">${ent.sessions_30 || 0} × 30 min</span>
+    <a href="https://agzit.com/product/ai-mock-interview/" target="_blank" style="margin-left:auto;padding:8px 16px;border-radius:9px;font-size:12.5px;font-weight:700;background:var(--blue);color:#fff;white-space:nowrap;text-decoration:none;">Buy Interview Session &rarr;</a>`;
 
   /* ── Sidebar credits ─────────────────────────────────────────────────────── */
   el('sidebar-credits').innerHTML = [

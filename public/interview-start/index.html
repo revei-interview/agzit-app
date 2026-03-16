@@ -127,18 +127,24 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     <h1 class="page-title">Start Mock Interview</h1>
     <p class="page-sub">Configure your AI-powered mock interview session below.</p>
 
-    <!-- Credit summary -->
+    <!-- Session summary -->
     <div class="credit-row">
       <div class="credit-card" id="card20">
         <div class="credit-plan">20 Minutes</div>
         <div class="credit-count" id="credits20">—</div>
-        <div class="credit-label" id="label20">credits available</div>
+        <div class="credit-label" id="label20">sessions available</div>
       </div>
       <div class="credit-card" id="card30">
         <div class="credit-plan">30 Minutes</div>
         <div class="credit-count" id="credits30">—</div>
-        <div class="credit-label" id="label30">credits available</div>
+        <div class="credit-label" id="label30">sessions available</div>
       </div>
+    </div>
+
+    <div id="buyPanel" style="display:none;text-align:center;background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:24px;margin-bottom:24px;box-shadow:var(--shadow-sm);">
+      <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px;">No sessions available</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Buy an interview session to get started.</div>
+      <a href="https://agzit.com/product/ai-mock-interview/" target="_blank" style="display:inline-block;padding:12px 28px;background:var(--blue);color:#fff;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;transition:background .15s;" onmouseenter="this.style.background='#1536a8'" onmouseleave="this.style.background='var(--blue)'">Buy Interview Session &rarr;</a>
     </div>
 
     <div class="alert alert-err"  id="alertErr"></div>
@@ -173,13 +179,13 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
           <input type="radio" id="plan20" name="plan" value="20">
           <div class="plan-name">20 Minutes</div>
           <div class="plan-desc">Focused session — key phases covered</div>
-          <div class="plan-credits" id="pc20">— credits</div>
+          <div class="plan-credits" id="pc20">— sessions</div>
         </label>
         <label class="plan-opt" id="opt30" for="plan30">
           <input type="radio" id="plan30" name="plan" value="30">
           <div class="plan-name">30 Minutes</div>
           <div class="plan-desc">Full interview — all phases + scenarios</div>
-          <div class="plan-credits" id="pc30">— credits</div>
+          <div class="plan-credits" id="pc30">— sessions</div>
         </label>
       </div>
 
@@ -227,17 +233,17 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     showErr('Failed to load account data. Please refresh.');
   }
 
-  // ── Render credit cards ────────────────────────────────────────────────────
+  // ── Render session cards ───────────────────────────────────────────────────
   function renderCredits() {
     const c20 = entitlements.sessions_20 || 0;
     const c30 = entitlements.sessions_30 || 0;
 
     $('credits20').textContent = c20;
     $('credits30').textContent = c30;
-    $('label20').textContent   = c20 === 1 ? 'credit available' : 'credits available';
-    $('label30').textContent   = c30 === 1 ? 'credit available' : 'credits available';
-    $('pc20').textContent      = `${c20} credit${c20 === 1 ? '' : 's'} available`;
-    $('pc30').textContent      = `${c30} credit${c30 === 1 ? '' : 's'} available`;
+    $('label20').textContent   = c20 === 1 ? 'session available' : 'sessions available';
+    $('label30').textContent   = c30 === 1 ? 'session available' : 'sessions available';
+    $('pc20').textContent      = `${c20} session${c20 === 1 ? '' : 's'} available`;
+    $('pc30').textContent      = `${c30} session${c30 === 1 ? '' : 's'} available`;
 
     $('card20').classList.toggle('zero', c20 === 0);
     $('card30').classList.toggle('zero', c30 === 0);
@@ -251,7 +257,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     if (c30 === 0) $('opt30').classList.add('disabled');
 
     if (c20 === 0 && c30 === 0) {
-      showWarn('You have no interview credits. Purchase a plan from your dashboard to start a session.');
+      $('buyPanel').style.display = 'block';
     }
   }
   renderCredits();
