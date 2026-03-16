@@ -3461,7 +3461,7 @@ router.get('/naukri-jobs', ...guard, async (req, res) => {
       );
     }
 
-    console.log(`[naukri-jobs] Apify returned ${jobs.length} jobs for "${keyword}" in ${location}`);
+    console.log(`[naukri-jobs] Apify returned ${jobs.length} jobs for "${keyword}" (${countryCode})`);
     return res.json({ ok: true, jobs, total: jobs.length, cached: false });
   } catch (err) {
     console.error('[naukri-jobs] error:', err.name, err.message, err.stack?.split('\n').slice(0, 3).join(' '));
