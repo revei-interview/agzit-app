@@ -3352,23 +3352,38 @@ router.get('/naukri-jobs', ...guard, async (req, res) => {
       } catch (_) { /* corrupted cache, refetch */ }
     }
 
-    // Call Apify (async polling pattern)
+    // Call Apify (async polling pattern) — codemaverick~naukri-job-scraper-latest
     const apifyToken = process.env.APIFY_API_TOKEN;
     if (!apifyToken) {
       return res.status(503).json({ ok: false, error: 'Job search service not configured' });
     }
 
-    const countryLabel = SUPPORTED_COUNTRIES.find(c => c.code === countryCode)?.label || '';
-    const location = countryCode === 'IN' ? 'India' : countryLabel;
+    // Build Naukri search URL from keyword + country
+    function buildNaukriUrl(kw, cc) {
+      const slug = kw.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+      const locationMap = {
+        IN: 'india', AE: 'dubai', GB: 'united-kingdom',
+        US: 'united-states', SG: 'singapore', CA: 'canada',
+      };
+      const loc = locationMap[cc] || 'india';
+      if (cc === 'IN') {
+        return `https://www.naukri.com/${slug}-jobs-in-india`;
+      }
+      return `https://www.naukri.com/${slug}-jobs?k=${encodeURIComponent(kw)}&l=${loc}`;
+    }
 
-    console.log(`[naukri-jobs] Apify async call: keyword="${keyword}", location="${location}"`);
+    const naukriUrl = buildNaukriUrl(keyword, countryCode);
+    console.log(`[naukri-jobs] Apify async call: keyword="${keyword}", naukriUrl="${naukriUrl}"`);
 
     // Step 1: Start actor run
-    const startUrl = `https://api.apify.com/v2/acts/nuclear_quietude~naukri-job-scraper/runs?token=${encodeURIComponent(apifyToken)}`;
+    const startUrl = `https://api.apify.com/v2/acts/codemaverick~naukri-job-scraper-latest/runs?token=${encodeURIComponent(apifyToken)}`;
     const startRes = await fetch(startUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keyword, location, maxResults: 20 }),
+      body: JSON.stringify({
+        startUrls: [{ url: naukriUrl }],
+        desired_results: 20,
+      }),
       signal: AbortSignal.timeout(15000),
     });
 
