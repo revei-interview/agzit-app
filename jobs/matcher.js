@@ -100,6 +100,30 @@ const INDUSTRY_KEYWORDS = {
   other:            [],
 };
 
+// ── Spam filter ──────────────────────────────────────────────────────────────
+function isSpamJob(job) {
+  const title = (job.title || '').toLowerCase();
+  const company = (job.company || '').toLowerCase();
+
+  const spamTitlePhrases = [
+    'apply now bank job', 'bank job vacancies open in your city',
+    'fresher and experienced both', 'job salary =',
+    'urgent requirements', 'various post available',
+    'male and female candidate', 'job requirements for male',
+    'good bank job vacancies', 'join bank job vacancies',
+  ];
+
+  if (spamTitlePhrases.some(phrase => title.includes(phrase))) return true;
+
+  // Company "confidential" with very generic title
+  if (company === 'confidential' &&
+      (title.includes('bank job') || title.includes('apply now') || title.includes('vacancies open'))) {
+    return true;
+  }
+
+  return false;
+}
+
 // ── Matching engine ─────────────────────────────────────────────────────────
 function matchJobsForCandidate(profile, jobs) {
   if (!jobs || !jobs.length) return [];
@@ -143,8 +167,17 @@ function matchJobsForCandidate(profile, jobs) {
   const acceptableCities = new Set(preferredLocations.map(l => l.city).filter(Boolean));
   const acceptableCountryCodes = new Set(preferredLocations.map(l => l.countryCode).filter(Boolean));
 
+  // Debug: log candidate prefs once per call
+  console.log('[matcher-debug] candidate prefs:', JSON.stringify({
+    preferredLocations, acceptableCountryCodes: [...acceptableCountryCodes],
+    acceptableCities: [...acceptableCities], workType, openToRelocate, desiredRole
+  }));
+
+  // ── Spam filter ─────────────────────────────────────────────────────────
+  const cleanJobs = jobs.filter(job => !isSpamJob(job));
+
   // ── Score each job ────────────────────────────────────────────────────────
-  const scored = jobs.map(job => {
+  const scored = cleanJobs.map(job => {
     let score = 0;
     const breakdown = {};
 
@@ -171,7 +204,8 @@ function matchJobsForCandidate(profile, jobs) {
           const cityOk = [...acceptableCities].some(city =>
             city && (jobCity.includes(city) || jobLocation.includes(city)));
           locationOk = countryOk || cityOk;
-          if (!locationOk && openToRelocate) locationOk = true;
+          // open_to_relocate = within preferred COUNTRIES only, not worldwide
+          if (!locationOk && openToRelocate) locationOk = countryOk;
         }
       }
 
@@ -249,7 +283,7 @@ function matchJobsForCandidate(profile, jobs) {
       const countryMatch = acceptableCountryCodes.has(jobCC);
       if (cityMatch) locationScore = 20;
       else if (countryMatch) locationScore = 15;
-      else if (openToRelocate) locationScore = 5;
+      else if (openToRelocate && countryMatch) locationScore = 5;
     } else if (isRemote && openToRelocate) {
       locationScore = 10;
     }
@@ -310,7 +344,7 @@ function matchJobsForCandidate(profile, jobs) {
   });
 
   return deduped
-    .filter(j => j.score >= 65)
+    .filter(j => j.score >= 70)
     .sort((a, b) => b.score - a.score || new Date(b.date_posted || 0) - new Date(a.date_posted || 0))
     .slice(0, 25);
 }
