@@ -3352,22 +3352,39 @@ router.get('/naukri-jobs', ...guard, async (req, res) => {
       } catch (_) { /* corrupted cache, refetch */ }
     }
 
-    // Call Apify (async polling pattern) — nuclear_quietude~naukri-job-scraper
+    // Call Apify (async polling pattern) — codemaverick~naukri-job-scraper-latest
     const apifyToken = process.env.APIFY_API_TOKEN;
     if (!apifyToken) {
       return res.status(503).json({ ok: false, error: 'Job search service not configured' });
     }
 
-    const countryName = SUPPORTED_COUNTRIES.find(c => c.code === countryCode)?.label || 'India';
+    // Build Naukri search URL with correct format: /slug-jobs-in-india?k=keyword&l=india
+    function buildNaukriUrl(kw, cc) {
+      const slug = kw.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+      const locationMap = {
+        IN: { param: 'india', suffix: '-in-india' },
+        AE: { param: 'dubai', suffix: '' },
+        GB: { param: 'united-kingdom', suffix: '' },
+        US: { param: 'united-states', suffix: '' },
+        SG: { param: 'singapore', suffix: '' },
+        CA: { param: 'canada', suffix: '' },
+      };
+      const loc = locationMap[cc] || locationMap['IN'];
+      return `https://www.naukri.com/${slug}-jobs${loc.suffix}?k=${encodeURIComponent(kw)}&l=${loc.param}`;
+    }
 
-    console.log(`[naukri-jobs] Apify async call: keyword="${keyword}", location="${countryName}"`);
+    const naukriUrl = buildNaukriUrl(keyword, countryCode);
+    console.log(`[naukri-jobs] Apify async call: keyword="${keyword}", url="${naukriUrl}"`);
 
     // Step 1: Start actor run
-    const startUrl = `https://api.apify.com/v2/acts/nuclear_quietude~naukri-job-scraper/runs?token=${encodeURIComponent(apifyToken)}`;
+    const startUrl = `https://api.apify.com/v2/acts/codemaverick~naukri-job-scraper-latest/runs?token=${encodeURIComponent(apifyToken)}`;
     const startRes = await fetch(startUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keyword, location: countryName, maxResults: 20 }),
+      body: JSON.stringify({
+        startUrls: [{ url: naukriUrl }],
+        desired_results: 20,
+      }),
       signal: AbortSignal.timeout(15000),
     });
 
