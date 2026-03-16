@@ -46,6 +46,9 @@ Go to your service → Environment → Add these:
 | `APP_URL` | `https://agzit.onrender.com` |
 | `WP_URL` | `https://agzit.com` |
 | `NODE_ENV` | `production` |
+| `CLOUDINARY_CLOUD_NAME` | Your Cloudinary cloud name |
+| `CLOUDINARY_API_KEY` | Your Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | Your Cloudinary API secret |
 
 ### Step 5 — Deploy
 Click **Deploy** in Render. Your app will be live at:

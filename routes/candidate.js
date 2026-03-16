@@ -15,8 +15,30 @@ const path         = require('path');
 const fs           = require('fs');
 const pdfParse     = require('pdf-parse');
 const sanitizeHtml = require('sanitize-html');
+const cloudinary    = require('cloudinary').v2;
 const { matchJobsForCandidate } = require('../jobs/matcher');
 const { fetchJSearchLive }      = require('../jobs/fetcher');
+
+// ── Cloudinary setup ─────────────────────────────────────────────────────────
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+/**
+ * Upload a buffer to Cloudinary (raw resource type for PDFs/docs).
+ * Returns the secure_url on success.
+ */
+function uploadToCloudinary(buffer, publicId) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { resource_type: 'raw', folder: 'agzit-resumes', public_id: publicId, overwrite: true },
+      (err, result) => (err ? reject(err) : resolve(result))
+    );
+    stream.end(buffer);
+  });
+}
 
 // In-memory cache for live per-candidate job searches (24h TTL)
 const liveJobCache = {};
@@ -1897,25 +1919,6 @@ router.get('/download', ...guard, async (req, res) => {
       const raw = String(meta.resume_upload || '').trim();
       if (!raw) return res.status(404).json({ ok: false, error: 'No resume uploaded' });
 
-      // resume_upload is an attachment post ID (integer string) or JSON array with ID key
-      let attachId = null;
-      if (/^\d+$/.test(raw)) {
-        attachId = parseInt(raw);
-      } else {
-        try {
-          const parsed = JSON.parse(raw);
-          attachId = parsed?.ID ? parseInt(parsed.ID) : null;
-        } catch (_) {}
-      }
-
-      if (!attachId) return res.status(404).json({ ok: false, error: 'Invalid resume upload reference' });
-
-      const [[post]] = await pool.execute(
-        'SELECT guid FROM wp_posts WHERE ID = ? AND post_type = "attachment" LIMIT 1',
-        [attachId]
-      );
-      if (!post?.guid) return res.status(404).json({ ok: false, error: 'Resume file not found' });
-
       // Fire-and-forget: increment resume_download_count in wp_postmeta
       pool.execute(
         `SELECT meta_id, meta_value FROM wp_postmeta WHERE post_id = ? AND meta_key = 'resume_download_count' LIMIT 1`,
@@ -1929,7 +1932,42 @@ router.get('/download', ...guard, async (req, res) => {
           [profileId, 'resume_download_count', '1']);
       }).catch(() => {});
 
-      return res.redirect(302, post.guid);
+      // Cloudinary URL — redirect directly
+      if (raw.startsWith('http')) {
+        return res.redirect(302, raw);
+      }
+
+      // Fallback: serve from agzit_resume_files BLOB
+      const [[blobRow]] = await pool.execute(
+        'SELECT filename, mimetype, filedata FROM agzit_resume_files WHERE user_id = ? LIMIT 1',
+        [req.user.user_id]
+      );
+      if (blobRow?.filedata) {
+        res.setHeader('Content-Type', blobRow.mimetype || 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${blobRow.filename || 'resume.pdf'}"`);
+        res.setHeader('Content-Length', blobRow.filedata.length);
+        return res.send(blobRow.filedata);
+      }
+
+      // Legacy: WP attachment ID lookup
+      let attachId = null;
+      if (/^\d+$/.test(raw)) {
+        attachId = parseInt(raw);
+      } else {
+        try {
+          const parsed = JSON.parse(raw);
+          attachId = parsed?.ID ? parseInt(parsed.ID) : null;
+        } catch (_) {}
+      }
+      if (attachId) {
+        const [[post]] = await pool.execute(
+          'SELECT guid FROM wp_posts WHERE ID = ? AND post_type = "attachment" LIMIT 1',
+          [attachId]
+        );
+        if (post?.guid) return res.redirect(302, post.guid);
+      }
+
+      return res.status(404).json({ ok: false, error: 'Resume file not found' });
     }
 
     // ── Certificate ──────────────────────────────────────────────────────────
@@ -2265,10 +2303,46 @@ router.get('/resume/download', async (req, res) => {
       }
     }
 
-    // Resolve attachment ID from resume_upload (stored as integer or JSON array)
+    // Resolve resume URL or attachment
     const rawUpload = String(meta.resume_upload || '').trim();
     if (!rawUpload) return res.status(404).json({ ok: false, error: 'No resume uploaded' });
 
+    // Cloudinary URL — proxy through Render so URL is never exposed
+    if (rawUpload.startsWith('http')) {
+      const fileRes = await fetch(rawUpload);
+      if (!fileRes.ok) {
+        console.error('[resume/download] Cloudinary fetch failed:', fileRes.status, rawUpload);
+        return res.status(502).json({ ok: false, error: 'Could not retrieve resume file' });
+      }
+      const buffer = Buffer.from(await fileRes.arrayBuffer());
+      const contentType = fileRes.headers.get('content-type') || 'application/pdf';
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `attachment; filename="${dprId}_resume.pdf"`);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Length', buffer.length);
+      return res.send(buffer);
+    }
+
+    // Fallback: serve from agzit_resume_files BLOB
+    const [[ownerRow]] = await pool.execute(
+      `SELECT u.id FROM agzit_users u WHERE u.dpr_profile_id = ? LIMIT 1`,
+      [profileId]
+    );
+    if (ownerRow) {
+      const [[blobRow]] = await pool.execute(
+        'SELECT filename, mimetype, filedata FROM agzit_resume_files WHERE user_id = ? LIMIT 1',
+        [ownerRow.id]
+      );
+      if (blobRow?.filedata) {
+        res.setHeader('Content-Type', blobRow.mimetype || 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${dprId}_resume.pdf"`);
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Content-Length', blobRow.filedata.length);
+        return res.send(blobRow.filedata);
+      }
+    }
+
+    // Legacy: WP attachment ID lookup
     let attachId = null;
     if (/^\d+$/.test(rawUpload)) {
       attachId = parseInt(rawUpload);
@@ -2278,28 +2352,25 @@ router.get('/resume/download', async (req, res) => {
         attachId = parsed?.ID ? parseInt(parsed.ID) : null;
       } catch (_) {}
     }
-    if (!attachId) return res.status(404).json({ ok: false, error: 'Invalid resume reference' });
-
-    // Fetch WP attachment URL
-    const [[attachPost]] = await pool.execute(
-      'SELECT guid FROM wp_posts WHERE ID = ? AND post_type = "attachment" LIMIT 1',
-      [attachId]
-    );
-    if (!attachPost?.guid) return res.status(404).json({ ok: false, error: 'Resume file not found' });
-
-    // Proxy the file through Render so the WP attachment URL is never exposed to the browser
-    const fileRes = await fetch(attachPost.guid);
-    if (!fileRes.ok) {
-      console.error('[resume/download] upstream fetch failed:', fileRes.status, attachPost.guid);
-      return res.status(502).json({ ok: false, error: 'Could not retrieve resume file' });
+    if (attachId) {
+      const [[attachPost]] = await pool.execute(
+        'SELECT guid FROM wp_posts WHERE ID = ? AND post_type = "attachment" LIMIT 1',
+        [attachId]
+      );
+      if (attachPost?.guid) {
+        const fileRes = await fetch(attachPost.guid);
+        if (fileRes.ok) {
+          const buffer = Buffer.from(await fileRes.arrayBuffer());
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `attachment; filename="${dprId}_resume.pdf"`);
+          res.setHeader('X-Content-Type-Options', 'nosniff');
+          res.setHeader('Content-Length', buffer.length);
+          return res.send(buffer);
+        }
+      }
     }
 
-    const buffer = Buffer.from(await fileRes.arrayBuffer());
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${dprId}_resume.pdf"`);
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Content-Length', buffer.length);
-    return res.send(buffer);
+    return res.status(404).json({ ok: false, error: 'Resume file not found' });
 
   } catch (err) {
     console.error('[resume/download]', err);
@@ -2699,6 +2770,12 @@ router.post('/resume', requireAuth, upload.single('resume'), async (req, res) =>
     const filedata = req.file.buffer;
     const nowStr   = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
+    // Upload to Cloudinary
+    const publicId = `resume_${req.user.user_id}_${Date.now()}`;
+    const cloudResult = await uploadToCloudinary(filedata, publicId);
+    const resumeUrl = cloudResult.secure_url;
+
+    // Store metadata in agzit_resume_files (keep blob as backup)
     await pool.execute(
       `INSERT INTO agzit_resume_files (user_id, profile_post_id, filename, mimetype, filedata, uploaded_at)
        VALUES (?, ?, ?, ?, ?, ?)
@@ -2708,11 +2785,11 @@ router.post('/resume', requireAuth, upload.single('resume'), async (req, res) =>
       [req.user.user_id, profileId, filename, mimetype, filedata, nowStr]
     );
     await upsertPostMeta(profileId, 'has_resume',        '1');
-    await upsertPostMeta(profileId, 'resume_upload',      String(profileId));
+    await upsertPostMeta(profileId, 'resume_upload',      resumeUrl);
     await upsertPostMeta(profileId, 'resume_filename',    filename);
     await upsertPostMeta(profileId, 'resume_uploaded_at', nowStr);
 
-    console.log(`[resume] Saved ${filename} for profile ${profileId}, ${req.file.size} bytes`);
+    console.log(`[resume] Saved ${filename} for profile ${profileId} → Cloudinary: ${resumeUrl}`);
     return res.json({ ok: true, filename, path: '/api/candidate/download?type=resume' });
   } catch (err) {
     console.error('[resume]', err);
@@ -2746,7 +2823,12 @@ router.post('/dpr/:postId/resume', requireAuth, upload.single('resume'), async (
     const filedata  = req.file.buffer;
     const nowStr    = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
-    // UPSERT into agzit_resume_files (unique key on user_id)
+    // Upload to Cloudinary
+    const publicId = `resume_${req.user.user_id}_${Date.now()}`;
+    const cloudResult = await uploadToCloudinary(filedata, publicId);
+    const resumeUrl = cloudResult.secure_url;
+
+    // UPSERT into agzit_resume_files (unique key on user_id) — keep blob as backup
     await pool.execute(
       `INSERT INTO agzit_resume_files (user_id, profile_post_id, filename, mimetype, filedata, uploaded_at)
        VALUES (?, ?, ?, ?, ?, ?)
@@ -2757,11 +2839,11 @@ router.post('/dpr/:postId/resume', requireAuth, upload.single('resume'), async (
     );
 
     await upsertPostMeta(postId, 'has_resume',         '1');
-    await upsertPostMeta(postId, 'resume_upload',       String(postId));
+    await upsertPostMeta(postId, 'resume_upload',       resumeUrl);
     await upsertPostMeta(postId, 'resume_filename',     filename);
     await upsertPostMeta(postId, 'resume_uploaded_at',  nowStr);
 
-    console.log(`[dpr/resume] Saved resume for post ${postId}, ${req.file.size} bytes`);
+    console.log(`[dpr/resume] Saved resume for post ${postId} → Cloudinary: ${resumeUrl}`);
     return res.json({ ok: true });
   } catch (err) {
     console.error('[dpr/resume]', err);
