@@ -155,7 +155,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 }
 
 /* ── Tabs ────────────────────────────────────────────────────────────────── */
-.tabs-outer { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+.tabs-outer { background: var(--white); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); width: 100%; box-sizing: border-box; overflow: visible; }
 .tabs-nav {
   display: flex; border-bottom: 2px solid var(--line); padding: 0 4px;
   overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
@@ -1036,13 +1036,13 @@ select.jp-input {
 
           <!-- ── Refer & Earn ─────────────────────────────────────── -->
           <div class="tab-pane" id="tab-referral">
-            <div style="max-width:800px;">
+            <div style="width:100%;max-width:100%;box-sizing:border-box;">
               <div style="text-align:center;margin-bottom:40px;">
                 <h2 style="font-size:24px;color:var(--ink,#09101F);margin:0 0 8px;">Refer Friends & Earn Credits</h2>
                 <p style="color:var(--soft,#3A4163);margin:0;">Get 1 free credit for each friend who joins AGZIT. Use credits for Career Analyzer, AI Resume Polish and AI Resume Generation.</p>
               </div>
 
-              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:40px;">
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;width:100%;margin-bottom:20px;">
                 <div style="background:var(--blue-lt,#EAF0FF);padding:20px;border-radius:12px;border:1px solid var(--blue,#1A44C2);">
                   <p style="color:var(--muted,#7C83A0);font-size:12px;margin:0 0 8px;text-transform:uppercase;">Pending Invites</p>
                   <p id="ref-pending" style="font-size:28px;font-weight:600;color:var(--blue,#1A44C2);margin:0;">0</p>
@@ -1060,19 +1060,19 @@ select.jp-input {
               <div style="background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin-bottom:20px;">
                 <p style="font-size:13px;font-weight:600;color:var(--ink);margin:0 0 10px;">What can I use credits for?</p>
                 <div style="display:flex;gap:12px;flex-wrap:wrap;">
-                  <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--soft);">
-                    <span style="color:var(--blue);">📊</span> Career Analyzer Report
+                  <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--soft);">
+                    <span style="width:6px;height:6px;background:var(--blue);border-radius:2px;display:inline-block;flex-shrink:0;"></span> Career Analyzer Report
                   </div>
-                  <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--soft);">
-                    <span style="color:var(--blue);">✨</span> AI Resume Polish
+                  <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--soft);">
+                    <span style="width:6px;height:6px;background:var(--blue);border-radius:2px;display:inline-block;flex-shrink:0;"></span> AI Resume Polish
                   </div>
-                  <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--soft);">
-                    <span style="color:var(--blue);">📄</span> AI Resume from Job Description
+                  <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--soft);">
+                    <span style="width:6px;height:6px;background:var(--blue);border-radius:2px;display:inline-block;flex-shrink:0;"></span> AI Resume from Job Description
                   </div>
                 </div>
               </div>
 
-              <div style="background:white;border:1px solid var(--line,#E4E6EF);border-radius:12px;padding:24px;margin-bottom:30px;">
+              <div style="background:white;border:1px solid var(--line,#E4E6EF);border-radius:12px;padding:24px;margin-bottom:30px;width:100%;box-sizing:border-box;">
                 <h3 style="color:var(--ink,#09101F);margin:0 0 16px;">Invite a Friend</h3>
                 <div style="display:flex;gap:12px;flex-wrap:wrap;">
                   <input type="email" id="referral-email" placeholder="Enter friend's email address"
@@ -1085,7 +1085,7 @@ select.jp-input {
                 <p id="referral-message" style="margin:12px 0 0;font-size:13px;color:var(--soft,#3A4163);display:none;"></p>
               </div>
 
-              <div style="background:white;border:1px solid var(--line,#E4E6EF);border-radius:12px;padding:24px;">
+              <div style="background:white;border:1px solid var(--line,#E4E6EF);border-radius:12px;padding:24px;width:100%;box-sizing:border-box;">
                 <h3 style="color:var(--ink,#09101F);margin:0 0 16px;">Referral History</h3>
                 <div id="referral-history" style="max-height:400px;overflow-y:auto;">
                   <p style="color:var(--muted,#7C83A0);text-align:center;padding:20px;">No referrals yet. Invite your first friend!</p>
@@ -2780,7 +2780,7 @@ async function loadJobsForYou() {
     }
 
     // Update tab badge
-    document.getElementById('tab-btn-jobs').innerHTML = 'Jobs For You <span style="display:inline-block;background:#991B1B;color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:4px;vertical-align:middle;">' + _jobsData.length + '</span>';
+    document.getElementById('tab-btn-jobs').innerHTML = 'Jobs For You <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#E53E3E;color:white;border-radius:50%;font-size:10px;font-weight:700;margin-left:4px;vertical-align:middle;flex-shrink:0;">' + _jobsData.length + '</span>';
 
     document.getElementById('jobs-content').style.display = '';
     document.getElementById('jobs-empty').style.display = 'none';
