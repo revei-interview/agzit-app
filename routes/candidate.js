@@ -18,6 +18,7 @@ const sanitizeHtml = require('sanitize-html');
 const cloudinary    = require('cloudinary').v2;
 const { matchJobsForCandidate } = require('../jobs/matcher');
 const { fetchJSearchLive }      = require('../jobs/fetcher');
+const { SUPPORTED_INDUSTRIES, SUPPORTED_COUNTRIES } = require('../config/industries');
 
 // ── Cloudinary setup ─────────────────────────────────────────────────────────
 cloudinary.config({
@@ -590,6 +591,18 @@ router.get('/profile', ...guard, async (req, res) => {
 
     const badges = await calculateVerifiedBadges(req.user.user_id);
 
+    // Fetch sub-industries from wp_usermeta
+    let candidateSubIndustries = [];
+    if (req.user.wp_user_id) {
+      const [[subRow]] = await pool.execute(
+        "SELECT meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'candidate_sub_industries' LIMIT 1",
+        [req.user.wp_user_id]
+      );
+      if (subRow?.meta_value) {
+        try { candidateSubIndustries = JSON.parse(subRow.meta_value); } catch (_) {}
+      }
+    }
+
     res.json({
       ok:              true,
       has_dpr_profile: true,
@@ -669,6 +682,7 @@ router.get('/profile', ...guard, async (req, res) => {
 
         // ── New fields
         key_achievements:                 meta.key_achievements,
+        candidate_sub_industries:         candidateSubIndustries,
         badges,
       },
     });
@@ -1746,6 +1760,12 @@ router.put('/profile', ...guard, async (req, res) => {
         }
         await upsertPostMeta(profileId, field, b[field]);
       }
+    }
+
+    // ── Sub-industry (stored in wp_usermeta, not postmeta) ───────────────────
+    if (b.candidate_sub_industries !== undefined && req.user.wp_user_id) {
+      const subs = Array.isArray(b.candidate_sub_industries) ? b.candidate_sub_industries : [];
+      await upsertUserMeta(req.user.wp_user_id, 'candidate_sub_industries', JSON.stringify(subs));
     }
 
     // ── Work Experience repeater ───────────────────────────────────────────────
@@ -3267,6 +3287,109 @@ router.get('/jobs', ...guard, async (req, res) => {
     return res.json({ ok: true, jobs: matched, total: matched.length });
   } catch (err) {
     console.error('[jobs/match]', err.message);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── GET /api/candidate/naukri-jobs — Naukri jobs via Apify ────────────────────
+router.get('/naukri-jobs', ...guard, async (req, res) => {
+  try {
+    const { industry, sub_industries, country } = req.query;
+
+    // Validate industry
+    if (!industry || !SUPPORTED_INDUSTRIES[industry]) {
+      return res.status(400).json({ ok: false, error: 'Unsupported or missing industry' });
+    }
+
+    // Validate country
+    const validCodes = new Set(SUPPORTED_COUNTRIES.map(c => c.code));
+    const countryCode = (country || 'IN').toUpperCase();
+    if (!validCodes.has(countryCode)) {
+      return res.status(400).json({ ok: false, error: 'Unsupported country' });
+    }
+
+    // Build search keyword
+    const ind = SUPPORTED_INDUSTRIES[industry];
+    let keyword;
+    if (sub_industries) {
+      const subs = sub_industries.split(',').map(s => s.trim()).filter(Boolean);
+      keyword = subs.join(' OR ');
+    } else {
+      keyword = ind.label;
+    }
+
+    // Cache key: deterministic hash of industry + subs + country
+    const cacheKey = `${industry}:${(sub_industries || '').toLowerCase()}:${countryCode}`;
+
+    // Check cache (6h TTL)
+    const [[cached]] = await pool.execute(
+      'SELECT jobs_json FROM agzit_jobs_cache WHERE cache_key = ? AND expires_at > NOW() LIMIT 1',
+      [cacheKey]
+    );
+    if (cached) {
+      try {
+        const jobs = JSON.parse(cached.jobs_json);
+        console.log(`[naukri-jobs] cache HIT: ${cacheKey}, ${jobs.length} jobs`);
+        return res.json({ ok: true, jobs, total: jobs.length, cached: true });
+      } catch (_) { /* corrupted cache, refetch */ }
+    }
+
+    // Call Apify
+    const apifyToken = process.env.APIFY_API_TOKEN;
+    if (!apifyToken) {
+      return res.status(503).json({ ok: false, error: 'Job search service not configured' });
+    }
+
+    const countryLabel = SUPPORTED_COUNTRIES.find(c => c.code === countryCode)?.label || '';
+    const location = countryCode === 'IN' ? 'India' : countryLabel;
+
+    console.log(`[naukri-jobs] Apify call: keyword="${keyword}", location="${location}"`);
+
+    const apifyUrl = `https://api.apify.com/v2/acts/codemaverick~naukri-job-scraper-latest/run-sync-get-dataset-items?token=${encodeURIComponent(apifyToken)}`;
+    const apifyRes = await fetch(apifyUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        keyword,
+        location,
+        maxItems: 20,
+      }),
+      signal: AbortSignal.timeout(120000), // 2 min timeout
+    });
+
+    if (!apifyRes.ok) {
+      const errText = await apifyRes.text().catch(() => '');
+      console.error(`[naukri-jobs] Apify error: ${apifyRes.status}`, errText.slice(0, 500));
+      return res.status(502).json({ ok: false, error: 'Job search service error' });
+    }
+
+    const rawItems = await apifyRes.json();
+
+    // Normalize to standard format, max 20
+    const jobs = (Array.isArray(rawItems) ? rawItems : []).slice(0, 20).map(item => ({
+      title:      item.title || item.jobTitle || '',
+      company:    item.company || item.companyName || '',
+      location:   item.location || item.jobLocation || '',
+      experience: item.experience || item.experienceRequired || '',
+      salary:     item.salary || item.salaryRange || '',
+      skills:     item.skills || item.keySkills || '',
+      applyLink:  item.applyLink || item.jobUrl || item.url || '',
+      postedDate: item.postedDate || item.datePosted || '',
+    }));
+
+    // Store in cache (6h TTL)
+    const jobsJson = JSON.stringify(jobs);
+    await pool.execute(
+      `INSERT INTO agzit_jobs_cache (cache_key, jobs_json, fetched_at, expires_at)
+       VALUES (?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 6 HOUR))
+       ON DUPLICATE KEY UPDATE jobs_json = VALUES(jobs_json), fetched_at = NOW(), expires_at = DATE_ADD(NOW(), INTERVAL 6 HOUR)`,
+      [cacheKey, jobsJson]
+    );
+
+    console.log(`[naukri-jobs] Apify returned ${jobs.length} jobs for "${keyword}" in ${location}`);
+    return res.json({ ok: true, jobs, total: jobs.length, cached: false });
+  } catch (err) {
+    console.error('[naukri-jobs]', err.message);
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });

@@ -384,6 +384,10 @@
           <option value="travel">Travel / Ticketing / Reservations</option>
         </select>
       </div>
+      <div class="field full" id="sub-industry-field" style="display:none;">
+        <label class="label">Specialisation / Sub-Industry</label>
+        <div id="sub-industry-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;"></div>
+      </div>
       <div class="field">
         <label class="label">Total Work Experience (years)</label>
         <input type="number" id="f_total_work_experience" min="0" max="50" placeholder="e.g. 5">
@@ -1052,6 +1056,53 @@ function getVal(id) { return (document.getElementById(id)?.value || '').trim(); 
 function setVal(id, v) { const el = document.getElementById(id); if (el) el.value = v || ''; }
 
 // Extract first industry key from raw stored value (PHP serialized, JSON array, or plain string)
+// ── Supported Industries (mirrored from config/industries.js) ─────────────
+var SUPPORTED_INDUSTRIES = {
+  accounting:    { label: 'Accounting / Taxation / Audit',       subs: ['Accounts Payable', 'Accounts Receivable', 'GST', 'Taxation', 'Bookkeeping', 'Reconciliation'] },
+  audit:         { label: 'Audit & Assurance',                   subs: ['Internal Audit', 'External Audit', 'SOX Compliance', 'Statutory Audit', 'IS Audit'] },
+  banking:       { label: 'Banking / Financial Services',        subs: ['Retail Banking', 'Trade Finance', 'Loan Processing', 'Credit Analysis', 'NBFC'] },
+  compliance:    { label: 'Compliance / Regulatory',             subs: ['KYC', 'AML', 'Transaction Monitoring', 'Sanctions', 'CKYC', 'FATF Compliance'] },
+  cybersecurity: { label: 'Cybersecurity / InfoSec',             subs: ['SOC Analyst', 'VAPT', 'InfoSec', 'Penetration Testing', 'Vulnerability Assessment'] },
+  finance:       { label: 'Finance / Treasury',                  subs: ['Treasury', 'Cash Management', 'FP&A', 'Corporate Finance', 'Financial Planning'] },
+  fraud:         { label: 'Fraud / Anti-Fraud',                  subs: ['Fraud Analyst', 'AML', 'Chargeback', 'Fraud Investigation', 'Anti-Money Laundering'] },
+  hr:            { label: 'Human Resources / People Ops',        subs: ['Talent Acquisition', 'Recruiter', 'HRBP', 'Learning & Development', 'Payroll', 'HR Generalist'] },
+  it:            { label: 'IT / Systems',                        subs: ['System Admin', 'Network Admin', 'IT Support', 'Infrastructure', 'ERP', 'IT Operations'] },
+  risk:          { label: 'Risk Management',                     subs: ['Credit Risk', 'Market Risk', 'Operational Risk', 'Basel', 'Risk Analyst'] },
+  software:      { label: 'Software Development / Engineering',  subs: ['React', 'Node.js', 'Python', 'Java', 'Full Stack Developer', 'Backend', 'Frontend'] },
+};
+
+function updateEditSubIndustries(industryKey, savedSubs) {
+  var field = document.getElementById('sub-industry-field');
+  var list = document.getElementById('sub-industry-list');
+  if (!field || !list) return;
+  if (!industryKey || !SUPPORTED_INDUSTRIES[industryKey]) {
+    field.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+  field.style.display = '';
+  var subs = SUPPORTED_INDUSTRIES[industryKey].subs;
+  var savedSet = new Set(savedSubs || []);
+  list.innerHTML = '';
+  subs.slice().sort(function(a, b) { return a.localeCompare(b); }).forEach(function(sub) {
+    var label = document.createElement('label');
+    label.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid #e4e6ef;font-size:13px;font-weight:500;color:#3a4163;cursor:pointer;';
+    var checked = savedSet.has(sub) ? ' checked' : '';
+    label.innerHTML = '<input type="checkbox" class="edit-sub-cb" value="' + sub + '"' + checked + ' style="accent-color:#1a44c2;"> ' + sub;
+    list.appendChild(label);
+  });
+}
+
+// Attach industry change listener once DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+  var indSel = document.getElementById('f_compliance_domains');
+  if (indSel) {
+    indSel.addEventListener('change', function() {
+      updateEditSubIndustries(this.value, []);
+    });
+  }
+});
+
 function extractIndustryKey(raw) {
   if (!raw) return '';
   const s = String(raw).trim();
@@ -1120,6 +1171,10 @@ function populateForm(p) {
 
   // compliance_domains: raw value may be PHP-serialized or JSON — extract the key
   setVal('f_compliance_domains', extractIndustryKey(p.compliance_domains));
+
+  // Sub-industry: populate and check saved values
+  var industryKey = extractIndustryKey(p.compliance_domains);
+  updateEditSubIndustries(industryKey, p.candidate_sub_industries || []);
 
   // Gender and Date of Birth
   setVal('f_gender', p.gender);
@@ -1398,6 +1453,7 @@ async function saveProfile() {
     country_of_nationality:       getVal('f_country_of_nationality'),
     residential_country:          getVal('f_residential_country'),
     compliance_domains:           getVal('f_compliance_domains'),
+    candidate_sub_industries:     Array.from(document.querySelectorAll('.edit-sub-cb:checked')).map(function(cb) { return cb.value; }),
     current_annual_ctc_with_currency:  (getVal('f_current_ctc_currency')  + ' ' + getVal('f_current_ctc_amount')).trim(),
     expected_annual_ctc_with_currency: (getVal('f_expected_ctc_currency') + ' ' + getVal('f_expected_ctc_amount')).trim(),
     key_achievements:             getVal('f_key_achievements'),

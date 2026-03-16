@@ -488,6 +488,19 @@ async function initDB() {
     )
   `);
 
+  // Naukri jobs cache (Apify results, 6h TTL)
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS agzit_jobs_cache (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      cache_key VARCHAR(255) NOT NULL UNIQUE,
+      jobs_json LONGTEXT,
+      fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      expires_at TIMESTAMP NOT NULL,
+      INDEX idx_cache_key (cache_key),
+      INDEX idx_expires (expires_at)
+    )
+  `);
+
   // Job click tracking
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS agzit_job_clicks (
