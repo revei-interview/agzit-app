@@ -319,6 +319,10 @@
         <label class="label">Professional Summary</label>
         <textarea id="f_professional_summary_bio" placeholder="Brief overview of your professional background and specialisation..."></textarea>
       </div>
+      <div class="field full">
+        <label class="label">Professional Headline</label>
+        <input type="text" id="f_professional_headline" placeholder="e.g. Senior KYC Analyst with 8+ years in banking compliance">
+      </div>
       <div class="field">
         <label class="label">Industry / Domain</label>
         <select id="f_compliance_domains">
@@ -640,25 +644,25 @@
       <div class="field">
         <label class="label">Email Visibility</label>
         <select id="f_email_visibility">
-          <option value="public">Public — visible to all</option>
-          <option value="verified_only">Verified employers only</option>
-          <option value="not_shown">Not shown</option>
+          <option value="co_public">Public — visible to all</option>
+          <option value="co_verified_only">Verified employers only</option>
+          <option value="co_private">Not shown</option>
         </select>
       </div>
       <div class="field">
         <label class="label">Phone Visibility</label>
         <select id="f_phone_visibility">
-          <option value="public">Public — visible to all</option>
-          <option value="verified_only">Verified employers only</option>
-          <option value="not_shown">Not shown</option>
+          <option value="co_public">Public — visible to all</option>
+          <option value="co_verified_only">Verified employers only</option>
+          <option value="co_private">Not shown</option>
         </select>
       </div>
       <div class="field">
         <label class="label">Resume Visibility</label>
         <select id="f_resume_visibility">
-          <option value="public">Public — visible to all</option>
-          <option value="verified_only">Verified employers only</option>
-          <option value="private">Private — hidden</option>
+          <option value="re_public">Public — visible to all</option>
+          <option value="re_verified_only">Verified employers only</option>
+          <option value="re_private">Private — hidden</option>
         </select>
       </div>
     </div>
@@ -1088,7 +1092,7 @@ function populateForm(p) {
     'full_name','email_address','phone_number','linkedin_url',
     'professional_summary_bio','total_work_experience',
     'current_employment_status','notice_period_in_days',
-    'desired_role',
+    'desired_role','professional_headline',
     'residential_address_line_1','residential_address_line_2',
     'residential_city','residential_state','residential_zip_code',
     'profile_visibility','public_name_mode',
@@ -1099,9 +1103,9 @@ function populateForm(p) {
   // soft_skills — strip any embedded URLs before displaying
   setVal('f_soft_skills', (p.soft_skills || '').split('http')[0].trim().replace(/,\s*$/, ''));
 
-  setVal('f_email_visibility',  (p.email_visibility  || 'verified_only').replace('co_', ''));
-  setVal('f_phone_visibility',  (p.phone_visibility  || 'verified_only').replace('co_', ''));
-  setVal('f_resume_visibility', (p.resume_visibility || 'verified_only').replace('re_', ''));
+  setVal('f_email_visibility',  p.email_visibility  || 'co_verified_only');
+  setVal('f_phone_visibility',  p.phone_visibility  || 'co_verified_only');
+  setVal('f_resume_visibility', p.resume_visibility || 're_verified_only');
 
   // CTC split fields
   const curCTC = parseCTC(p.current_annual_ctc_with_currency);
@@ -1384,6 +1388,7 @@ async function saveProfile() {
     open_to_relocate:             toggleState.open_to_relocate ? '1' : '0',
     open_for_work_badge:          toggleState.open_for_work_badge ? '1' : '0',
     desired_role:                 getVal('f_desired_role'),
+    professional_headline:        getVal('f_professional_headline'),
     soft_skills:                  getVal('f_soft_skills'),
     residential_address_line_1:   getVal('f_residential_address_line_1'),
     residential_address_line_2:   getVal('f_residential_address_line_2'),

@@ -1626,7 +1626,7 @@ async function writeRepeater(postId, prefix, rows) {
 
 const PROFILE_VISIBILITY_VALUES = {
   profile_visibility: ['public', 'private'],
-  resume_visibility:  ['public', 'verified_only', 'private'],
+  resume_visibility:  ['re_public', 're_verified_only', 're_private'],
   public_name_mode:   ['full', 'first_only', 'initials'],
 };
 
@@ -1692,6 +1692,7 @@ router.put('/profile', ...guard, async (req, res) => {
       'preferred_work_type', 'work_level',
       'gender', 'date_of_birth',
       'email_visibility', 'phone_visibility',
+      'professional_headline',
     ];
     // Textarea fields that accept freeform rich text — sanitize HTML tags
     const TEXTAREA_FIELDS = new Set([
@@ -1703,6 +1704,16 @@ router.put('/profile', ...guard, async (req, res) => {
         if (f === 'soft_skills') val = val.split('http')[0].trim().replace(/,\s*$/, '');
         await upsertPostMeta(profileId, f, val);
       }
+    }
+
+    // ── CTC merge: combine separate currency + amount into single field ──────
+    if (b.current_ctc_currency && b.current_ctc_amount) {
+      const ctcVal = `${s(b.current_ctc_currency)} ${s(b.current_ctc_amount)}`;
+      await upsertPostMeta(profileId, 'current_annual_ctc_with_currency', ctcVal);
+    }
+    if (b.expected_ctc_currency && b.expected_ctc_amount) {
+      const ctcVal = `${s(b.expected_ctc_currency)} ${s(b.expected_ctc_amount)}`;
+      await upsertPostMeta(profileId, 'expected_annual_ctc_with_currency', ctcVal);
     }
 
     // ── Visibility fields (validated) ─────────────────────────────────────────
