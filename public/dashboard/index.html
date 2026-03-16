@@ -775,7 +775,6 @@ select.jp-input {
             <button class="tab-btn" data-tab="interviews" id="tab-btn-interviews">Interviews</button>
             <button class="tab-btn" data-tab="jobs-for-you" id="tab-btn-jobs">Jobs For You</button>
             <button class="tab-btn" data-tab="job">Job Preferences</button>
-            <button class="tab-btn" data-tab="account">Account</button>
             <button class="tab-btn" data-tab="resumes">My Resumes</button>
             <button class="tab-btn" data-tab="career-analyzer">Career Analyzer</button>
             <button class="tab-btn" data-tab="referral">Refer & Earn</button>
@@ -980,34 +979,7 @@ select.jp-input {
             </div>
           </div>
 
-          <!-- ── Account ───────────────────────────────────────────────── -->
-          <div class="tab-pane" id="tab-account">
-            <div style="max-width:440px;">
-              <div class="card-title" style="margin-bottom:6px;">Change Password</div>
-              <p style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6;">
-                Set a new password for your account. Must be at least 8 characters.
-              </p>
-              <div class="acc-field">
-                <label class="acc-label" for="acc-cur-pw">Current Password</label>
-                <input type="password" id="acc-cur-pw" class="acc-input" placeholder="Enter current password" autocomplete="current-password">
-              </div>
-              <div class="acc-field">
-                <label class="acc-label" for="acc-new-pw">New Password</label>
-                <input type="password" id="acc-new-pw" class="acc-input" placeholder="Enter new password" autocomplete="new-password">
-              </div>
-              <div class="acc-field">
-                <label class="acc-label" for="acc-confirm-pw">Confirm New Password</label>
-                <input type="password" id="acc-confirm-pw" class="acc-input" placeholder="Re-enter new password" autocomplete="new-password">
-              </div>
-              <button class="btn-save" id="acc-save-btn" onclick="changePassword(event)">Update Password</button>
-              <div id="acc-feedback" style="font-size:12.5px;margin-top:10px;min-height:16px;"></div>
-            </div>
-            <div class="divider" style="margin:28px 0 20px;max-width:440px;"></div>
-            <div style="max-width:440px;">
-              <div class="card-title" style="margin-bottom:6px;">Account Details</div>
-              <div id="acc-details"></div>
-            </div>
-          </div>
+          <!-- Account tab removed — Change Password is now in header dropdown modal -->
 
           <!-- ── My Resumes ────────────────────────────────────────────── -->
           <div class="tab-pane" id="tab-resumes">
@@ -1977,13 +1949,6 @@ function render(d, pd, id) {
     el('job-prefs-content').innerHTML = '<div style="text-align:center;padding:40px 24px;"><div style="font-size:36px;margin-bottom:8px;">📋</div><div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:6px;">Complete Your DPR Profile</div><div style="font-size:13px;color:var(--muted);line-height:1.5;">Build your DPR profile to set and view your job preferences.</div><a href="/register" style="display:inline-block;margin-top:12px;padding:10px 22px;background:var(--blue);color:white;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;">Build DPR Profile</a></div>';
   }
 
-  /* ── Account tab ────────────────────────────────────────────────────────── */
-  el('acc-details').innerHTML = [
-    ['Email',       user.email],
-    ['Name',        [user.first_name, user.last_name].filter(Boolean).join(' ') || '—'],
-    ['Member since', fmtDate(user.created_at)],
-  ].map(([k,v]) => `<div class="info-row"><span class="info-key">${esc(k)}</span><span class="info-val">${esc(v||'—')}</span></div>`).join('');
-
   /* ── Show app ─────────────────────────────────────────────────────────────── */
   el('loading').style.display = 'none';
   el('app').style.display     = 'block';
@@ -2295,38 +2260,63 @@ function fld(label, val, raw) {
   </div>`;
 }
 
-/* ── Change password ──────────────────────────────────────────────────────── */
-window.changePassword = async function (event) {
-  const btn  = event.currentTarget;
-  const fb   = el('acc-feedback');
-  const cur  = (el('acc-cur-pw').value || '').trim();
-  const np   = (el('acc-new-pw').value || '').trim();
-  const cp   = (el('acc-confirm-pw').value || '').trim();
+/* ── Change Password Modal ────────────────────────────────────────────────── */
+window.openChangePasswordModal = function () {
+  var dw = document.getElementById('agzit-dash-wrap');
+  if (dw) dw.classList.remove('open');
+  document.getElementById('modal-current-password').value = '';
+  document.getElementById('modal-new-password').value = '';
+  document.getElementById('modal-confirm-password').value = '';
+  var msg = document.getElementById('modal-password-msg');
+  msg.style.display = 'none';
+  document.getElementById('change-password-modal').style.display = 'flex';
+};
 
-  fb.textContent = ''; fb.className = '';
-  if (!cur || !np || !cp) { fb.textContent = 'Please fill all fields.'; fb.className = 'err'; return; }
-  if (np.length < 8)       { fb.textContent = 'New password must be at least 8 characters.'; fb.className = 'err'; return; }
-  if (np !== cp)            { fb.textContent = 'New passwords do not match.'; fb.className = 'err'; return; }
+window.closeChangePasswordModal = function () {
+  document.getElementById('change-password-modal').style.display = 'none';
+};
 
-  btn.disabled = true; btn.textContent = 'Updating…';
+document.addEventListener('click', function (e) {
+  var modal = document.getElementById('change-password-modal');
+  if (e.target === modal) window.closeChangePasswordModal();
+});
+
+window.submitChangePassword = async function () {
+  var cur = document.getElementById('modal-current-password').value.trim();
+  var np  = document.getElementById('modal-new-password').value.trim();
+  var cp  = document.getElementById('modal-confirm-password').value.trim();
+  var msg = document.getElementById('modal-password-msg');
+  var btn = document.getElementById('modal-password-btn');
+
+  function showMsg(text, isError) {
+    msg.textContent = text;
+    msg.style.display = 'block';
+    msg.style.background = isError ? '#FEF2F2' : '#F0FDF4';
+    msg.style.color = isError ? '#DC2626' : '#16A34A';
+  }
+
+  if (!cur || !np || !cp) { showMsg('Please fill in all fields.', true); return; }
+  if (np.length < 8) { showMsg('New password must be at least 8 characters.', true); return; }
+  if (np !== cp) { showMsg('Passwords do not match.', true); return; }
+
+  btn.textContent = 'Updating...'; btn.disabled = true;
   try {
-    const res  = await fetch('/api/candidate/account', {
+    var res = await fetch('/api/candidate/account', {
       method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ current_password: cur, new_password: np }),
     });
-    const data = await res.json();
+    var data = await res.json();
     if (data.ok) {
-      fb.textContent = 'Password updated successfully.'; fb.className = 'ok';
-      el('acc-cur-pw').value = ''; el('acc-new-pw').value = ''; el('acc-confirm-pw').value = '';
+      showMsg('Password updated successfully!', false);
+      setTimeout(window.closeChangePasswordModal, 2000);
     } else {
-      fb.textContent = data.error || 'Update failed.'; fb.className = 'err';
+      showMsg(data.error || 'Failed to update password.', true);
     }
   } catch (e) {
-    fb.textContent = 'Network error. Please try again.'; fb.className = 'err';
-  } finally {
-    btn.disabled = false; btn.textContent = 'Update Password';
+    showMsg('Something went wrong.', true);
   }
+  btn.textContent = 'Update Password'; btn.disabled = false;
 };
 
 /* ── Employer interviews renderer ─────────────────────────────────────────── */
@@ -2971,5 +2961,28 @@ window.trackJobClick = function(jobId) {
 </div>
 
 <script src="/shared/searchable-select.js"></script>
+
+<!-- Change Password Modal -->
+<div id="change-password-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:16px;padding:32px;width:100%;max-width:440px;margin:0 16px;position:relative;">
+    <button onclick="closeChangePasswordModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);">&times;</button>
+    <h3 style="font-size:18px;font-weight:700;color:var(--ink);margin:0 0 6px;">Change Password</h3>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 24px;">Must be at least 8 characters.</p>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px;font-weight:600;color:var(--soft);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px;">Current Password</label>
+      <input type="password" id="modal-current-password" placeholder="Enter current password" style="width:100%;padding:10px 14px;border:1px solid var(--line);border-radius:8px;font-size:14px;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:12px;font-weight:600;color:var(--soft);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px;">New Password</label>
+      <input type="password" id="modal-new-password" placeholder="Enter new password" style="width:100%;padding:10px 14px;border:1px solid var(--line);border-radius:8px;font-size:14px;box-sizing:border-box;">
+    </div>
+    <div style="margin-bottom:24px;">
+      <label style="font-size:12px;font-weight:600;color:var(--soft);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px;">Confirm New Password</label>
+      <input type="password" id="modal-confirm-password" placeholder="Re-enter new password" style="width:100%;padding:10px 14px;border:1px solid var(--line);border-radius:8px;font-size:14px;box-sizing:border-box;">
+    </div>
+    <div id="modal-password-msg" style="display:none;font-size:13px;margin-bottom:16px;padding:10px 14px;border-radius:8px;"></div>
+    <button onclick="submitChangePassword()" id="modal-password-btn" style="width:100%;padding:12px;background:var(--blue);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Update Password</button>
+  </div>
+</div>
 </body>
 </html>

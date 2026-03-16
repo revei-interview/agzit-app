@@ -269,6 +269,10 @@
               <span class="agzit-dd-icon" id="agzit-dd-icon" style="background:#EAF0FF;">&#9783;</span>
               My Dashboard
             </a>
+            <a onclick="if(window.openChangePasswordModal)openChangePasswordModal()" class="agzit-dd-item" role="menuitem" style="cursor:pointer;">
+              <span class="agzit-dd-icon" style="background:#FEF3C7;">&#128273;</span>
+              Change Password
+            </a>
             <button type="button" class="agzit-dd-item is-logout agzit-signout-btn" role="menuitem">
               <span class="agzit-dd-icon" style="background:#FFF4F4;">&#10148;</span>
               Sign out
@@ -310,6 +314,7 @@
   </div>
   <div id="agzit-mob-cta-in" style="display:none;">
     <a href="/dashboard" id="agzit-mob-dash" class="agzit-mob-cta primary">My Dashboard</a>
+    <button type="button" class="agzit-mob-cta outline" onclick="if(window.openChangePasswordModal)openChangePasswordModal()">Change Password</button>
     <button type="button" class="agzit-mob-cta logout agzit-signout-btn">Sign out</button>
   </div>
 </div>
