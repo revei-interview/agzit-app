@@ -3439,14 +3439,15 @@ router.get('/naukri-jobs', ...guard, async (req, res) => {
 
     // Normalize to standard format, max 20
     const jobs = (Array.isArray(rawItems) ? rawItems : []).slice(0, 20).map(item => ({
-      title:      item.Title || item.title || item.jobTitle || item.job_title || item.name || 'Untitled Position',
-      company:    item.Company || item.company || item.companyName || item.company_name || 'Unknown Company',
-      location:   item.Location || item.location || item.jobLocation || '',
-      experience: item.Experience || item.experience || item.experienceRequired || '',
-      salary:     item.Salary || item.salary || item.salaryRange || item.ctc || '',
-      skills:     item.Skills || item.skills || item.keySkills || item.key_skills || '',
-      applyLink:  item['Job URL'] || item.jobUrl || item.url || item.applyLink || item.link || '',
-      postedDate: item['Posted Date'] || item.postedDate || item.posted_date || item.datePosted || '',
+      title:       item['Job Title'] || 'Untitled Position',
+      company:     item['Company'] || 'Unknown Company',
+      location:    item['Location'] || '',
+      experience:  item['Experience Required'] || '',
+      salary:      item['Salary'] || '',
+      skills:      item['Skills/Tags'] || '',
+      applyLink:   item['Job URL'] || '',
+      postedDate:  item['Posted Time'] || '',
+      description: item['Description'] || '',
     }));
 
     // Store in cache (6h TTL) — only cache non-empty results
