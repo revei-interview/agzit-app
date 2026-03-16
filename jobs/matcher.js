@@ -9,24 +9,36 @@ const GENERIC_WORDS = new Set([
   'group','regional','area','general','chief',
 ]);
 
-// ── Country aliases for location matching ────────────────────────────────────
-const COUNTRY_ALIASES = {
-  'india':                ['india','in'],
-  'united arab emirates': ['uae','ae','dubai','abu dhabi','sharjah','united arab'],
-  'united kingdom':       ['uk','gb','england','london','britain','scotland','wales'],
-  'united states':        ['usa','us','united states','america'],
-  'canada':               ['canada','ca'],
-  'australia':            ['australia','au'],
-  'singapore':            ['singapore','sg'],
+// ── Common specific words that must appear in job TITLE (too generic for description match) ──
+const COMMON_SPECIFIC_WORDS = new Set([
+  'data', 'sales', 'finance', 'hr', 'it',
+  'marketing', 'legal', 'operations', 'admin',
+]);
+
+// ── Country name → ISO 2-letter code mapping ─────────────────────────────────
+const COUNTRY_NAME_TO_CODE = {
+  'india': 'IN',
+  'united arab emirates': 'AE',
+  'united kingdom': 'GB',
+  'united states': 'US',
+  'canada': 'CA',
+  'australia': 'AU',
+  'singapore': 'SG',
+  'dubai': 'AE',
+  'uae': 'AE',
+  'uk': 'GB',
+  'usa': 'US',
+  'america': 'US',
+  'england': 'GB',
+  'britain': 'GB',
+  'abu dhabi': 'AE',
+  'sharjah': 'AE',
 };
 
-function getAliases(countryName) {
-  if (!countryName) return [];
+function getCountryCode(countryName) {
+  if (!countryName) return null;
   const key = countryName.toLowerCase().trim();
-  for (const [canonical, aliases] of Object.entries(COUNTRY_ALIASES)) {
-    if (key === canonical || aliases.includes(key)) return aliases;
-  }
-  return [key];
+  return COUNTRY_NAME_TO_CODE[key] || key.toUpperCase();
 }
 
 // ── Industry keyword map — all 53 AGZIT industries ──────────────────────────
@@ -121,16 +133,15 @@ function matchJobsForCandidate(profile, jobs) {
     const country = profile[`preferred_location_${i}_preferred_country_name`];
     if (!city && !country) continue;
     preferredLocations.push({
-      city:           (city || '').toLowerCase().trim(),
-      country:        (country || '').toLowerCase().trim(),
-      countryAliases: getAliases(country || ''),
+      city:        (city || '').toLowerCase().trim(),
+      country:     (country || '').toLowerCase().trim(),
+      countryCode: getCountryCode(country || ''),
     });
   }
 
   // Build flat sets for fast lookup
   const acceptableCities = new Set(preferredLocations.map(l => l.city).filter(Boolean));
-  const acceptableCountryAliases = new Set();
-  preferredLocations.forEach(l => l.countryAliases.forEach(a => acceptableCountryAliases.add(a)));
+  const acceptableCountryCodes = new Set(preferredLocations.map(l => l.countryCode).filter(Boolean));
 
   // ── Score each job ────────────────────────────────────────────────────────
   const scored = jobs.map(job => {
@@ -147,6 +158,7 @@ function matchJobsForCandidate(profile, jobs) {
     // ── STEP 1: LOCATION FILTER (non-negotiable) ────────────────────────────
     if (preferredLocations.length > 0) {
       let locationOk = false;
+      const jobCountryCode = (job.country || '').toUpperCase().trim();
 
       if (workType === 'remote') {
         locationOk = isRemote;
@@ -155,8 +167,7 @@ function matchJobsForCandidate(profile, jobs) {
         if (isRemote) {
           locationOk = openToRelocate;
         } else {
-          const countryOk = [...acceptableCountryAliases].some(alias =>
-            jobCountry.includes(alias) || jobLocation.includes(alias));
+          const countryOk = acceptableCountryCodes.has(jobCountryCode);
           const cityOk = [...acceptableCities].some(city =>
             city && (jobCity.includes(city) || jobLocation.includes(city)));
           locationOk = countryOk || cityOk;
@@ -169,20 +180,22 @@ function matchJobsForCandidate(profile, jobs) {
       }
     }
 
-    // ── STEP 1B: ROLE RELEVANCE FILTER (soft cap) ───────────────────────────
-    let roleRelevant = true; // assume relevant unless proven otherwise
+    // ── STEP 1B: ROLE RELEVANCE FILTER (hard filter) ────────────────────────
     const _specificWords = desiredRole
       ? desiredRole.split(/[\s,\-\/]+/).filter(w => w.length > 2 && !GENERIC_WORDS.has(w))
       : [];
     if (_specificWords.length > 0) {
-      const jobDescSnippet = (job.description || '').toLowerCase().slice(0, 200);
-      const hasSpecificInTitle = _specificWords.some(w => jobTitle.includes(w));
-      const hasSpecificInDesc  = _specificWords.some(w => jobDescSnippet.includes(w));
-      if (!hasSpecificInTitle && !hasSpecificInDesc) {
-        roleRelevant = false; // will cap score at 35 at the end
+      const titleCheck = _specificWords.some(w => jobTitle.includes(w));
+      const descCheck  = _specificWords.some(w => jobText.substring(0, 200).includes(w));
+
+      // Common words like "data", "sales" must appear in TITLE to avoid false matches
+      const hasCommonWord = _specificWords.some(w => COMMON_SPECIFIC_WORDS.has(w));
+      const roleFound = hasCommonWord ? titleCheck : (titleCheck || descCheck);
+
+      if (!roleFound) {
+        return { ...job, score: 0, score_breakdown: { filtered: 'role' } };
       }
     }
-    breakdown.role_relevant = roleRelevant;
 
     // ── STEP 2: INDUSTRY MATCH (+40) ────────────────────────────────────────
     let industryScore = 0;
@@ -217,11 +230,12 @@ function matchJobsForCandidate(profile, jobs) {
 
     // ── STEP 4: LOCATION SCORE (+20) ────────────────────────────────────────
     let locationScore = 0;
+    const jobCC = (job.country || '').toUpperCase().trim();
     if (isRemote && workType === 'remote') {
       locationScore = 20;
     } else if (!isRemote) {
       const cityMatch    = [...acceptableCities].some(city => city && (jobCity.includes(city) || jobLocation.includes(city)));
-      const countryMatch = [...acceptableCountryAliases].some(alias => jobCountry.includes(alias) || jobLocation.includes(alias));
+      const countryMatch = acceptableCountryCodes.has(jobCC);
       if (cityMatch) locationScore = 20;
       else if (countryMatch) locationScore = 15;
       else if (openToRelocate) locationScore = 5;
@@ -272,9 +286,6 @@ function matchJobsForCandidate(profile, jobs) {
     score += freshScore;
     breakdown.freshness = freshScore;
 
-    // Cap irrelevant-role jobs at 35 so they never surface above threshold
-    if (!roleRelevant) score = Math.min(score, 35);
-
     return { ...job, score: Math.min(100, Math.round(score)), score_raw: score, score_breakdown: breakdown };
   });
 
@@ -288,9 +299,9 @@ function matchJobsForCandidate(profile, jobs) {
   });
 
   return deduped
-    .filter(j => j.score >= 40)
+    .filter(j => j.score >= 80)
     .sort((a, b) => b.score - a.score || new Date(b.date_posted || 0) - new Date(a.date_posted || 0))
-    .slice(0, 20);
+    .slice(0, 25);
 }
 
 function getMatchLabel(score) {

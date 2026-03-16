@@ -2793,20 +2793,17 @@ async function loadJobsForYou() {
   }
 }
 
-// Fixed filter tabs: All | India | UAE | UK | Remote
+// Filter tabs: All Jobs | Remote Only
 var JOB_FILTERS = [
-  { key: 'all', label: 'All' },
-  { key: 'india', label: 'India', match: ['india'] },
-  { key: 'uae', label: 'UAE', match: ['uae', 'united arab emirates', 'dubai', 'abu dhabi'] },
-  { key: 'uk', label: 'UK', match: ['uk', 'united kingdom', 'england', 'london', 'britain'] },
-  { key: 'remote', label: 'Remote' },
+  { key: 'all', label: 'All Jobs' },
+  { key: 'remote', label: 'Remote Only' },
 ];
 
 function renderJobFilters() {
   var html = '';
   JOB_FILTERS.forEach(function(f) {
     var active = _jobsFilter === f.key;
-    html += '<button onclick="filterJobs(\'' + f.key + '\')" style="padding:7px 16px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid ' + (active ? 'var(--blue)' : 'var(--line)') + ';background:' + (active ? 'var(--blue)' : 'white') + ';color:' + (active ? 'white' : 'var(--soft)') + ';transition:all .15s;">' + esc(f.label) + '</button>';
+    html += '<button onclick="filterJobs(\'' + f.key + '\')" style="padding:6px 16px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid ' + (active ? 'var(--blue)' : 'var(--line)') + ';background:' + (active ? 'var(--blue)' : 'transparent') + ';color:' + (active ? 'white' : 'var(--muted)') + ';transition:all .15s;">' + esc(f.label) + '</button>';
   });
   document.getElementById('jobs-filters').innerHTML = html;
 }
@@ -2821,13 +2818,6 @@ function renderJobCards() {
   var filtered = _jobsData;
   if (_jobsFilter === 'remote') {
     filtered = _jobsData.filter(function(j){ return j.is_remote; });
-  } else if (_jobsFilter !== 'all') {
-    var filterDef = JOB_FILTERS.find(function(f){ return f.key === _jobsFilter; });
-    var terms = (filterDef && filterDef.match) || [_jobsFilter];
-    filtered = _jobsData.filter(function(j){
-      var loc = (String(j.country || '') + ' ' + String(j.location || '') + ' ' + String(j.city || '')).toLowerCase();
-      return terms.some(function(t){ return loc.indexOf(t) !== -1; });
-    });
   }
 
   console.log('[jobs-debug] About to render', filtered.length, 'jobs, filter:', _jobsFilter);
