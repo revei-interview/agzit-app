@@ -2536,7 +2536,7 @@ window.deleteSavedResume = async function(id, btn) {
   } catch (e) { alert('Network error'); btn.disabled = false; btn.textContent = 'Delete'; }
 };
 
-// Load saved resumes / jobs when the tab is shown
+// Load saved resumes when the tab is shown
 var origSwitchTab = window.switchTab;
 window.switchTab = function(name) {
   origSwitchTab(name);
@@ -2675,7 +2675,7 @@ window.cancelBooking = async function() {
 
 }());
 
-// esc() for code outside the IIFE (jobs, resumes, photo upload)
+// esc() for code outside the IIFE (resumes, photo upload)
 function esc(s) {
   if (s == null) return '';
   return String(s)

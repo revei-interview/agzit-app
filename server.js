@@ -464,41 +464,6 @@ async function initDB() {
     )
   `);
 
-  // Job listings table
-  await pool.execute(`
-    CREATE TABLE IF NOT EXISTS agzit_job_listings (
-      id INT PRIMARY KEY AUTO_INCREMENT,
-      external_id VARCHAR(255) UNIQUE,
-      title VARCHAR(255) NOT NULL,
-      company VARCHAR(255),
-      location VARCHAR(255),
-      country VARCHAR(100),
-      city VARCHAR(100),
-      description TEXT,
-      skills_mentioned TEXT,
-      employment_type VARCHAR(100),
-      source VARCHAR(100),
-      source_url VARCHAR(500),
-      apply_url VARCHAR(500),
-      date_posted DATETIME,
-      is_remote TINYINT(1) DEFAULT 0,
-      fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_country (country),
-      INDEX idx_date (date_posted)
-    )
-  `);
-
-
-  // Job click tracking
-  await pool.execute(`
-    CREATE TABLE IF NOT EXISTS agzit_job_clicks (
-      id INT PRIMARY KEY AUTO_INCREMENT,
-      user_id INT NOT NULL,
-      job_id INT NOT NULL,
-      clicked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
   // Migration: add 'dpr_bonus' to credit transaction_type ENUM
   try {
     await pool.execute("ALTER TABLE agzit_credit_transactions MODIFY COLUMN transaction_type ENUM('purchase','referral','usage','dpr_bonus') NOT NULL");
@@ -712,20 +677,6 @@ async function processScheduledInterviews() {
   }
 }
 
-// ── Job fetcher cron ────────────────────────────────────────────────────────
-const { fetchAllJobs } = require('./jobs/fetcher');
-const JOB_FETCH_INTERVAL = 96 * 60 * 60 * 1000; // 96 hours (4 days) — 16 queries/run, ~7 runs/mo = 112 calls
-
-async function runJobFetcher() {
-  console.log('[jobs] Starting job fetch...');
-  try {
-    await fetchAllJobs();
-    console.log('[jobs] Job fetch complete. Next fetch in 96 hours');
-  } catch (err) {
-    console.error('[jobs] Job fetch failed:', err.message);
-  }
-}
-
 // ── Start — only after tables are confirmed to exist ────────────────────────
 const PORT = process.env.PORT || 3000;
 initDB().then(async () => {
@@ -734,16 +685,11 @@ initDB().then(async () => {
   // Start the scheduled interview processor (every 60 seconds)
   setInterval(() => processScheduledInterviews().catch(() => {}), 60 * 1000);
 
-  // Run job fetcher once on startup, then every 96 hours (4 days)
-  runJobFetcher();
-  setInterval(runJobFetcher, JOB_FETCH_INTERVAL);
-
   app.listen(PORT, () => {
     console.log(`🚀 AGZIT App running on port ${PORT}`);
     console.log(`   ENV: ${process.env.NODE_ENV}`);
     console.log(`   WP:  ${process.env.WP_URL}`);
     console.log(`   Scheduled interview processor: running (60s interval)`);
-    console.log(`   Job fetcher: running (96h interval)`);
   });
 }).catch(err => {
   console.error('[init] DB init failed:', err.message);

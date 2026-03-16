@@ -1056,7 +1056,7 @@ function getVal(id) { return (document.getElementById(id)?.value || '').trim(); 
 function setVal(id, v) { const el = document.getElementById(id); if (el) el.value = v || ''; }
 
 // Extract first industry key from raw stored value (PHP serialized, JSON array, or plain string)
-// ── Supported Industries (mirrored from config/industries.js) ─────────────
+// ── Supported Industries (sub-industry options per industry) ──────────────
 var SUPPORTED_INDUSTRIES = {
   accounting:    { label: 'Accounting / Taxation / Audit',       subs: ['Accounts Payable', 'Accounts Receivable', 'GST', 'Taxation', 'Bookkeeping', 'Reconciliation'] },
   audit:         { label: 'Audit & Assurance',                   subs: ['Internal Audit', 'External Audit', 'SOX Compliance', 'Statutory Audit', 'IS Audit'] },

@@ -16,8 +16,6 @@ const fs           = require('fs');
 const pdfParse     = require('pdf-parse');
 const sanitizeHtml = require('sanitize-html');
 const cloudinary    = require('cloudinary').v2;
-const { matchJobsForCandidate } = require('../jobs/matcher');
-const { fetchJSearchLive }      = require('../jobs/fetcher');
 // ── Cloudinary setup ─────────────────────────────────────────────────────────
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -38,9 +36,6 @@ function uploadToCloudinary(buffer, publicId) {
     stream.end(buffer);
   });
 }
-
-// In-memory cache for live per-candidate job searches (24h TTL)
-const liveJobCache = {};
 
 // Strip HTML tags from freeform text to prevent stored XSS.
 // Applied to textarea fields; short-text fields use trim-only s() helper.
@@ -3197,97 +3192,5 @@ router.post('/profile-photo', ...guard, (req, res, next) => {
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });
-
-// ── Source labels for display ────────────────────────────────────────────────
-const SOURCE_LABELS = {
-  jsearch:         'Job Board',
-  remotive:        'Remotive',
-  jobicy:          'Jobicy',
-  weworkremotely:  'WeWorkRemotely',
-};
-
-// ── GET /api/candidate/jobs — Matched jobs for candidate ────────────────────
-router.get('/jobs', ...guard, async (req, res) => {
-  try {
-    // STEP A — Get DPR post ID
-    const profileId = await getProfileId(req.user.user_id);
-    if (!profileId) return res.json({ ok: true, jobs: [], message: 'Complete your DPR profile first' });
-
-    // Fetch ONLY Job Preferences meta keys (not residential address)
-    const [metaRows] = await pool.execute(
-      `SELECT meta_key, meta_value FROM wp_postmeta
-       WHERE post_id = ? AND (
-         meta_key IN ('desired_role','preferred_work_type','work_level',
-           'open_to_relocate','soft_skills','total_work_experience',
-           'compliance_domains','professional_headline')
-         OR meta_key LIKE 'preferred_location%'
-       )`,
-      [profileId]
-    );
-    const profile = {};
-    for (const r of metaRows) profile[r.meta_key] = r.meta_value;
-
-    // STEP B — Live per-candidate JSearch (1 call/user/24h, cached)
-    let liveJobs = [];
-    const userId = req.user.id;
-    const desiredRole = (profile.desired_role || '').trim();
-    // Build live search location from preferred locations (not residential)
-    const prefCity    = (profile['preferred_location_0_preferred_city_name'] || '').trim();
-    const prefCountry = (profile['preferred_location_0_preferred_country_name'] || '').trim();
-
-    if (process.env.RAPIDAPI_KEY && desiredRole) {
-      const cached = liveJobCache[userId];
-      const now = Date.now();
-      const TTL = 24 * 60 * 60 * 1000;
-
-      const cacheAge = cached ? ((now - cached.fetchedAt) / 3600000).toFixed(1) : 'none';
-      if (cached && (now - cached.fetchedAt) < TTL) {
-        liveJobs = cached.jobs;
-        console.log(`[jobs-live] cache HIT for user ${userId}, age: ${cacheAge}h, jobs: ${liveJobs.length}`);
-      } else {
-        const liveQuery = `${desiredRole} jobs in ${prefCity || prefCountry || 'remote'}`;
-        console.log(`[jobs-live] query: "${liveQuery}", cache age: ${cacheAge}h`);
-        liveJobs = await fetchJSearchLive(liveQuery);
-        liveJobCache[userId] = { jobs: liveJobs, fetchedAt: now };
-      }
-    }
-
-    // STEP C — Fetch stored DB jobs
-    const [dbJobs] = await pool.execute(
-      'SELECT * FROM agzit_job_listings ORDER BY date_posted DESC LIMIT 500'
-    );
-
-    // Combine: live results first, then DB, deduplicated by external_id
-    const seen = new Set();
-    const combined = [];
-
-    for (const job of liveJobs) {
-      if (job.external_id && !seen.has(job.external_id)) {
-        seen.add(job.external_id);
-        combined.push({ ...job, is_live: true });
-      }
-    }
-    for (const job of dbJobs) {
-      if (job.external_id && !seen.has(job.external_id)) {
-        seen.add(job.external_id);
-        combined.push({ ...job, is_live: false });
-      }
-    }
-
-    // Run matcher on combined pool — profile is flat meta keys
-    const matched = matchJobsForCandidate(profile, combined);
-
-    // STEP D — Add source labels
-    for (const job of matched) {
-      job.source_label = SOURCE_LABELS[job.source] || job.source || 'Job Board';
-    }
-
-    return res.json({ ok: true, jobs: matched, total: matched.length });
-  } catch (err) {
-    console.error('[jobs/match]', err.message);
-    res.status(500).json({ ok: false, error: 'Server error' });
-  }
-});
-
 
 module.exports = router;
