@@ -935,11 +935,18 @@ router.get('/referral-stats', ...guard, async (req, res) => {
       [userId]
     );
 
+    // Fetch total credit balance
+    const [[creditRow]] = await pool.execute(
+      'SELECT credits FROM agzit_candidate_credits WHERE user_id = ?',
+      [userId]
+    );
+
     res.json({
       ok: true,
       pending_invites: stats.pending_count || 0,
       successful_referrals: stats.completed_count || 0,
-      credits_earned: stats.credits_earned || 0
+      credits_earned: stats.credits_earned || 0,
+      total_credits: (creditRow && creditRow.credits) || 0
     });
 
   } catch (error) {
