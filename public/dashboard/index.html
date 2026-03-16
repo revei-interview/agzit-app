@@ -773,7 +773,6 @@ select.jp-input {
             <button class="tab-btn" data-tab="profile">Profile</button>
             <button class="tab-btn" data-tab="scorecard">Scorecard</button>
             <button class="tab-btn" data-tab="interviews" id="tab-btn-interviews">Interviews</button>
-            <button class="tab-btn" data-tab="jobs-for-you" id="tab-btn-jobs" onclick="initJobsTab()">Jobs For You</button>
             <button class="tab-btn" data-tab="job">Job Preferences</button>
             <button class="tab-btn" data-tab="resumes">My Resumes</button>
             <button class="tab-btn" data-tab="career-analyzer">Career Analyzer</button>
@@ -952,147 +951,6 @@ select.jp-input {
             <div id="interviews-content"></div>
           </div>
 
-          <!-- ── Jobs For You ──────────────────────────────────────────── -->
-          <div class="tab-pane" id="tab-jobs-for-you">
-            <!-- Info banner -->
-            <div id="jobs-info-banner" style="background:var(--blue-lt);border:1px solid #c7d2fe;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:12px;color:var(--blue);line-height:1.6;">
-              <strong>Supported industries:</strong> Accounting, Audit, Banking, Compliance, Cybersecurity, Finance, Fraud, HR, IT, Risk, Software Development.
-              More industries coming soon.
-            </div>
-            <!-- Filter UI -->
-            <div id="jobs-filter-ui" style="background:white;border-radius:12px;padding:20px;margin-bottom:18px;box-shadow:var(--shadow-sm);">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-                <div>
-                  <label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;display:block;margin-bottom:6px;">Industry</label>
-                  <select id="jobs-industry" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:var(--font);background:white;color:var(--ink);cursor:pointer;">
-                    <option value="">Select industry</option>
-                    <option value="accounting">Accounting / Taxation / Audit</option>
-                    <option value="audit">Audit &amp; Assurance</option>
-                    <option value="banking">Banking / Financial Services</option>
-                    <option value="compliance">Compliance / Regulatory</option>
-                    <option value="cybersecurity">Cybersecurity / InfoSec</option>
-                    <option value="finance">Finance / Treasury</option>
-                    <option value="fraud">Fraud / Anti-Fraud</option>
-                    <option value="hr">Human Resources / People Ops</option>
-                    <option value="it">IT / Systems</option>
-                    <option value="risk">Risk Management</option>
-                    <option value="software">Software Development / Engineering</option>
-                  </select>
-                </div>
-                <div>
-                  <label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;display:block;margin-bottom:6px;">Country</label>
-                  <select id="jobs-country" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:var(--font);background:white;color:var(--ink);cursor:pointer;">
-                    <option value="CA">Canada</option>
-                    <option value="IN" selected>India</option>
-                    <option value="SG">Singapore</option>
-                    <option value="AE">UAE</option>
-                    <option value="GB">United Kingdom</option>
-                    <option value="US">United States</option>
-                  </select>
-                </div>
-              </div>
-              <!-- Sub-industry checkboxes (static, toggled by industry dropdown) -->
-              <div id="jobs-sub-container" style="margin-top:14px;">
-                <label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;display:block;margin-bottom:8px;">Specialisation (select one or more)</label>
-                <div id="subs-accounting" class="sub-group" style="display:none">
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Accounts Payable" style="accent-color:var(--blue);"> Accounts Payable</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Accounts Receivable" style="accent-color:var(--blue);"> Accounts Receivable</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="GST" style="accent-color:var(--blue);"> GST</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Taxation" style="accent-color:var(--blue);"> Taxation</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Bookkeeping" style="accent-color:var(--blue);"> Bookkeeping</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Reconciliation" style="accent-color:var(--blue);"> Reconciliation</label>
-                </div>
-                <div id="subs-audit" class="sub-group" style="display:none">
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Internal Audit" style="accent-color:var(--blue);"> Internal Audit</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="External Audit" style="accent-color:var(--blue);"> External Audit</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="SOX Compliance" style="accent-color:var(--blue);"> SOX Compliance</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Statutory Audit" style="accent-color:var(--blue);"> Statutory Audit</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="IS Audit" style="accent-color:var(--blue);"> IS Audit</label>
-                </div>
-                <div id="subs-banking" class="sub-group" style="display:none">
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Retail Banking" style="accent-color:var(--blue);"> Retail Banking</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Trade Finance" style="accent-color:var(--blue);"> Trade Finance</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Loan Processing" style="accent-color:var(--blue);"> Loan Processing</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Credit Analysis" style="accent-color:var(--blue);"> Credit Analysis</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="NBFC" style="accent-color:var(--blue);"> NBFC</label>
-                </div>
-                <div id="subs-compliance" class="sub-group" style="display:none">
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="KYC" style="accent-color:var(--blue);"> KYC</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="AML" style="accent-color:var(--blue);"> AML</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Transaction Monitoring" style="accent-color:var(--blue);"> Transaction Monitoring</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Sanctions" style="accent-color:var(--blue);"> Sanctions</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="CKYC" style="accent-color:var(--blue);"> CKYC</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="FATF Compliance" style="accent-color:var(--blue);"> FATF Compliance</label>
-                </div>
-                <div id="subs-cybersecurity" class="sub-group" style="display:none">
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="SOC Analyst" style="accent-color:var(--blue);"> SOC Analyst</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="VAPT" style="accent-color:var(--blue);"> VAPT</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="InfoSec" style="accent-color:var(--blue);"> InfoSec</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Penetration Testing" style="accent-color:var(--blue);"> Penetration Testing</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Vulnerability Assessment" style="accent-color:var(--blue);"> Vulnerability Assessment</label>
-                </div>
-                <div id="subs-finance" class="sub-group" style="display:none">
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Treasury" style="accent-color:var(--blue);"> Treasury</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Cash Management" style="accent-color:var(--blue);"> Cash Management</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="FP&amp;A" style="accent-color:var(--blue);"> FP&amp;A</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Corporate Finance" style="accent-color:var(--blue);"> Corporate Finance</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Financial Planning" style="accent-color:var(--blue);"> Financial Planning</label>
-                </div>
-                <div id="subs-fraud" class="sub-group" style="display:none">
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Fraud Analyst" style="accent-color:var(--blue);"> Fraud Analyst</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Anti-Money Laundering" style="accent-color:var(--blue);"> Anti-Money Laundering</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Chargeback" style="accent-color:var(--blue);"> Chargeback</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Fraud Investigation" style="accent-color:var(--blue);"> Fraud Investigation</label>
-                </div>
-                <div id="subs-hr" class="sub-group" style="display:none">
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Talent Acquisition" style="accent-color:var(--blue);"> Talent Acquisition</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Recruiter" style="accent-color:var(--blue);"> Recruiter</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="HRBP" style="accent-color:var(--blue);"> HRBP</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Learning and Development" style="accent-color:var(--blue);"> Learning and Development</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Payroll" style="accent-color:var(--blue);"> Payroll</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="HR Generalist" style="accent-color:var(--blue);"> HR Generalist</label>
-                </div>
-                <div id="subs-it" class="sub-group" style="display:none">
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="System Admin" style="accent-color:var(--blue);"> System Admin</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Network Admin" style="accent-color:var(--blue);"> Network Admin</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="IT Support" style="accent-color:var(--blue);"> IT Support</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Infrastructure" style="accent-color:var(--blue);"> Infrastructure</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="ERP" style="accent-color:var(--blue);"> ERP</label>
-                </div>
-                <div id="subs-risk" class="sub-group" style="display:none">
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Credit Risk" style="accent-color:var(--blue);"> Credit Risk</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Market Risk" style="accent-color:var(--blue);"> Market Risk</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Operational Risk" style="accent-color:var(--blue);"> Operational Risk</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Basel" style="accent-color:var(--blue);"> Basel</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Risk Analyst" style="accent-color:var(--blue);"> Risk Analyst</label>
-                </div>
-                <div id="subs-software" class="sub-group" style="display:none">
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="React" style="accent-color:var(--blue);"> React</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Node.js" style="accent-color:var(--blue);"> Node.js</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Python" style="accent-color:var(--blue);"> Python</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Java" style="accent-color:var(--blue);"> Java</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Full Stack Developer" style="accent-color:var(--blue);"> Full Stack Developer</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Backend" style="accent-color:var(--blue);"> Backend</label>
-                  <label style="display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);font-size:12px;font-weight:500;color:var(--soft);cursor:pointer;"><input type="checkbox" value="Frontend" style="accent-color:var(--blue);"> Frontend</label>
-                </div>
-              </div>
-              <div style="margin-top:16px;">
-                <button id="jobs-find-btn" onclick="findNaukriJobs()" style="padding:10px 28px;background:var(--blue);color:white;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:opacity .15s;" onmouseenter="this.style.opacity='0.9'" onmouseleave="this.style.opacity='1'">Find Jobs</button>
-              </div>
-            </div>
-            <!-- Loading -->
-            <div id="jobs-loading" style="display:none;text-align:center;padding:48px 0;">
-              <div class="sk-ring" style="width:32px;height:32px;margin:0 auto 12px;"></div>
-              <div style="font-size:14px;color:var(--muted);">Searching Naukri for jobs...</div>
-            </div>
-            <!-- Job cards -->
-            <div id="jobs-list"></div>
-            <!-- Empty state -->
-            <div id="jobs-empty" style="display:none;text-align:center;padding:48px 0;">
-              <div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:6px;">No jobs found</div>
-              <div style="font-size:13px;color:var(--muted);">Try different sub-industries or another country.</div>
-            </div>
-          </div>
 
           <!-- ── Job Preferences ───────────────────────────────────────── -->
           <div class="tab-pane" id="tab-job">
@@ -1872,30 +1730,6 @@ function displayBadges(badges) {
 }
 
 /* ── Render ───────────────────────────────────────────────────────────────── */
-// ── Supported Industries + Countries (mirrored from config/industries.js) ──
-var SUPPORTED_INDUSTRIES = {
-  accounting:    { label: 'Accounting / Taxation / Audit',       subs: ['Accounts Payable', 'Accounts Receivable', 'GST', 'Taxation', 'Bookkeeping', 'Reconciliation'] },
-  audit:         { label: 'Audit & Assurance',                   subs: ['Internal Audit', 'External Audit', 'SOX Compliance', 'Statutory Audit', 'IS Audit'] },
-  banking:       { label: 'Banking / Financial Services',        subs: ['Retail Banking', 'Trade Finance', 'Loan Processing', 'Credit Analysis', 'NBFC'] },
-  compliance:    { label: 'Compliance / Regulatory',             subs: ['KYC', 'AML', 'Transaction Monitoring', 'Sanctions', 'CKYC', 'FATF Compliance'] },
-  cybersecurity: { label: 'Cybersecurity / InfoSec',             subs: ['SOC Analyst', 'VAPT', 'InfoSec', 'Penetration Testing', 'Vulnerability Assessment'] },
-  finance:       { label: 'Finance / Treasury',                  subs: ['Treasury', 'Cash Management', 'FP&A', 'Corporate Finance', 'Financial Planning'] },
-  fraud:         { label: 'Fraud / Anti-Fraud',                  subs: ['Fraud Analyst', 'AML', 'Chargeback', 'Fraud Investigation', 'Anti-Money Laundering'] },
-  hr:            { label: 'Human Resources / People Ops',        subs: ['Talent Acquisition', 'Recruiter', 'HRBP', 'Learning & Development', 'Payroll', 'HR Generalist'] },
-  it:            { label: 'IT / Systems',                        subs: ['System Admin', 'Network Admin', 'IT Support', 'Infrastructure', 'ERP', 'IT Operations'] },
-  risk:          { label: 'Risk Management',                     subs: ['Credit Risk', 'Market Risk', 'Operational Risk', 'Basel', 'Risk Analyst'] },
-  software:      { label: 'Software Development / Engineering',  subs: ['React', 'Node.js', 'Python', 'Java', 'Full Stack Developer', 'Backend', 'Frontend'] },
-};
-var SUPPORTED_COUNTRIES = [
-  { code: 'CA', label: 'Canada' },
-  { code: 'IN', label: 'India' },
-  { code: 'SG', label: 'Singapore' },
-  { code: 'AE', label: 'UAE' },
-  { code: 'GB', label: 'United Kingdom' },
-  { code: 'US', label: 'United States' },
-];
-var _candidateIndustryKey = '';
-
 function render(d, pd, id) {
   const user   = d.user   || {};
   const prof   = d.profile || {};
@@ -1903,32 +1737,6 @@ function render(d, pd, id) {
   const sc     = d.latest_scorecard;
   const recent = d.recent_interviews || [];
   const hasDpr = !!d.profile;
-
-  // Extract industry key from compliance_domains (PHP serialized, JSON, or plain string)
-  _candidateIndustryKey = '';
-  if (prof.compliance_domains) {
-    var raw = String(prof.compliance_domains).trim();
-    var phpM = raw.match(/s:\d+:"([^"]+)"/);
-    if (phpM) _candidateIndustryKey = phpM[1];
-    else { try { var arr = JSON.parse(raw); _candidateIndustryKey = Array.isArray(arr) ? arr[0] || '' : raw; } catch(_) { _candidateIndustryKey = raw; } }
-  }
-  // If extracted value is a display label (not a key), reverse-lookup the key
-  if (_candidateIndustryKey && !INDUSTRY_DISPLAY[_candidateIndustryKey]) {
-    var foundKey = Object.keys(INDUSTRY_DISPLAY).find(function(k) {
-      return INDUSTRY_DISPLAY[k].toLowerCase() === _candidateIndustryKey.toLowerCase();
-    });
-    if (foundKey) _candidateIndustryKey = foundKey;
-  }
-
-  // Hide Jobs For You tab if industry not supported
-  var jobsTabBtn = document.getElementById('tab-btn-jobs');
-  if (jobsTabBtn) {
-    if (_candidateIndustryKey && !SUPPORTED_INDUSTRIES[_candidateIndustryKey]) {
-      jobsTabBtn.style.display = 'none';
-    } else {
-      jobsTabBtn.style.display = '';
-    }
-  }
 
   const firstName = user.first_name || (user.email || '').split('@')[0] || 'there';
 
@@ -2733,7 +2541,6 @@ var origSwitchTab = window.switchTab;
 window.switchTab = function(name) {
   origSwitchTab(name);
   if (name === 'resumes') loadSavedResumes();
-  if (name === 'jobs-for-you') initJobsTab();
 };
 
 /* ── Credit Info Panel Toggle ─────────────────────────────────────────────── */
@@ -2920,146 +2727,6 @@ async function uploadProfilePhoto(input) {
   input.value = '';
 }
 
-/* ── Jobs For You ────────────────────────────────────────────────────────── */
-var _jobsInited = false;
-var _jobsData = [];
-
-function showSubGroup(industryKey) {
-  document.querySelectorAll('.sub-group').forEach(function(d) { d.style.display = 'none'; });
-  var sg = document.getElementById('subs-' + industryKey);
-  if (sg) sg.style.display = 'block';
-}
-
-function initJobsTab() {
-  if (_jobsInited) return;
-  _jobsInited = true;
-
-  try {
-    var indSel = document.getElementById('jobs-industry');
-    if (indSel) {
-      var industryKey = (typeof _candidateIndustryKey !== 'undefined' && _candidateIndustryKey)
-        ? _candidateIndustryKey : null;
-      if (industryKey) {
-        indSel.value = industryKey;
-        showSubGroup(industryKey);
-      }
-      indSel.addEventListener('change', function() {
-        showSubGroup(this.value);
-      });
-    }
-  } catch (err) {
-    console.error('[Jobs For You] init error:', err);
-  }
-}
-
-async function findNaukriJobs() {
-  var industry = document.getElementById('jobs-industry').value;
-  if (!industry) { alert('Please select an industry.'); return; }
-  var country = document.getElementById('jobs-country').value || 'IN';
-  var subs = [];
-  document.querySelectorAll('.sub-group input[type="checkbox"]:checked').forEach(function(cb) { subs.push(cb.value); });
-
-  var btn = document.getElementById('jobs-find-btn');
-  btn.disabled = true; btn.textContent = 'Searching...';
-  document.getElementById('jobs-loading').style.display = '';
-  document.getElementById('jobs-list').innerHTML = '';
-  document.getElementById('jobs-empty').style.display = 'none';
-
-  try {
-    var url = '/api/candidate/naukri-jobs?industry=' + encodeURIComponent(industry) + '&country=' + encodeURIComponent(country);
-    if (subs.length) url += '&sub_industries=' + encodeURIComponent(subs.join(','));
-    var r = await fetch(url, { credentials: 'include' });
-    var text = await r.text();
-    var d;
-    try { d = JSON.parse(text); } catch (_) { throw new Error('Server returned an invalid response (status ' + r.status + ')'); }
-    if (!d.ok) throw new Error(d.error || 'Failed');
-
-    _jobsData = d.jobs || [];
-    document.getElementById('jobs-loading').style.display = 'none';
-
-    if (_jobsData.length === 0) {
-      document.getElementById('jobs-empty').style.display = '';
-      return;
-    }
-
-    // Update tab badge
-    document.getElementById('tab-btn-jobs').innerHTML = 'Jobs For You <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;background:#E53E3E;color:white;border-radius:50%;font-size:10px;font-weight:700;margin-left:4px;vertical-align:middle;flex-shrink:0;">' + _jobsData.length + '</span>';
-    renderNaukriCards();
-  } catch (err) {
-    document.getElementById('jobs-loading').style.display = 'none';
-    document.getElementById('jobs-list').innerHTML = '<div style="text-align:center;padding:32px;color:#e53935;font-size:14px;">Could not load jobs: ' + esc(err.message) + '</div>';
-    console.error('[naukri-jobs]', err);
-  }
-  btn.disabled = false; btn.textContent = 'Find Jobs';
-}
-window.findNaukriJobs = findNaukriJobs;
-
-function renderNaukriCards() {
-  if (_jobsData.length === 0) {
-    document.getElementById('jobs-list').innerHTML = '<div style="text-align:center;padding:32px;color:var(--muted);font-size:13px;">No jobs found.</div>';
-    return;
-  }
-
-  var html = '';
-  for (var i = 0; i < _jobsData.length; i++) {
-    try {
-      var j = _jobsData[i];
-      var title = esc(String(j.title || 'Untitled Position'));
-      var company = j.company ? ' <span style="font-weight:500;color:var(--soft);">-- ' + esc(String(j.company)) + '</span>' : '';
-      var metaParts = [
-        j.location ? esc(String(j.location)) : '',
-        j.experience ? esc(String(j.experience)) : '',
-        j.salary ? esc(String(j.salary)) : '',
-        j.postedDate ? esc(String(j.postedDate)) : '',
-      ].filter(Boolean);
-      var metaLine = metaParts.join(' · ');
-      var skills = j.skills ? esc(String(j.skills).slice(0, 120)) : '';
-      var applyUrl = j.applyLink ? String(j.applyLink) : '';
-
-      var card = '<div style="background:white;border-radius:12px;padding:18px 18px 18px 22px;margin-bottom:12px;border-left:4px solid var(--blue);box-shadow:var(--shadow-sm);">';
-      card += '<div style="flex:1;min-width:0;">';
-      card += '<div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:2px;">' + title + company + '</div>';
-      card += '<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">' + metaLine + '</div>';
-      if (skills) card += '<div style="font-size:12px;color:var(--soft);line-height:1.5;margin-bottom:8px;">' + skills + '</div>';
-      card += '</div>';
-      if (applyUrl) {
-        card += '<div style="display:flex;justify-content:flex-end;margin-top:8px;">';
-        card += '<a href="' + esc(applyUrl) + '" target="_blank" rel="noopener" style="padding:8px 18px;background:var(--blue);color:white;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;transition:opacity .15s;" onmouseenter="this.style.opacity=\'0.9\'" onmouseleave="this.style.opacity=\'1\'">Apply</a>';
-        card += '</div>';
-      }
-      card += '</div>';
-      html += card;
-    } catch (e) {
-      console.error('[naukri-jobs] card render error:', e);
-    }
-  }
-  document.getElementById('jobs-list').innerHTML = html;
-}
-
-function timeAgo(dateStr) {
-  if (!dateStr) return 'Recently posted';
-  try {
-    var date = new Date(dateStr);
-    if (isNaN(date.getTime())) return 'Recently posted';
-    var hours = (Date.now() - date.getTime()) / 3600000;
-    if (hours < 0) return 'Today';
-    if (hours < 24) return 'Today';
-    if (hours < 48) return 'Yesterday';
-    var days = Math.floor(hours / 24);
-    if (days < 7) return days + ' days ago';
-    var weeks = Math.floor(days / 7);
-    if (weeks < 4) return weeks + ' week' + (weeks > 1 ? 's' : '') + ' ago';
-    return 'Over a month ago';
-  } catch(e) { return 'Recently posted'; }
-}
-
-window.trackJobClick = function(jobId) {
-  var token = localStorage.getItem('token');
-  fetch('/api/candidate/jobs/' + jobId + '/click', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + token },
-  }).catch(function(){});
-};
 </script>
 <!-- Scheduled Interview Modal -->
 <div class="modal" id="modal-schedule" onclick="if(event.target===this)closeModal('modal-schedule')">

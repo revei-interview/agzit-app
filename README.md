@@ -49,7 +49,6 @@ Go to your service → Environment → Add these:
 | `CLOUDINARY_CLOUD_NAME` | Your Cloudinary cloud name |
 | `CLOUDINARY_API_KEY` | Your Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Your Cloudinary API secret |
-| `APIFY_API_TOKEN` | Apify API token (for Naukri job scraper) |
 
 ### Step 5 — Deploy
 Click **Deploy** in Render. Your app will be live at:
