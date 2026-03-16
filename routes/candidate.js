@@ -372,7 +372,7 @@ router.get('/dashboard', ...guard, async (req, res) => {
         profile_completeness: meta.profile_completeness,
         dpr_id_view_count:    meta.dpr_id_view_count,
         open_for_work_badge:  meta.open_for_work_badge,
-        compliance_domains:   parseComplianceDomains(meta.compliance_domains),
+        compliance_domains:   meta.compliance_domains,  // raw value — frontend parseIndustry() handles display
         current_career_level: meta.current_career_level,
         profile_visibility:   meta.profile_visibility,
         email_visibility:     meta.email_visibility,

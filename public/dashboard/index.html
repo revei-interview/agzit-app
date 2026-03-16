@@ -1815,6 +1815,13 @@ function render(d, pd, id) {
     if (phpM) _candidateIndustryKey = phpM[1];
     else { try { var arr = JSON.parse(raw); _candidateIndustryKey = Array.isArray(arr) ? arr[0] || '' : raw; } catch(_) { _candidateIndustryKey = raw; } }
   }
+  // If extracted value is a display label (not a key), reverse-lookup the key
+  if (_candidateIndustryKey && !INDUSTRY_DISPLAY[_candidateIndustryKey]) {
+    var foundKey = Object.keys(INDUSTRY_DISPLAY).find(function(k) {
+      return INDUSTRY_DISPLAY[k].toLowerCase() === _candidateIndustryKey.toLowerCase();
+    });
+    if (foundKey) _candidateIndustryKey = foundKey;
+  }
 
   // Hide Jobs For You tab if industry not supported
   var jobsTabBtn = document.getElementById('tab-btn-jobs');
