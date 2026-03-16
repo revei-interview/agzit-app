@@ -3352,38 +3352,22 @@ router.get('/naukri-jobs', ...guard, async (req, res) => {
       } catch (_) { /* corrupted cache, refetch */ }
     }
 
-    // Call Apify (async polling pattern) — codemaverick~naukri-job-scraper-latest
+    // Call Apify (async polling pattern) — nuclear_quietude~naukri-job-scraper
     const apifyToken = process.env.APIFY_API_TOKEN;
     if (!apifyToken) {
       return res.status(503).json({ ok: false, error: 'Job search service not configured' });
     }
 
-    // Build Naukri search URL from keyword + country
-    function buildNaukriUrl(kw, cc) {
-      const slug = kw.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
-      const locationMap = {
-        IN: 'india', AE: 'dubai', GB: 'united-kingdom',
-        US: 'united-states', SG: 'singapore', CA: 'canada',
-      };
-      const locSlug = locationMap[cc] || 'india';
-      if (cc === 'IN') {
-        return `https://www.naukri.com/${slug}-jobs-in-india`;
-      }
-      return `https://www.naukri.com/${slug}-jobs?k=${encodeURIComponent(kw)}&l=${locSlug}`;
-    }
+    const countryName = SUPPORTED_COUNTRIES.find(c => c.code === countryCode)?.label || 'India';
 
-    const naukriUrl = buildNaukriUrl(keyword, countryCode);
-    console.log(`[naukri-jobs] Apify async call: keyword="${keyword}", naukriUrl="${naukriUrl}"`);
+    console.log(`[naukri-jobs] Apify async call: keyword="${keyword}", location="${countryName}"`);
 
     // Step 1: Start actor run
-    const startUrl = `https://api.apify.com/v2/acts/codemaverick~naukri-job-scraper-latest/runs?token=${encodeURIComponent(apifyToken)}`;
+    const startUrl = `https://api.apify.com/v2/acts/nuclear_quietude~naukri-job-scraper/runs?token=${encodeURIComponent(apifyToken)}`;
     const startRes = await fetch(startUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        startUrls: [{ url: naukriUrl }],
-        desired_results: 20,
-      }),
+      body: JSON.stringify({ keyword, location: countryName, maxResults: 20 }),
       signal: AbortSignal.timeout(15000),
     });
 
@@ -3403,11 +3387,11 @@ router.get('/naukri-jobs', ...guard, async (req, res) => {
 
     console.log(`[naukri-jobs] Apify run started: runId=${runId}, datasetId=${datasetId}`);
 
-    // Step 2: Poll for completion (max 15 attempts, 4s apart, ~60s total)
+    // Step 2: Poll for completion (max 20 attempts, 6s apart, ~120s total)
     const pollUrl = `https://api.apify.com/v2/actor-runs/${runId}?token=${encodeURIComponent(apifyToken)}`;
     let runStatus = runData?.data?.status;
-    const MAX_POLLS = 15;
-    const POLL_INTERVAL = 4000;
+    const MAX_POLLS = 20;
+    const POLL_INTERVAL = 6000;
 
     for (let i = 0; i < MAX_POLLS && runStatus !== 'SUCCEEDED' && runStatus !== 'FAILED' && runStatus !== 'ABORTED' && runStatus !== 'TIMED-OUT'; i++) {
       await new Promise(r => setTimeout(r, POLL_INTERVAL));
