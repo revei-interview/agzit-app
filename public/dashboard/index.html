@@ -966,11 +966,28 @@ select.jp-input {
                   <label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;display:block;margin-bottom:6px;">Industry</label>
                   <select id="jobs-industry" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:var(--font);background:white;color:var(--ink);cursor:pointer;">
                     <option value="">Select industry</option>
+                    <option value="accounting">Accounting / Taxation / Audit</option>
+                    <option value="audit">Audit &amp; Assurance</option>
+                    <option value="banking">Banking / Financial Services</option>
+                    <option value="compliance">Compliance / Regulatory</option>
+                    <option value="cybersecurity">Cybersecurity / InfoSec</option>
+                    <option value="finance">Finance / Treasury</option>
+                    <option value="fraud">Fraud / Anti-Fraud</option>
+                    <option value="hr">Human Resources / People Ops</option>
+                    <option value="it">IT / Systems</option>
+                    <option value="risk">Risk Management</option>
+                    <option value="software">Software Development / Engineering</option>
                   </select>
                 </div>
                 <div>
                   <label style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;display:block;margin-bottom:6px;">Country</label>
                   <select id="jobs-country" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:var(--font);background:white;color:var(--ink);cursor:pointer;">
+                    <option value="CA">Canada</option>
+                    <option value="IN" selected>India</option>
+                    <option value="SG">Singapore</option>
+                    <option value="AE">UAE</option>
+                    <option value="GB">United Kingdom</option>
+                    <option value="US">United States</option>
                   </select>
                 </div>
               </div>
@@ -2832,45 +2849,19 @@ function initJobsTab() {
   _jobsInited = true;
 
   try {
-    // Populate industry dropdown (alphabetical by label)
+    // Options are baked into HTML — just pre-select candidate's industry + attach handler
     var indSel = document.getElementById('jobs-industry');
     if (indSel) {
-      var keys = Object.keys(SUPPORTED_INDUSTRIES).sort(function(a, b) {
-        return SUPPORTED_INDUSTRIES[a].label.localeCompare(SUPPORTED_INDUSTRIES[b].label);
-      });
-      keys.forEach(function(k) {
-        var o = document.createElement('option');
-        o.value = k; o.textContent = SUPPORTED_INDUSTRIES[k].label;
-        indSel.appendChild(o);
-      });
-
-      // Pre-select candidate's industry if supported
       if (_candidateIndustryKey && SUPPORTED_INDUSTRIES[_candidateIndustryKey]) {
         indSel.value = _candidateIndustryKey;
         updateSubIndustries(_candidateIndustryKey);
       }
-
-      // Industry change handler
       indSel.addEventListener('change', function() {
         updateSubIndustries(this.value);
       });
     }
-
-    // Populate country dropdown (alphabetical)
-    var countrySel = document.getElementById('jobs-country');
-    if (countrySel) {
-      countrySel.innerHTML = '';
-      SUPPORTED_COUNTRIES.slice().sort(function(a, b) {
-        return a.label.localeCompare(b.label);
-      }).forEach(function(c) {
-        var o = document.createElement('option');
-        o.value = c.code; o.textContent = c.label;
-        countrySel.appendChild(o);
-      });
-      countrySel.value = 'IN'; // default
-    }
   } catch (err) {
-    console.error('[Jobs For You] dropdown init error:', err);
+    console.error('[Jobs For You] init error:', err);
   }
 }
 
