@@ -3313,7 +3313,7 @@ router.get('/naukri-jobs', ...guard, async (req, res) => {
     let keyword;
     if (sub_industries) {
       const subs = sub_industries.split(',').map(s => s.trim()).filter(Boolean);
-      keyword = subs.join(' OR ');
+      keyword = subs.join(' ');
     } else {
       keyword = ind.label;
     }
@@ -3345,14 +3345,14 @@ router.get('/naukri-jobs', ...guard, async (req, res) => {
 
     console.log(`[naukri-jobs] Apify call: keyword="${keyword}", location="${location}"`);
 
-    const apifyUrl = `https://api.apify.com/v2/acts/codemaverick~naukri-job-scraper-latest/run-sync-get-dataset-items?token=${encodeURIComponent(apifyToken)}`;
+    const apifyUrl = `https://api.apify.com/v2/acts/nuclear_quietude~naukri-job-scraper/run-sync-get-dataset-items?token=${encodeURIComponent(apifyToken)}`;
     const apifyRes = await fetch(apifyUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         keyword,
         location,
-        maxItems: 20,
+        maxResults: 20,
       }),
       signal: AbortSignal.timeout(120000), // 2 min timeout
     });
