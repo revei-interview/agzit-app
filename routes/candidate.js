@@ -3365,11 +3365,11 @@ router.get('/naukri-jobs', ...guard, async (req, res) => {
         IN: 'india', AE: 'dubai', GB: 'united-kingdom',
         US: 'united-states', SG: 'singapore', CA: 'canada',
       };
-      const loc = locationMap[cc] || 'india';
+      const locSlug = locationMap[cc] || 'india';
       if (cc === 'IN') {
         return `https://www.naukri.com/${slug}-jobs-in-india`;
       }
-      return `https://www.naukri.com/${slug}-jobs?k=${encodeURIComponent(kw)}&l=${loc}`;
+      return `https://www.naukri.com/${slug}-jobs?k=${encodeURIComponent(kw)}&l=${locSlug}`;
     }
 
     const naukriUrl = buildNaukriUrl(keyword, countryCode);
