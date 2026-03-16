@@ -3435,17 +3435,18 @@ router.get('/naukri-jobs', ...guard, async (req, res) => {
     }
 
     const rawItems = await itemsRes.json();
+    console.log('[naukri-jobs] sample item keys:', Object.keys((Array.isArray(rawItems) ? rawItems[0] : null) || {}));
 
     // Normalize to standard format, max 20
     const jobs = (Array.isArray(rawItems) ? rawItems : []).slice(0, 20).map(item => ({
-      title:      item.title || item.jobTitle || '',
-      company:    item.company || item.companyName || '',
-      location:   item.location || item.jobLocation || '',
-      experience: item.experience || item.experienceRequired || '',
-      salary:     item.salary || item.salaryRange || '',
-      skills:     item.skills || item.keySkills || '',
-      applyLink:  item.applyLink || item.jobUrl || item.url || '',
-      postedDate: item.postedDate || item.datePosted || '',
+      title:      item.Title || item.title || item.jobTitle || item.job_title || item.name || 'Untitled Position',
+      company:    item.Company || item.company || item.companyName || item.company_name || 'Unknown Company',
+      location:   item.Location || item.location || item.jobLocation || '',
+      experience: item.Experience || item.experience || item.experienceRequired || '',
+      salary:     item.Salary || item.salary || item.salaryRange || item.ctc || '',
+      skills:     item.Skills || item.skills || item.keySkills || item.key_skills || '',
+      applyLink:  item['Job URL'] || item.jobUrl || item.url || item.applyLink || item.link || '',
+      postedDate: item['Posted Date'] || item.postedDate || item.posted_date || item.datePosted || '',
     }));
 
     // Store in cache (6h TTL) — only cache non-empty results
