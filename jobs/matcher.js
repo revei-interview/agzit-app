@@ -169,6 +169,21 @@ function matchJobsForCandidate(profile, jobs) {
       }
     }
 
+    // ── STEP 1B: ROLE RELEVANCE FILTER (soft cap) ───────────────────────────
+    let roleRelevant = true; // assume relevant unless proven otherwise
+    const _specificWords = desiredRole
+      ? desiredRole.split(/[\s,\-\/]+/).filter(w => w.length > 2 && !GENERIC_WORDS.has(w))
+      : [];
+    if (_specificWords.length > 0) {
+      const jobDescSnippet = (job.description || '').toLowerCase().slice(0, 200);
+      const hasSpecificInTitle = _specificWords.some(w => jobTitle.includes(w));
+      const hasSpecificInDesc  = _specificWords.some(w => jobDescSnippet.includes(w));
+      if (!hasSpecificInTitle && !hasSpecificInDesc) {
+        roleRelevant = false; // will cap score at 35 at the end
+      }
+    }
+    breakdown.role_relevant = roleRelevant;
+
     // ── STEP 2: INDUSTRY MATCH (+40) ────────────────────────────────────────
     let industryScore = 0;
     for (const ind of industries) {
@@ -257,11 +272,23 @@ function matchJobsForCandidate(profile, jobs) {
     score += freshScore;
     breakdown.freshness = freshScore;
 
+    // Cap irrelevant-role jobs at 35 so they never surface above threshold
+    if (!roleRelevant) score = Math.min(score, 35);
+
     return { ...job, score: Math.min(100, Math.round(score)), score_raw: score, score_breakdown: breakdown };
   });
 
-  return scored
-    .filter(j => j.score >= 25)
+  // Deduplicate by title + company
+  const seen = new Set();
+  const deduped = scored.filter(job => {
+    const key = `${(job.title || '').toLowerCase().trim()}__${(job.company || '').toLowerCase().trim()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return deduped
+    .filter(j => j.score >= 40)
     .sort((a, b) => b.score - a.score || new Date(b.date_posted || 0) - new Date(a.date_posted || 0))
     .slice(0, 20);
 }
