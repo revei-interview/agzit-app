@@ -207,6 +207,15 @@
     .resume-actions a:hover, .resume-actions button:hover { border-color: var(--blue); color: var(--blue); }
     .resume-actions .btn-replace { background: var(--blue-lt); border-color: #C7D7F8; color: var(--blue); }
 
+    /* ── Specialisation pills ── */
+    .sub-pill {
+      display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 20px;
+      border: 1.5px solid #e4e6ef; font-size: 13px; font-weight: 500; color: #3a4163;
+      cursor: pointer; transition: all .15s; user-select: none;
+    }
+    .sub-pill:hover { border-color: #1a44c2; color: #1a44c2; }
+    .sub-pill.active { background: #1a44c2; color: #fff; border-color: #1a44c2; }
+
     /* ── Responsive ── */
     @media (max-width: 640px) {
       .sec { padding: 20px 18px; }
@@ -1056,40 +1065,84 @@ function getVal(id) { return (document.getElementById(id)?.value || '').trim(); 
 function setVal(id, v) { const el = document.getElementById(id); if (el) el.value = v || ''; }
 
 // Extract first industry key from raw stored value (PHP serialized, JSON array, or plain string)
-// ── Supported Industries (sub-industry options per industry) ──────────────
-var SUPPORTED_INDUSTRIES = {
-  accounting:    { label: 'Accounting / Taxation / Audit',       subs: ['Accounts Payable', 'Accounts Receivable', 'GST', 'Taxation', 'Bookkeeping', 'Reconciliation'] },
-  audit:         { label: 'Audit & Assurance',                   subs: ['Internal Audit', 'External Audit', 'SOX Compliance', 'Statutory Audit', 'IS Audit'] },
-  banking:       { label: 'Banking / Financial Services',        subs: ['Retail Banking', 'Trade Finance', 'Loan Processing', 'Credit Analysis', 'NBFC'] },
-  compliance:    { label: 'Compliance / Regulatory',             subs: ['KYC', 'AML', 'Transaction Monitoring', 'Sanctions', 'CKYC', 'FATF Compliance'] },
-  cybersecurity: { label: 'Cybersecurity / InfoSec',             subs: ['SOC Analyst', 'VAPT', 'InfoSec', 'Penetration Testing', 'Vulnerability Assessment'] },
-  finance:       { label: 'Finance / Treasury',                  subs: ['Treasury', 'Cash Management', 'FP&A', 'Corporate Finance', 'Financial Planning'] },
-  fraud:         { label: 'Fraud / Anti-Fraud',                  subs: ['Fraud Analyst', 'AML', 'Chargeback', 'Fraud Investigation', 'Anti-Money Laundering'] },
-  hr:            { label: 'Human Resources / People Ops',        subs: ['Talent Acquisition', 'Recruiter', 'HRBP', 'Learning & Development', 'Payroll', 'HR Generalist'] },
-  it:            { label: 'IT / Systems',                        subs: ['System Admin', 'Network Admin', 'IT Support', 'Infrastructure', 'ERP', 'IT Operations'] },
-  risk:          { label: 'Risk Management',                     subs: ['Credit Risk', 'Market Risk', 'Operational Risk', 'Basel', 'Risk Analyst'] },
-  software:      { label: 'Software Development / Engineering',  subs: ['React', 'Node.js', 'Python', 'Java', 'Full Stack Developer', 'Backend', 'Frontend'] },
+// ── Industry → Sub-specialisation map (synced from config/industries.js) ────
+var INDUSTRY_SUBS = {
+  accounting:{subs:['Accounts Payable','Accounts Receivable','GST','Taxation','Bookkeeping','Reconciliation']},
+  administration:{subs:['Executive Assistant','Office Manager','Receptionist','Facilities Management','Personal Assistant']},
+  media:{subs:['Media Planning','Public Relations','Advertising','Corporate Communications','Event Management']},
+  architecture:{subs:['Architectural Design','Interior Design','Urban Planning','Landscape Architecture','BIM / Revit']},
+  audit:{subs:['Internal Audit','External Audit','SOX Compliance','Statutory Audit','IS Audit']},
+  aviation:{subs:['Pilot','Cabin Crew','Airport Operations','Air Traffic Control','Aircraft Maintenance']},
+  banking:{subs:['Retail Banking','Trade Finance','Loan Processing','Credit Analysis','NBFC']},
+  civil:{subs:['Structural Engineering','Geotechnical','Quantity Surveying','Land Surveying','Construction Management']},
+  compliance:{subs:['KYC','AML','Transaction Monitoring','Sanctions','CKYC','FATF Compliance']},
+  customer_support:{subs:['Voice Support','Chat Support','Email Support','Technical Support','Customer Success']},
+  cybersecurity:{subs:['SOC Analyst','VAPT','InfoSec','Penetration Testing','Vulnerability Assessment']},
+  data:{subs:['Data Analysis','Business Intelligence','Data Engineering','Data Science','Tableau / Power BI']},
+  engineering:{subs:['Process Engineering','Industrial Engineering','Quality Engineering','R&D Engineering','Project Engineering']},
+  erp_crm:{subs:['SAP','Oracle ERP','Salesforce','Microsoft Dynamics','ServiceNow']},
+  finance:{subs:['Treasury','Cash Management','FP&A','Corporate Finance','Financial Planning']},
+  fraud:{subs:['Fraud Analyst','AML','Chargeback','Fraud Investigation','Anti-Money Laundering']},
+  freshers:{subs:['Management Trainee','Graduate Engineer Trainee','Internship','Apprenticeship','Campus Recruitment']},
+  government:{subs:['Civil Services','Municipal Administration','Policy Analysis','Public Finance','Defence Civilian']},
+  design:{subs:['UI/UX Design','Graphic Design','Web Design','Motion Graphics','Brand Design']},
+  hse:{subs:['Safety Officer','Environmental Health','NEBOSH','Fire Safety','Occupational Health']},
+  healthcare:{subs:['Nursing','Physician','Lab Technician','Pharmacy','Medical Coding']},
+  hospitality:{subs:['Hotel Management','Food & Beverage','Front Office','Housekeeping','Chef / Culinary']},
+  hr:{subs:['Talent Acquisition','Recruiter','HRBP','Learning & Development','Payroll','HR Generalist']},
+  insurance:{subs:['Underwriting','Claims Processing','Actuarial','Reinsurance','Insurance Sales']},
+  it:{subs:['System Admin','Network Admin','IT Support','Infrastructure','ERP','IT Operations']},
+  hardware_it:{subs:['Desktop Support','Hardware Repair','Field Engineer','IT Technician','CCTV / Security Systems']},
+  content:{subs:['Content Writing','Copywriting','Technical Writing','Editing','Journalism']},
+  translation:{subs:['Translation','Interpretation','Localisation','Subtitling','Transcription']},
+  legal:{subs:['Corporate Law','Litigation','Contract Management','Paralegal','Intellectual Property']},
+  supply_chain:{subs:['Warehouse Management','Inventory Control','Distribution','Freight / Shipping','Procurement Logistics']},
+  marine:{subs:['Merchant Navy','Port Operations','Ship Management','Offshore Operations','Maritime Law']},
+  marketing:{subs:['Digital Marketing','SEO / SEM','Content Marketing','Brand Management','Growth Marketing']},
+  mech_electrical:{subs:['HVAC','Electrical Systems','Plumbing','Maintenance Engineering','Electromechanical']},
+  mining:{subs:['Mine Planning','Geologist','Drilling Engineer','Blasting','Mineral Processing']},
+  oil_gas:{subs:['Upstream','Downstream','Refinery Operations','Pipeline Engineering','Renewable Energy']},
+  operations:{subs:['Business Operations','Process Improvement','Back Office','Vendor Management','MIS Reporting']},
+  other:{subs:[]},
+  pharma:{subs:['Clinical Research','Regulatory Affairs','Drug Safety','Pharmacovigilance','Quality Assurance']},
+  procurement:{subs:['Strategic Sourcing','Vendor Management','Purchase Management','Category Management','Contract Negotiation']},
+  product:{subs:['Product Strategy','Product Owner','Roadmap Planning','User Research','Agile / Scrum']},
+  manufacturing:{subs:['Production Planning','Plant Operations','Lean Manufacturing','Six Sigma','Quality Control']},
+  qa:{subs:['Manual Testing','Automation Testing','QA Lead','Performance Testing','Quality Assurance']},
+  r_and_d:{subs:['Research Scientist','Lab Research','Product Development','Innovation','Technical Research']},
+  retail:{subs:['Store Manager','Visual Merchandising','Retail Sales','Inventory Management','E-commerce Operations']},
+  risk:{subs:['Credit Risk','Market Risk','Operational Risk','Basel','Risk Analyst']},
+  sales:{subs:['Inside Sales','Field Sales','Key Account Management','Business Development','Channel Sales']},
+  security:{subs:['Security Supervisor','Loss Prevention','Physical Security','Access Control','CCTV Monitoring']},
+  management:{subs:['CEO / MD','VP / Director','General Manager','Country Head','Business Head']},
+  site_engineering:{subs:['Site Engineer','Project Manager','Construction Supervisor','Planning Engineer','QS / Estimation']},
+  software:{subs:['React','Node.js','Python','Java','Full Stack Developer','Backend','Frontend']},
+  network_admin:{subs:['Network Engineer','System Administrator','Cisco / CCNA','Cloud Infrastructure','DevOps']},
+  education:{subs:['School Teacher','Lecturer / Professor','Corporate Trainer','Curriculum Design','EdTech']},
+  telecom:{subs:['RF Engineer','Telecom Operations','5G / LTE','Network Planning','Tower Operations']},
+  transport:{subs:['Fleet Management','Logistics Coordinator','Delivery / Courier','Dispatch','Commercial Driving']},
+  travel:{subs:['Travel Agent','Tour Operations','Airline Ticketing','Visa Processing','Destination Management']},
 };
 
 function updateEditSubIndustries(industryKey, savedSubs) {
   var field = document.getElementById('sub-industry-field');
   var list = document.getElementById('sub-industry-list');
   if (!field || !list) return;
-  if (!industryKey || !SUPPORTED_INDUSTRIES[industryKey]) {
+  if (!industryKey || !INDUSTRY_SUBS[industryKey] || !INDUSTRY_SUBS[industryKey].subs.length) {
     field.style.display = 'none';
     list.innerHTML = '';
     return;
   }
   field.style.display = '';
-  var subs = SUPPORTED_INDUSTRIES[industryKey].subs;
   var savedSet = new Set(savedSubs || []);
   list.innerHTML = '';
-  subs.slice().sort(function(a, b) { return a.localeCompare(b); }).forEach(function(sub) {
-    var label = document.createElement('label');
-    label.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;border:1px solid #e4e6ef;font-size:13px;font-weight:500;color:#3a4163;cursor:pointer;';
-    var checked = savedSet.has(sub) ? ' checked' : '';
-    label.innerHTML = '<input type="checkbox" class="edit-sub-cb" value="' + sub + '"' + checked + ' style="accent-color:#1a44c2;"> ' + sub;
-    list.appendChild(label);
+  INDUSTRY_SUBS[industryKey].subs.slice().sort().forEach(function(sub) {
+    var pill = document.createElement('span');
+    pill.className = 'sub-pill' + (savedSet.has(sub) ? ' active' : '');
+    pill.textContent = sub;
+    pill.dataset.value = sub;
+    pill.onclick = function() { this.classList.toggle('active'); };
+    list.appendChild(pill);
   });
 }
 
@@ -1098,7 +1151,7 @@ document.addEventListener('DOMContentLoaded', function() {
   var indSel = document.getElementById('f_compliance_domains');
   if (indSel) {
     indSel.addEventListener('change', function() {
-      updateEditSubIndustries(this.value, []);
+      updateEditSubIndustries(this.value);
     });
   }
 });
@@ -1453,7 +1506,7 @@ async function saveProfile() {
     country_of_nationality:       getVal('f_country_of_nationality'),
     residential_country:          getVal('f_residential_country'),
     compliance_domains:           getVal('f_compliance_domains'),
-    candidate_sub_industries:     Array.from(document.querySelectorAll('.edit-sub-cb:checked')).map(function(cb) { return cb.value; }),
+    candidate_sub_industries:     Array.from(document.querySelectorAll('#sub-industry-list .sub-pill.active')).map(function(el) { return el.dataset.value; }),
     current_annual_ctc_with_currency:  (getVal('f_current_ctc_currency')  + ' ' + getVal('f_current_ctc_amount')).trim(),
     expected_annual_ctc_with_currency: (getVal('f_expected_ctc_currency') + ' ' + getVal('f_expected_ctc_amount')).trim(),
     key_achievements:             getVal('f_key_achievements'),

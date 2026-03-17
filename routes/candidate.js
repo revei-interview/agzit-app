@@ -312,6 +312,18 @@ router.get('/dashboard', ...guard, async (req, res) => {
 
     const meta = user.dpr_profile_id ? await fetchPostMeta(user.dpr_profile_id) : null;
 
+    // Fetch sub-industries from wp_usermeta
+    let candidateSubIndustries = [];
+    if (user.wp_user_id) {
+      const [[subRow]] = await pool.execute(
+        "SELECT meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'candidate_sub_industries' LIMIT 1",
+        [user.wp_user_id]
+      );
+      if (subRow?.meta_value) {
+        try { candidateSubIndustries = JSON.parse(subRow.meta_value); } catch (_) {}
+      }
+    }
+
     // Parse sessions for both recent-interviews and latest-scorecard
     const sessions = meta
       ? parseRepeater(meta, 'mock_interview_sessions', SESSION_SUBFIELDS)
@@ -378,6 +390,7 @@ router.get('/dashboard', ...guard, async (req, res) => {
         professional_headline: meta.professional_headline,
         resume_upload:         meta.resume_upload,
         has_resume:            meta.has_resume,
+        candidate_sub_industries: candidateSubIndustries,
       } : null,
       entitlements: {
         sessions_20: parseInt(userMeta.mock_sessions_remaining_20) || 0,
@@ -2648,6 +2661,11 @@ router.post('/dpr', requireAuth, async (req, res) => {
       );
       await upsertUserMeta(wpUserId, 'first_name', s(personal.first_name));
       await upsertUserMeta(wpUserId, 'last_name',  s(personal.last_name));
+      // Save candidate sub-industries
+      if (Array.isArray(personal.candidate_sub_industries)) {
+        const subs = personal.candidate_sub_industries.filter(v => typeof v === 'string').map(v => v.trim()).filter(Boolean);
+        await upsertUserMeta(wpUserId, 'candidate_sub_industries', JSON.stringify(subs));
+      }
     }
 
     // 13. Award DPR creation bonus (+1 credit, first time only)
