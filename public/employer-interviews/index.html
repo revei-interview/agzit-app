@@ -512,6 +512,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 
       // 2. Set up AudioContext for playback
       audioCtx = new AudioContext({ sampleRate: 8000 });
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
       gainNode = audioCtx.createGain();
       gainNode.connect(audioCtx.destination);
       playbackTime = 0;

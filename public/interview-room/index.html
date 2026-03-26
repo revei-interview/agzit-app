@@ -307,8 +307,20 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     }
   })();
 
+  let audioChunkCount = 0;
   function playMulawChunk(data) {
-    if (!audioCtx || !gainNode) return;
+    if (!audioCtx || !gainNode) {
+      console.warn('[Audio] playMulawChunk called but audioCtx or gainNode missing');
+      return;
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+      console.warn('[Audio] AudioContext was suspended, resuming');
+    }
+    audioChunkCount++;
+    if (audioChunkCount <= 5 || audioChunkCount % 50 === 0) {
+      console.log(`[Audio] Playing chunk #${audioChunkCount}, size=${data.length}, ctxState=${audioCtx.state}`);
+    }
     const samples = new Float32Array(data.length);
     for (let i = 0; i < data.length; i++) {
       samples[i] = MULAW_DECODE[data[i]] / 32768;
@@ -508,6 +520,8 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 
       // 2. Set up AudioContext for playback
       audioCtx = new AudioContext({ sampleRate: 8000 });
+      // Ensure AudioContext is not suspended (Chrome requires user gesture)
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
       gainNode = audioCtx.createGain();
       gainNode.connect(audioCtx.destination);
       playbackTime = 0;
@@ -544,9 +558,11 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
         }
       };
 
+      let msgCount = 0;
       ws.onmessage = (event) => {
+        msgCount++;
         if (typeof event.data === 'string') {
-          // JSON control message
+          console.log('[WS] Text message:', event.data.substring(0, 100));
           try {
             const msg = JSON.parse(event.data);
             if (msg.type === 'ready') {
@@ -557,13 +573,14 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
         } else {
           // Binary audio data
           const data = new Uint8Array(event.data);
+          if (msgCount <= 5) {
+            console.log(`[WS] Binary msg #${msgCount}, size=${data.length}, first byte=0x${data[0]?.toString(16)}`);
+          }
           if (data.length === 1 && data[0] === 0xFF) {
-            // Interrupt / barge-in — clear playback buffer
             console.log('[WS] Barge-in interrupt received');
             clearPlayback();
             $('statusRing').className = 'status-ring active';
           } else {
-            // TTS audio — mulaw 8kHz, decode and play
             playMulawChunk(data);
             $('statusRing').className = 'status-ring speaking';
           }
