@@ -319,13 +319,30 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     }
     audioChunkCount++;
     if (audioChunkCount <= 5 || audioChunkCount % 50 === 0) {
-      console.log(`[Audio] Playing chunk #${audioChunkCount}, size=${data.length}, ctxState=${audioCtx.state}`);
+      console.log(`[Audio] Playing chunk #${audioChunkCount}, size=${data.length}, ctxState=${audioCtx.state}, sampleRate=${audioCtx.sampleRate}`);
     }
-    const samples = new Float32Array(data.length);
+    // Decode mulaw → Float32 at 8kHz
+    const decoded = new Float32Array(data.length);
     for (let i = 0; i < data.length; i++) {
-      samples[i] = MULAW_DECODE[data[i]] / 32768;
+      decoded[i] = MULAW_DECODE[data[i]] / 32768;
     }
-    const buffer = audioCtx.createBuffer(1, samples.length, 8000);
+    // Resample 8kHz → AudioContext native rate if needed
+    const nativeRate = audioCtx.sampleRate;
+    let samples = decoded;
+    if (nativeRate !== 8000) {
+      const ratio = nativeRate / 8000;
+      const outLen = Math.round(decoded.length * ratio);
+      samples = new Float32Array(outLen);
+      for (let i = 0; i < outLen; i++) {
+        const srcIdx = i / ratio;
+        const idx = Math.floor(srcIdx);
+        const frac = srcIdx - idx;
+        const s0 = decoded[idx] || 0;
+        const s1 = decoded[idx + 1] || 0;
+        samples[i] = s0 + frac * (s1 - s0);
+      }
+    }
+    const buffer = audioCtx.createBuffer(1, samples.length, nativeRate);
     buffer.getChannelData(0).set(samples);
     const source = audioCtx.createBufferSource();
     source.buffer = buffer;
@@ -518,10 +535,10 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
       const { wsUrl, callLogId } = tokenRes;
       console.log('[WS] Got stream URL, callLogId:', callLogId);
 
-      // 2. Set up AudioContext for playback
-      audioCtx = new AudioContext({ sampleRate: 8000 });
-      // Ensure AudioContext is not suspended (Chrome requires user gesture)
+      // 2. Set up AudioContext for playback (use native rate — we resample 8kHz→native in playMulawChunk)
+      audioCtx = new AudioContext();
       if (audioCtx.state === 'suspended') await audioCtx.resume();
+      console.log('[Audio] AudioContext created, sampleRate:', audioCtx.sampleRate);
       gainNode = audioCtx.createGain();
       gainNode.connect(audioCtx.destination);
       playbackTime = 0;
