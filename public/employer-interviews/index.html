@@ -127,6 +127,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 .end-title { font-size: 22px; font-weight: 800; color: var(--white); }
 .end-sub   { font-size: 14px; color: rgba(255,255,255,.5); max-width: 400px; line-height: 1.6; }
 </style>
+<script src="https://sdk.twilio.com/js/client/releases/2.6.0/twilio.js"></script>
 </head>
 <body>
 
@@ -196,9 +197,9 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 (async function () {
   // ── Constants ───────────────────────────────────────────────────────────────
   const RENDER_BASE       = 'https://agzit-daily-backend.onrender.com';
-  const VAPI_PUBLIC_KEY   = '11eb11ed-1351-4fcd-b0b7-ba4343534566';
-  const VAPI_ASSISTANT_ID = '2cbb9d48-f140-48bf-8a79-6681dccd0540';
-  const MAP_SECRET        = 'WasimWPToken_Map_Shared_for_SID_missing_issuewithrender_Myown_28973213';
+  const VOKEVA_BASE       = 'https://vokeva-backend.onrender.com';
+  const VOKEVA_API_KEY    = 'vk_live_agzit_interview_2026';
+  const VOKEVA_AGENT_ID   = '3df4dd74-6630-4601-a3c9-93e5c39a08b3';
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const $ = id => document.getElementById(id);
@@ -267,27 +268,6 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 
   const { session_id: sid, session_minutes: sessionMinutes, interview_role, candidate_name, variableValues } = sessionData;
 
-  // ── Load Vapi SDK ────────────────────────────────────────────────────────────
-  const SDK_TIMEOUT = 12000;
-  const sdkStart    = Date.now();
-
-  $('overlayTitle').textContent = 'Loading interview engine…';
-  $('overlaySub').textContent   = 'Importing AI voice SDK, please wait.';
-
-  let Vapi;
-  for (;;) {
-    try {
-      const mod = await import('https://esm.sh/@vapi-ai/web');
-      Vapi = mod.default || mod.Vapi;
-      if (typeof Vapi === 'function') break;
-    } catch { /* retry */ }
-    if (Date.now() - sdkStart > SDK_TIMEOUT) {
-      showOverlayErr('Failed to load interview engine. Please refresh and try again.');
-      return;
-    }
-    await new Promise(r => setTimeout(r, 800));
-  }
-
   // ── Check camera + mic permissions ──────────────────────────────────────────
   $('overlayTitle').textContent = 'Checking permissions…';
   $('overlaySub').textContent   = 'Please allow microphone and camera access when prompted.';
@@ -323,7 +303,8 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   $('btnLaunch').style.display      = 'block';
 
   // ── Call lifecycle state ─────────────────────────────────────────────────────
-  let vapi           = null;
+  let device         = null;
+  let activeCall     = null;
   let callActive     = false;
   let heartbeatTimer = null;
   let warningTimer   = null;
@@ -387,7 +368,14 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     $('statusText').textContent = 'Ending session…';
     $('statusRing').className   = 'status-ring connecting';
 
-    if (vapi) { try { vapi.stop(); } catch { /* ignore */ } }
+    if (activeCall) {
+      try { activeCall.disconnect(); } catch { /* ignore */ }
+      activeCall = null;
+    }
+    if (device) {
+      try { device.destroy(); } catch { /* ignore */ }
+      device = null;
+    }
 
     // Update status to completed
     try {
@@ -428,65 +416,12 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     startHeartbeat();
     scheduleTimers();
 
-    // Map callId → SID for webhook resolution on daily-backend
-    if (vapi?._call?.id) {
-      postJson(`${RENDER_BASE}/vapi/map-call`,
-        { sid, callId: vapi._call.id },
-        { 'x-map-secret': MAP_SECRET }
-      ).catch(() => {});
-    }
-
     // Start self-view camera
     navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(stream => {
       $('selfVideo').srcObject = stream;
       $('selfInfo').textContent = 'Your camera is active.';
     }).catch(() => {
       $('selfInfo').textContent = 'Camera not available.';
-    });
-  }
-
-  // ── Vapi event handlers ───────────────────────────────────────────────────────
-  function attachVapiEvents() {
-    vapi.on('call-start', () => {
-      onCallStart();
-      // Retry map-call after 1s in case callId wasn't available immediately
-      setTimeout(() => {
-        if (vapi?._call?.id) {
-          postJson(`${RENDER_BASE}/vapi/map-call`,
-            { sid, callId: vapi._call.id },
-            { 'x-map-secret': MAP_SECRET }
-          ).catch(() => {});
-        }
-      }, 1000);
-    });
-
-    vapi.on('call-end', () => endCall('call_ended'));
-
-    vapi.on('speech-start', () => {
-      $('statusRing').className   = 'status-ring speaking';
-      $('statusText').textContent = 'AI interviewer is speaking…';
-    });
-
-    vapi.on('speech-end', () => {
-      $('statusRing').className   = 'status-ring active';
-      $('statusText').textContent = 'Your turn — please respond';
-    });
-
-    vapi.on('message', msg => {
-      if (msg?.type === 'function-call') return;
-      if (msg?.role === 'user') {
-        $('micDot').classList.add('active');
-        $('micLabel').textContent = 'Listening…';
-        setTimeout(() => {
-          $('micDot').classList.remove('active');
-          $('micLabel').textContent = 'Microphone active';
-        }, 1500);
-      }
-    });
-
-    vapi.on('error', err => {
-      console.error('[vapi error]', err);
-      toast('Connection issue — check your microphone.');
     });
   }
 
@@ -505,14 +440,59 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     $('overlayErr').style.display     = 'none';
 
     try {
-      vapi = new Vapi(VAPI_PUBLIC_KEY);
-      attachVapiEvents();
-      await vapi.start(VAPI_ASSISTANT_ID, { variableValues });
+      // 1. Get browser token from Vokeva
+      const tokenRes = await postJson(`${VOKEVA_BASE}/api/calls/browser-token`, {
+        agentId:    VOKEVA_AGENT_ID,
+        sid:        sid,
+        variables:  variableValues,
+      }, {
+        'Authorization': 'Bearer ' + VOKEVA_API_KEY,
+      });
+
+      if (!tokenRes.token) {
+        throw new Error(tokenRes.error || 'Failed to get browser token');
+      }
+
+      const { token: twilioToken, callLogId } = tokenRes;
+
+      // 2. Create Twilio Device
+      device = new Twilio.Device(twilioToken, {
+        codecPreferences: ['opus', 'pcmu'],
+        edge: 'ashburn',
+      });
+
+      device.on('error', (err) => {
+        console.error('[twilio device error]', err);
+        toast('Connection issue — check your microphone.');
+      });
+
+      await device.register();
+
+      // 3. Connect the call
+      activeCall = await device.connect({
+        params: { callLogId: String(callLogId) },
+      });
+
+      // 4. Call events
+      activeCall.on('accept', () => {
+        onCallStart();
+      });
+
+      activeCall.on('disconnect', () => {
+        endCall('call_ended');
+      });
+
+      activeCall.on('error', (err) => {
+        console.error('[twilio call error]', err);
+        toast('Call error — please try again.');
+      });
+
     } catch (e) {
-      console.error('[vapi start]', e);
+      console.error('[twilio start]', e);
       showOverlayErr('Failed to connect to interviewer. Please check your microphone and try again.');
       $('btnLaunch').disabled   = false;
       $('btnLaunch').textContent = 'Retry';
+      if (device) { try { device.destroy(); } catch {} device = null; }
     }
   });
 
