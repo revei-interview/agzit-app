@@ -454,19 +454,23 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
       });
 
       device.on('error', (err) => {
-        console.error('[twilio device error]', err);
-        toast('Connection issue — check your microphone.');
+        console.error('[Twilio Device Error]', err.code, err.message, err);
+        toast(`Device error ${err.code || '?'}: ${err.message || 'Unknown'}`);
       });
 
       await device.register();
+      console.log('[Twilio] Device registered successfully, identity:', device.identity);
+      console.log('[Twilio] Connecting to Vokeva...');
 
       // 3. Connect the call
+      console.log('[Twilio] Connecting with callLogId:', callLogId);
       activeCall = await device.connect({
         params: { callLogId: String(callLogId) },
       });
 
       // 4. Call events
       activeCall.on('accept', () => {
+        console.log('[Twilio] Call accepted, state:', activeCall.status());
         onCallStart();
       });
 
@@ -475,8 +479,8 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
       });
 
       activeCall.on('error', (err) => {
-        console.error('[twilio call error]', err);
-        toast('Call error — please try again.');
+        console.error('[Twilio Call Error]', err.code, err.message, err);
+        toast(`Call error ${err.code || '?'}: ${err.message || 'Unknown'}`);
       });
 
     } catch (e) {
