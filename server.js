@@ -171,6 +171,12 @@ app.get('/logout', (req, res) => {
   res.redirect('https://agzit.com/');
 });
 
+// AudioWorklet module for direct WebSocket interview audio
+app.get('/interview-room/audio-processor.js', (req, res) => {
+  res.type('application/javascript');
+  res.sendFile(path.join(__dirname, 'public/interview-room/audio-processor.js'));
+});
+
 // Health check (Render uses this)
 app.get('/health', (req, res) => {
   res.json({ ok: true, env: process.env.NODE_ENV });
