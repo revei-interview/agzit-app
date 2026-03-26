@@ -1073,6 +1073,21 @@ router.get('/interviews', ...guard, async (req, res) => {
 
     const sessions = parseRepeater(data.meta, 'mock_interview_sessions', SESSION_SUBFIELDS);
 
+    // Fix stale "in_progress" sessions — if lock has expired, treat as completed
+    const [[lockUser]] = await pool.execute(
+      'SELECT wp_user_id FROM agzit_users WHERE id = ?', [req.user.user_id]
+    );
+    if (lockUser?.wp_user_id) {
+      const lockMeta = await fetchUserMeta(lockUser.wp_user_id, ['mock_session_lock_until']);
+      const lockUntil = parseInt(lockMeta.mock_session_lock_until) || 0;
+      const nowTs = Math.floor(Date.now() / 1000);
+      for (const s of sessions) {
+        if (s.interview_status === 'in_progress' && nowTs >= lockUntil) {
+          s.interview_status = 'completed';
+        }
+      }
+    }
+
     // Employer-scheduled interviews — matched by candidate email
     const userEmail = req.user.email;
     let employer_interviews = [];
