@@ -120,7 +120,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 .end-sub   { font-size: 14px; color: rgba(255,255,255,.5); max-width: 400px; line-height: 1.6; }
 .btn-dash  { background: var(--blue); color: var(--white); border-radius: 12px; padding: 12px 28px; font-size: 14px; font-weight: 700; margin-top: 8px; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@twilio/voice-sdk@2.12.1/dist/twilio.min.js"></script>
+<!-- Direct WebSocket audio — no Twilio SDK needed -->
 </head>
 <body>
 
@@ -278,8 +278,12 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   $('btnLaunch').style.display      = 'block';
 
   // ── Call lifecycle state ─────────────────────────────────────────────────────
-  let device         = null;
-  let activeCall     = null;
+  let ws             = null;
+  let audioCtx       = null;
+  let micStream      = null;
+  let workletNode    = null;
+  let gainNode       = null;
+  let playbackTime   = 0;
   let callActive     = false;
   let heartbeatTimer = null;
   let warningTimer   = null;
@@ -288,6 +292,46 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   let clockTimer     = null;
   let callStartedAt  = null;
   let firstHeartbeat = true;
+
+  // ── Mulaw decode table (precomputed) ──────────────────────────────────────
+  const MULAW_DECODE = new Int16Array(256);
+  (function buildTable() {
+    for (let i = 0; i < 256; i++) {
+      let v = ~i & 0xFF;
+      const sign = v & 0x80;
+      const exponent = (v >> 4) & 0x07;
+      const mantissa = v & 0x0F;
+      let magnitude = ((mantissa << 3) + 0x84) << exponent;
+      magnitude -= 0x84;
+      MULAW_DECODE[i] = sign ? -magnitude : magnitude;
+    }
+  })();
+
+  function playMulawChunk(data) {
+    if (!audioCtx || !gainNode) return;
+    const samples = new Float32Array(data.length);
+    for (let i = 0; i < data.length; i++) {
+      samples[i] = MULAW_DECODE[data[i]] / 32768;
+    }
+    const buffer = audioCtx.createBuffer(1, samples.length, 8000);
+    buffer.getChannelData(0).set(samples);
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(gainNode);
+    const now = audioCtx.currentTime;
+    if (playbackTime < now) playbackTime = now;
+    source.start(playbackTime);
+    playbackTime += buffer.duration;
+  }
+
+  function clearPlayback() {
+    if (gainNode) { gainNode.disconnect(); }
+    if (audioCtx) {
+      gainNode = audioCtx.createGain();
+      gainNode.connect(audioCtx.destination);
+    }
+    playbackTime = 0;
+  }
 
   // ── Timer display ────────────────────────────────────────────────────────────
   function startClock() {
@@ -357,13 +401,22 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     $('statusText').textContent = 'Ending session…';
     $('statusRing').className   = 'status-ring connecting';
 
-    if (activeCall) {
-      try { activeCall.disconnect(); } catch { /* ignore */ }
-      activeCall = null;
+    if (ws) {
+      try { ws.close(); } catch { /* ignore */ }
+      ws = null;
     }
-    if (device) {
-      try { device.destroy(); } catch { /* ignore */ }
-      device = null;
+    if (workletNode) {
+      try { workletNode.disconnect(); } catch { /* ignore */ }
+      workletNode = null;
+    }
+    if (micStream) {
+      micStream.getTracks().forEach(t => t.stop());
+      micStream = null;
+    }
+    if (audioCtx) {
+      try { audioCtx.close(); } catch { /* ignore */ }
+      audioCtx = null;
+      gainNode = null;
     }
 
     // Mark session completed in DB (fire-and-forget)
@@ -437,8 +490,8 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
         throw new Error(slotRes.message || 'All interview slots are busy. Please try again in a few minutes.');
       }
 
-      // 1. Get browser token from Vokeva
-      const tokenRes = await postJson(`${VOKEVA_BASE}/api/calls/browser-token`, {
+      // 1. Get browser stream token from Vokeva (direct WebSocket, no Twilio)
+      const tokenRes = await postJson(`${VOKEVA_BASE}/api/calls/browser-stream-token`, {
         agentId:    VOKEVA_AGENT_ID,
         sid:        sid,
         ...variableValues,
@@ -446,54 +499,95 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
         'Authorization': 'Bearer ' + VOKEVA_API_KEY,
       });
 
-      if (!tokenRes.token) {
-        throw new Error(tokenRes.error || 'Failed to get browser token');
+      if (!tokenRes.wsUrl) {
+        throw new Error(tokenRes.error || 'Failed to get stream token');
       }
 
-      const { token, callLogId } = tokenRes;
+      const { wsUrl, callLogId } = tokenRes;
+      console.log('[WS] Got stream URL, callLogId:', callLogId);
 
-      // 2. Create Twilio Device
-      device = new Twilio.Device(token, {
-        codecPreferences: ['opus', 'pcmu'],
-        edge: 'ashburn',
-      });
+      // 2. Set up AudioContext for playback
+      audioCtx = new AudioContext({ sampleRate: 8000 });
+      gainNode = audioCtx.createGain();
+      gainNode.connect(audioCtx.destination);
+      playbackTime = 0;
 
-      device.on('error', (err) => {
-        console.error('[Twilio Device Error]', err.code, err.message, err);
-        toast(`Device error ${err.code || '?'}: ${err.message || 'Unknown'}`);
-      });
+      // 3. Open WebSocket to Vokeva
+      ws = new WebSocket(wsUrl);
+      ws.binaryType = 'arraybuffer';
 
-      await device.register();
-      console.log('[Twilio] Device registered successfully, identity:', device.identity);
-      console.log('[Twilio] Connecting to Vokeva...');
+      ws.onopen = async () => {
+        console.log('[WS] Connected to Vokeva');
 
-      // 3. Connect the call
-      console.log('[Twilio] Connecting with callLogId:', callLogId);
-      activeCall = await device.connect({
-        params: { callLogId: String(callLogId) },
-      });
+        // 4. Set up AudioWorklet for mic capture (48kHz → 8kHz mulaw)
+        try {
+          const workletUrl = new URL('audio-processor.js', location.href).href;
+          const captureCtx = new AudioContext();
+          await captureCtx.audioWorklet.addModule(workletUrl);
 
-      // 4. Call events
-      activeCall.on('accept', () => {
-        console.log('[Twilio] Call accepted, state:', activeCall.status());
-        onCallStart();
-      });
+          micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const micSource = captureCtx.createMediaStreamSource(micStream);
+          workletNode = new AudioWorkletNode(captureCtx, 'mulaw-capture-processor');
 
-      activeCall.on('disconnect', () => {
-        endCall('call_ended');
-      });
+          workletNode.port.onmessage = (e) => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(e.data); // ArrayBuffer of mulaw bytes
+            }
+          };
 
-      activeCall.on('error', (err) => {
-        console.error('[Twilio Call Error]', err.code, err.message, err);
-        toast(`Call error ${err.code || '?'}: ${err.message || 'Unknown'}`);
-      });
+          micSource.connect(workletNode);
+          workletNode.connect(captureCtx.destination); // needed to keep worklet alive
+          $('micDot').classList.add('active');
+          console.log('[WS] Mic capture started at', captureCtx.sampleRate, 'Hz');
+        } catch (micErr) {
+          console.error('[WS] Mic setup failed:', micErr);
+          toast('Microphone setup failed');
+        }
+      };
+
+      ws.onmessage = (event) => {
+        if (typeof event.data === 'string') {
+          // JSON control message
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'ready') {
+              console.log('[WS] Pipeline ready, starting call');
+              onCallStart();
+            }
+          } catch { /* ignore parse errors */ }
+        } else {
+          // Binary audio data
+          const data = new Uint8Array(event.data);
+          if (data.length === 1 && data[0] === 0xFF) {
+            // Interrupt / barge-in — clear playback buffer
+            console.log('[WS] Barge-in interrupt received');
+            clearPlayback();
+            $('statusRing').className = 'status-ring active';
+          } else {
+            // TTS audio — mulaw 8kHz, decode and play
+            playMulawChunk(data);
+            $('statusRing').className = 'status-ring speaking';
+          }
+        }
+      };
+
+      ws.onclose = (e) => {
+        console.log('[WS] Connection closed:', e.code, e.reason);
+        if (callActive) endCall('call_ended');
+      };
+
+      ws.onerror = (e) => {
+        console.error('[WS] WebSocket error:', e);
+        toast('Connection error — please try again.');
+      };
 
     } catch (e) {
-      console.error('[twilio start]', e);
+      console.error('[ws start]', e);
       showOverlayErr('Failed to connect to interviewer. Please check your microphone and try again.');
       $('btnLaunch').disabled   = false;
       $('btnLaunch').textContent = 'Retry';
-      if (device) { try { device.destroy(); } catch {} device = null; }
+      if (ws) { try { ws.close(); } catch {} ws = null; }
+      if (audioCtx) { try { audioCtx.close(); } catch {} audioCtx = null; }
     }
   });
 
