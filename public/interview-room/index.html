@@ -369,7 +369,15 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
       device = null;
     }
 
-    // Release slot
+    // Mark session completed in DB (fire-and-forget)
+    fetch('/api/candidate/interviews/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ sid }),
+    }).catch(() => {});
+
+    // Release concurrency slot on daily-backend
     try {
       await fetch(`${RENDER_BASE}/interview/end`, {
         method: 'POST',

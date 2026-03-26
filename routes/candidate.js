@@ -1073,7 +1073,7 @@ router.get('/interviews', ...guard, async (req, res) => {
 
     const sessions = parseRepeater(data.meta, 'mock_interview_sessions', SESSION_SUBFIELDS);
 
-    // Fix stale "in_progress" sessions — if lock has expired, treat as completed
+    // Fix stale "in_progress" sessions — if lock has expired, mark completed in DB
     const [[lockUser]] = await pool.execute(
       'SELECT wp_user_id FROM agzit_users WHERE id = ?', [req.user.user_id]
     );
@@ -1081,10 +1081,17 @@ router.get('/interviews', ...guard, async (req, res) => {
       const lockMeta = await fetchUserMeta(lockUser.wp_user_id, ['mock_session_lock_until']);
       const lockUntil = parseInt(lockMeta.mock_session_lock_until) || 0;
       const nowTs = Math.floor(Date.now() / 1000);
-      for (const s of sessions) {
-        if (s.interview_status === 'in_progress' && nowTs >= lockUntil) {
-          s.interview_status = 'completed';
+      let clearedLock = false;
+      for (let i = 0; i < sessions.length; i++) {
+        if (sessions[i].interview_status === 'in_progress' && nowTs >= lockUntil) {
+          sessions[i].interview_status = 'completed';
+          await upsertPostMeta(data.profileId, `mock_interview_sessions_${i}_interview_status`, 'completed');
+          clearedLock = true;
         }
+      }
+      if (clearedLock) {
+        await upsertUserMeta(lockUser.wp_user_id, 'mock_session_lock_until', '0');
+        await upsertUserMeta(lockUser.wp_user_id, 'mock_session_lock_id', '');
       }
     }
 
@@ -1504,6 +1511,43 @@ router.post('/interviews/start', ...guard, async (req, res) => {
     });
   } catch (err) {
     console.error('[candidate/interviews/start]', err);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+// ── POST /api/candidate/interviews/complete ──────────────────────────────────
+// Mark an interview session as completed + clear session lock.
+// Called by the interview room frontend when the candidate ends the call.
+
+router.post('/interviews/complete', ...guard, async (req, res) => {
+  try {
+    const sid = typeof req.body.sid === 'string' ? req.body.sid.trim() : '';
+    if (!sid) return res.status(400).json({ ok: false, error: 'sid is required' });
+
+    const [[user]] = await pool.execute(
+      'SELECT wp_user_id, dpr_profile_id FROM agzit_users WHERE id = ?',
+      [req.user.user_id]
+    );
+    if (!user?.wp_user_id || !user?.dpr_profile_id) {
+      return res.status(400).json({ ok: false, error: 'Account not linked' });
+    }
+
+    const profileId = user.dpr_profile_id;
+    const meta = await fetchPostMeta(profileId);
+    const sessions = parseRepeater(meta, 'mock_interview_sessions', SESSION_SUBFIELDS);
+
+    const rowIndex = sessions.findIndex(s => s.session_id === sid);
+    if (rowIndex === -1) {
+      return res.status(404).json({ ok: false, error: 'Session not found' });
+    }
+
+    await upsertPostMeta(profileId, `mock_interview_sessions_${rowIndex}_interview_status`, 'completed');
+    await upsertUserMeta(user.wp_user_id, 'mock_session_lock_until', '0');
+    await upsertUserMeta(user.wp_user_id, 'mock_session_lock_id', '');
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[candidate/interviews/complete]', err);
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });

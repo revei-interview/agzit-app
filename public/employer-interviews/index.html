@@ -382,7 +382,15 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
       await postJson('/api/employer-interview/status', { token, status: 'completed' });
     } catch { /* non-fatal */ }
 
-    // Release slot on daily-backend
+    // Mark candidate session completed in DB (fire-and-forget)
+    fetch('/api/candidate/interviews/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ sid }),
+    }).catch(() => {});
+
+    // Release concurrency slot on daily-backend
     try {
       await fetch(`${RENDER_BASE}/interview/end`, {
         method:  'POST',
