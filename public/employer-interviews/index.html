@@ -526,9 +526,8 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
         // 4. Set up AudioWorklet for mic capture (48kHz → 8kHz mulaw)
         try {
           // employer-interviews shares the audio-processor from interview-room
-          const workletUrl = new URL('../interview-room/audio-processor.js', location.href).href;
           const captureCtx = new AudioContext();
-          await captureCtx.audioWorklet.addModule(workletUrl);
+          await captureCtx.audioWorklet.addModule('/interview-room/audio-processor.js');
 
           micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
           const micSource = captureCtx.createMediaStreamSource(micStream);
