@@ -280,21 +280,6 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     return;
   }
 
-  // ── Reserve concurrency slot on daily-backend ────────────────────────────────
-  $('overlayTitle').textContent = 'Reserving interview slot…';
-  $('overlaySub').textContent   = 'Checking availability on AGZIT interview servers.';
-
-  try {
-    const slotRes = await postJson(`${RENDER_BASE}/interview/start`, { sid });
-    if (!slotRes.ok && !slotRes.already_active) {
-      showOverlayErr(slotRes.message || 'All interview slots are busy. Please try again in a few minutes.');
-      return;
-    }
-  } catch {
-    showOverlayErr('Could not connect to interview servers. Please check your connection.');
-    return;
-  }
-
   // ── Ready — show launch button ───────────────────────────────────────────────
   $('topRole').textContent = interview_role || 'AI Interview';
   $('overlayTitle').textContent = 'Ready to begin';
@@ -448,6 +433,14 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     $('overlayErr').style.display     = 'none';
 
     try {
+      // 0. Reserve concurrency slot (just before call, not at page load)
+      console.log('[Slot] Reserving slot for SID:', sid);
+      const slotRes = await postJson(`${RENDER_BASE}/interview/start`, { sid });
+      console.log('[Slot] Reservation response:', slotRes);
+      if (!slotRes.ok && !slotRes.already_active) {
+        throw new Error(slotRes.message || 'All interview slots are busy. Please try again in a few minutes.');
+      }
+
       // 1. Get browser token from Vokeva
       const tokenRes = await postJson(`${VOKEVA_BASE}/api/calls/browser-token`, {
         agentId:    VOKEVA_AGENT_ID,
