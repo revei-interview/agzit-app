@@ -560,13 +560,19 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
           workletNode = new AudioWorkletNode(captureCtx, 'mulaw-capture-processor');
 
           let sendCount = 0;
+          let dropCount = 0;
           workletNode.port.onmessage = (e) => {
             if (ws && ws.readyState === WebSocket.OPEN) {
               sendCount++;
               if (sendCount <= 5 || sendCount % 200 === 0) {
-                console.log('[Mic] Sending', e.data.byteLength, 'bytes, ws:', ws.readyState, 'count:', sendCount);
+                console.log('[Mic] Sending', e.data.byteLength, 'bytes, count:', sendCount);
               }
               ws.send(e.data);
+            } else {
+              dropCount++;
+              if (dropCount <= 5) {
+                console.warn('[Mic] WS not ready, state:', ws?.readyState, 'dropped:', dropCount);
+              }
             }
           };
 
