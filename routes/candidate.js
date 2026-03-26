@@ -1446,12 +1446,12 @@ router.post('/interviews/start', ...guard, async (req, res) => {
     await upsertUserMeta(wpUserId, 'mock_session_lock_until', String(nowTs + lockTtl));
     await upsertUserMeta(wpUserId, 'mock_session_lock_id',    sid);
 
-    // ── Call WP mock-session-start to create ACF row with proper field keys ───
-    const wpUrl   = process.env.WP_URL   || 'https://agzit.com';
+    // ── Create ACF session row via internal route (direct MySQL, no WordPress) ─
     const wpToken = process.env.WP_APP_TOKEN || '';
+    const internalBase = `http://localhost:${process.env.PORT || 3000}`;
 
     const wpResult = await postJson(
-      `${wpUrl}/wp-json/dpr/v1/mock-session-start`,
+      `${internalBase}/api/internal/mock-session-start`,
       {
         sid,
         profile_post_id:      profilePostId,
@@ -1466,17 +1466,17 @@ router.post('/interviews/start', ...guard, async (req, res) => {
       },
       { 'x-wp-app-token': wpToken }
     ).catch(err => {
-      console.error('[interviews/start] WP mock-session-start error:', err.message);
+      console.error('[interviews/start] mock-session-start error:', err.message);
       return { status: 0, body: null };
     });
 
     if (!wpResult.body?.ok) {
-      // Refund credit and clear lock on WP failure
+      // Refund credit and clear lock on failure
       await upsertUserMeta(wpUserId, creditKey,                   String(credits));
       await upsertUserMeta(wpUserId, 'mock_sessions_remaining',   String(rem20 + rem30 + 1));
       await upsertUserMeta(wpUserId, 'mock_session_lock_until',   '0');
       await upsertUserMeta(wpUserId, 'mock_session_lock_id',      '');
-      console.error('[interviews/start] WP returned:', wpResult.status, wpResult.body);
+      console.error('[interviews/start] internal returned:', wpResult.status, wpResult.body);
       return res.status(502).json({ ok: false, error: 'Failed to create interview session. Please try again.' });
     }
 
