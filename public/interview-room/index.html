@@ -249,12 +249,15 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   $('overlaySub').textContent   = 'Checking availability on AGZIT interview servers.';
 
   try {
+    console.log('[Slot] Reserving slot for SID:', sid);
     const slotRes = await postJson(`${RENDER_BASE}/interview/start`, { sid });
+    console.log('[Slot] Reservation response:', slotRes);
     if (!slotRes.ok && !slotRes.already_active) {
       showOverlayErr(slotRes.message || 'All interview slots are busy. Please try again in a few minutes.');
       return;
     }
-  } catch {
+  } catch (e) {
+    console.error('[Slot] Reservation failed:', e);
     showOverlayErr('Could not connect to interview servers. Please check your connection.');
     return;
   }
@@ -323,9 +326,21 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
       try {
         const body = firstHeartbeat ? { sid, status: 'call_started' } : { sid };
         firstHeartbeat = false;
-        const r = await postJson(`${RENDER_BASE}/interview/heartbeat`, body);
+        const hbRes = await fetch(`${RENDER_BASE}/interview/heartbeat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (hbRes.status === 404) {
+          console.warn('[Heartbeat] Slot not found, re-registering SID:', sid);
+          await postJson(`${RENDER_BASE}/interview/start`, { sid });
+          return; // skip this tick, next heartbeat will work
+        }
+        const r = await hbRes.json();
         if (r.remainingMs !== null && r.remainingMs <= 0) endCall('time_up');
-      } catch { /* non-fatal */ }
+      } catch (e) {
+        console.warn('[Heartbeat] error:', e.message);
+      }
     }, 25000);
   }
 
