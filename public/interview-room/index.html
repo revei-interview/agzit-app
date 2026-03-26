@@ -428,7 +428,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
       const tokenRes = await postJson(`${VOKEVA_BASE}/api/calls/browser-token`, {
         agentId:    VOKEVA_AGENT_ID,
         sid:        sid,
-        variables:  variableValues,
+        ...variableValues,
       }, {
         'Authorization': 'Bearer ' + VOKEVA_API_KEY,
       });
