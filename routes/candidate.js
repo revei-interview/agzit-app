@@ -570,6 +570,10 @@ router.get('/profile', ...guard, async (req, res) => {
     const complianceTools = rawTools
       .map(r => ({ tool_name: r.tool_name || r.name || '' }))
       .filter(r => r.tool_name);
+    const finalYearProjects = parseRepeater(meta, 'final_year_project', [
+      'project_heading', 'project_summary', 'project_date',
+    ]);
+
     const rawLangs = parseRepeater(meta, 'language_proficiency', ['language', 'proficiency']);
     const languageProficiency = rawLangs.map(r => ({
       language_name: r.language || '',
@@ -668,6 +672,7 @@ router.get('/profile', ...guard, async (req, res) => {
         work_experience:                  workExperience,
         education:                        education,
         certifications:                   certifications,
+        final_year_project:               finalYearProjects,
         preferred_location:               prefLocations,
 
         // ── Verification badges (admin-set)
@@ -1905,6 +1910,15 @@ router.put('/profile', ...guard, async (req, res) => {
         .map(r => ({ tool_name: s(r.tool_name) }));
       await clearRepeaterMeta(profileId, 'compliance_tools');
       await writeRepeater(profileId, 'compliance_tools', rows);
+    }
+
+    // ── Final year projects repeater ───────────────────────────────────────────
+    if (Array.isArray(b.final_year_project)) {
+      const rows = b.final_year_project
+        .filter(r => s(r.project_heading))
+        .map(r => ({ project_heading: s(r.project_heading), project_summary: s(r.project_summary), project_date: s(r.project_date) }));
+      await clearRepeaterMeta(profileId, 'final_year_project');
+      await writeRepeater(profileId, 'final_year_project', rows);
     }
 
     // ── Languages repeater ────────────────────────────────────────────────────

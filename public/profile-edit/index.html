@@ -637,6 +637,19 @@
     </div>
   </div>
 
+  <!-- 7b. Projects -->
+  <div class="sec">
+    <div class="sec-hd">
+      <div class="sec-num">7b</div>
+      <div>
+        <div class="sec-title">Final Year Projects / Side Projects</div>
+        <span class="sec-sub">Optional — add academic or personal projects</span>
+      </div>
+    </div>
+    <div id="proj-list"></div>
+    <button type="button" class="add-btn" onclick="addProj()">+ Add Project</button>
+  </div>
+
   <!-- 8. Visibility & Settings -->
   <div class="sec">
     <div class="sec-hd">
@@ -765,6 +778,7 @@ let eduRows  = [];
 let certRows = [];
 let toolRows = [];
 let langRows = [];
+let projRows = [];
 let prefLocRows = [];
 let _wxDragIdx = null;
 
@@ -1016,6 +1030,25 @@ function addLang(data = {}) {
   document.getElementById('lang-list').appendChild(div);
 }
 
+function addProj(data = {}) {
+  const i = projRows.length;
+  projRows.push(data);
+  const div = document.createElement('div');
+  div.id = `proj-${i}`;
+  div.style.cssText = 'border:1px solid var(--border,#E2E8F0);border-radius:10px;padding:14px;margin-top:12px;background:var(--bg,#fff);';
+  div.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <span class="rep-badge" style="font-size:11px;font-weight:700;color:var(--blue,#3B82F6);">Project ${i + 1}</span>
+      <button type="button" class="del-btn" onclick="removeRow('proj',${i})" style="white-space:nowrap">&#10005;</button>
+    </div>
+    <div style="display:grid;gap:10px;">
+      <div class="field"><label class="label">Project Title</label><input type="text" id="proj_${i}_project_heading" value="${esc(data.project_heading)}" placeholder="e.g. E-commerce Platform"></div>
+      <div class="field"><label class="label">Summary</label><textarea id="proj_${i}_project_summary" placeholder="Brief description of the project...">${esc(data.project_summary)}</textarea></div>
+      <div class="field"><label class="label">Date</label><input type="text" id="proj_${i}_project_date" value="${esc(data.project_date)}" placeholder="e.g. June 2025 or 2024-2025"></div>
+    </div>`;
+  document.getElementById('proj-list').appendChild(div);
+}
+
 // ── Remove row ─────────────────────────────────────────────────────────────────
 function removeRow(prefix, i) {
   const el = document.getElementById(`${prefix}-${i}`);
@@ -1025,6 +1058,7 @@ function removeRow(prefix, i) {
   if (prefix === 'cert') certRows[i] = null;
   if (prefix === 'tool') toolRows[i] = null;
   if (prefix === 'lang') langRows[i] = null;
+  if (prefix === 'proj') projRows[i] = null;
   renumberItems(prefix, prefix === 'wx' ? 'Position' : prefix === 'edu' ? 'Education' : prefix === 'cert' ? 'Certificate' : 'Tool');
 }
 
@@ -1273,6 +1307,11 @@ function populateForm(p) {
   langRows = [];
   (p.language_proficiency || []).forEach(row => addLang(row));
 
+  // Projects — clear before repopulate
+  document.getElementById('proj-list').innerHTML = '';
+  projRows = [];
+  (p.final_year_project || []).forEach(row => addProj(row));
+
   // Preferred locations — clear and repopulate
   prefLocRows = [];
   (p.preferred_location || []).forEach(row => {
@@ -1443,6 +1482,17 @@ function collectLang() {
   }).filter(r => r.language_name);
 }
 
+function collectProj() {
+  return Array.from(document.querySelectorAll('#proj-list > div')).map(el => {
+    const i = el.id.replace('proj-', '');
+    return {
+      project_heading: getVal(`proj_${i}_project_heading`),
+      project_summary: getVal(`proj_${i}_project_summary`),
+      project_date:    getVal(`proj_${i}_project_date`),
+    };
+  }).filter(r => r.project_heading);
+}
+
 // ── Preferred Locations ──────────────────────────────────────────────────────
 function renderPrefLocTags() {
   var container = document.getElementById('pref-loc-tags');
@@ -1521,6 +1571,7 @@ async function saveProfile() {
     certifications:               collectCert(),
     compliance_tools:             collectTools(),
     language_proficiency:         collectLang(),
+    final_year_project:           collectProj(),
     preferred_location:           prefLocRows.filter(r => r.preferred_city_name || r.preferred_country_name),
   };
 

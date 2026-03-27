@@ -175,6 +175,7 @@ router.get('/', async (req, res) => {
     ]);
     const complianceTools     = parseRepeater(meta, 'compliance_tools',     ['tool_name']);
     const languageProficiency = parseRepeater(meta, 'language_proficiency', ['language']);
+    const finalYearProjects   = parseRepeater(meta, 'final_year_project',  ['project_heading', 'project_summary', 'project_date']);
 
     // Mock interview performance — last 3 completed + scored, band only (no raw score on public page)
     const allSessions = parseRepeater(meta, 'mock_interview_sessions', [
@@ -240,6 +241,7 @@ router.get('/', async (req, res) => {
         certifications:       certifications,
         compliance_tools:     complianceTools,
         language_proficiency: languageProficiency,
+        final_year_project:  finalYearProjects,
 
         // AI Performance (public — band badge only, no raw score)
         mock_sessions:        mockSessions,
