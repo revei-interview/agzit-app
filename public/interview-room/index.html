@@ -326,32 +326,17 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     for (let i = 0; i < data.length; i++) {
       decoded[i] = MULAW_DECODE[data[i]] / 32768;
     }
-    // Resample 8kHz → AudioContext native rate if needed
-    const nativeRate = audioCtx.sampleRate;
-    let samples = decoded;
-    if (nativeRate !== 8000) {
-      const ratio = nativeRate / 8000;
-      const outLen = Math.round(decoded.length * ratio);
-      samples = new Float32Array(outLen);
-      for (let i = 0; i < outLen; i++) {
-        const srcIdx = i / ratio;
-        const idx = Math.floor(srcIdx);
-        const frac = srcIdx - idx;
-        const s0 = decoded[idx] || 0;
-        const s1 = decoded[idx + 1] || 0;
-        samples[i] = s0 + frac * (s1 - s0);
-      }
-    }
-    const buffer = audioCtx.createBuffer(1, samples.length, nativeRate);
-    buffer.getChannelData(0).set(samples);
+    // Create AudioBuffer at 8kHz — browser automatically resamples to native rate
+    // (avoids manual linear interpolation which caused chunk-boundary crackling)
+    const buffer = audioCtx.createBuffer(1, decoded.length, 8000);
+    buffer.getChannelData(0).set(decoded);
     const source = audioCtx.createBufferSource();
     source.buffer = buffer;
     source.connect(gainNode);
     const now = audioCtx.currentTime;
     if (playbackTime < now) playbackTime = now + 0.002; // small lead to avoid scheduling in the past
     source.start(playbackTime);
-    // Overlap chunks by 5ms to prevent audible gaps between TTS chunks
-    playbackTime += Math.max(0, buffer.duration - 0.005);
+    playbackTime += buffer.duration;
   }
 
   function clearPlayback() {
