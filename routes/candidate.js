@@ -1320,6 +1320,22 @@ function buildContextPack(meta, jdText, interviewRole, careerLevel) {
   }
   if (workRows.length) lines.push('', 'Work Experience:', ...workRows);
 
+  // Projects / Final Year Projects — ACF repeater: final_year_project_{i}_{field}
+  const projCount = parseInt(meta.final_year_project) || 0;
+  const projRows  = [];
+  for (let i = 0; i < Math.min(projCount, 10); i++) {
+    const heading = meta[`final_year_project_${i}_project_heading`] || '';
+    const summary = meta[`final_year_project_${i}_project_summary`] || '';
+    const date    = meta[`final_year_project_${i}_project_date`]    || '';
+    if (heading) {
+      let row = `- ${heading}`;
+      if (summary) row += `\n  Summary: ${summary}`;
+      if (date)    row += `\n  Date: ${date}`;
+      projRows.push(row);
+    }
+  }
+  if (projRows.length) lines.push('', 'Projects / Final Year Projects:', ...projRows);
+
   // Tools & Software — compliance_tools repeater, top 10
   const toolCount = parseInt(meta.compliance_tools) || 0;
   const tools     = [];
