@@ -326,8 +326,13 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     for (let i = 0; i < data.length; i++) {
       decoded[i] = MULAW_DECODE[data[i]] / 32768;
     }
+    // Crossfade: fade-in/out at chunk boundaries to eliminate click artifacts
+    const fadeLen = Math.min(80, Math.floor(decoded.length / 4));
+    for (let i = 0; i < fadeLen; i++) {
+      decoded[i] *= i / fadeLen;
+      decoded[decoded.length - 1 - i] *= i / fadeLen;
+    }
     // Create AudioBuffer at 8kHz — browser automatically resamples to native rate
-    // (avoids manual linear interpolation which caused chunk-boundary crackling)
     const buffer = audioCtx.createBuffer(1, decoded.length, 8000);
     buffer.getChannelData(0).set(decoded);
     const source = audioCtx.createBufferSource();
@@ -336,7 +341,8 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     const now = audioCtx.currentTime;
     if (playbackTime < now) playbackTime = now + 0.002; // small lead to avoid scheduling in the past
     source.start(playbackTime);
-    playbackTime += buffer.duration;
+    // Overlap chunks by 5ms (40 samples at 8kHz) so crossfades blend smoothly
+    playbackTime += Math.max(0, buffer.duration - 0.005);
   }
 
   function clearPlayback() {
