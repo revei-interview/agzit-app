@@ -261,6 +261,65 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 }
 
 /* ── Session inline scorecard ────────────────────────────────────────────── */
+.ses-card { cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.ses-card:hover { border-color: #B8BCCC; box-shadow: var(--shadow-md); }
+.ses-card.ses-expanded { border-color: var(--blue); box-shadow: 0 4px 20px rgba(26,68,194,.12); }
+.ses-chevron {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: 6px; background: var(--surface);
+  transition: transform .25s ease, background .15s; flex-shrink: 0;
+}
+.ses-expanded .ses-chevron { transform: rotate(180deg); background: var(--blue-lt); }
+
+/* Accordion detail panel */
+.ses-detail {
+  max-height: 0; overflow: hidden; opacity: 0;
+  transition: max-height .35s ease, opacity .25s ease, padding .25s ease;
+  border-top: 0 solid transparent;
+}
+.ses-detail.open {
+  max-height: 2000px; opacity: 1;
+  border-top: 1px solid var(--line);
+  padding-top: 18px; margin-top: 14px;
+}
+
+/* Detail sections */
+.sd-section { margin-bottom: 20px; }
+.sd-section:last-child { margin-bottom: 0; }
+.sd-heading {
+  font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase;
+  letter-spacing: .8px; margin-bottom: 12px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.sd-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+.sd-info-item { }
+.sd-info-label { font-size: 10.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+.sd-info-val   { font-size: 13px; color: var(--ink); font-weight: 600; margin-top: 2px; }
+
+/* Full scorecard in detail */
+.sd-score-header { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+.sd-score-big { font-size: 36px; font-weight: 800; color: var(--ink); letter-spacing: -1.5px; }
+.sd-comps { margin-bottom: 14px; }
+
+/* Feedback blocks in detail */
+.sd-fb { margin-bottom: 14px; }
+.sd-fb:last-child { margin-bottom: 0; }
+.sd-fb-label {
+  font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;
+  letter-spacing: .5px; margin-bottom: 5px;
+}
+.sd-fb-label.strengths { color: var(--green); }
+.sd-fb-label.improve   { color: var(--amber); }
+.sd-fb-label.focus     { color: var(--blue); }
+.sd-fb-label.attention { color: var(--red); }
+.sd-fb-text {
+  font-size: 13px; color: var(--soft); line-height: 1.7; white-space: pre-line;
+  background: var(--surface); border-radius: 10px; padding: 12px 14px;
+}
+
+/* Detail action buttons */
+.sd-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+
 .ses-scorecard {
   border-top: 1px solid var(--line); margin-top: 14px; padding-top: 14px;
 }
@@ -2016,8 +2075,9 @@ function renderInterviews(sessions, id) {
     const vidId    = `vid_${idx}`;
     const audId    = `aud_${idx}`;
     const hasScore = s.mock_overall_score;
+    const score2   = parseInt(s.mock_overall_score) || 0;
 
-    html += `<div class="ses-card ${cls}">
+    html += `<div class="ses-card ${cls}" onclick="toggleInterviewDetail(this, event)">
       <div class="ses-top">
         <div>
           <div class="ses-role">${esc(s.interview_role||'Mock Interview')}</div>
@@ -2028,45 +2088,96 @@ function renderInterviews(sessions, id) {
             ${s.target_career_level ? ` &mdash; ${esc(normCareerLevel(s.target_career_level))}` : ''}
           </div>
         </div>
-        <div class="ses-right">
+        <div class="ses-right" style="flex-direction:row;align-items:center;gap:8px;">
           <span class="status-pill" style="${stStyle}font-size:11.5px;font-weight:700;padding:4px 11px;">${esc(statusTx)}</span>
-          ${hasScore ? `<span class="score-chip">${s.mock_overall_score}/100</span>` : ''}
+          ${hasScore ? `<span class="score-chip">${score2}/100</span>` : ''}
           ${s.mock_performance_level ? perfBadge(s.mock_performance_level) : ''}
+          <span class="ses-chevron">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
         </div>
       </div>`;
 
-    if (s.video_url || s.audio_url) {
-      html += `<div class="ses-actions">`;
-      if (s.video_url) html += `<button class="btn-sm" onclick="openModal('${vidId}')">Play Video</button>`;
-      if (s.audio_url) html += `<button class="btn-sm" onclick="openModal('${audId}')">Play Audio</button>`;
-      html += `</div>`;
-    } else if (status !== 'completed') {
-      html += `<div style="font-size:12.5px;color:var(--muted);font-style:italic;margin-top:8px;">Recording will appear here once processing is complete.</div>`;
-    }
+    /* ── Expandable detail panel ── */
+    html += `<div class="ses-detail" id="ses-detail-${idx}">`;
 
-    /* inline scorecard */
+    /* Interview details */
+    html += `<div class="sd-section">
+      <div class="sd-heading">Interview Details</div>
+      <div class="sd-info-grid">
+        <div class="sd-info-item"><div class="sd-info-label">Role</div><div class="sd-info-val">${esc(s.interview_role||'Mock Interview')}</div></div>
+        <div class="sd-info-item"><div class="sd-info-label">Date</div><div class="sd-info-val">${s.started_at ? fmtDT(s.started_at) : 'N/A'}</div></div>
+        <div class="sd-info-item"><div class="sd-info-label">Duration</div><div class="sd-info-val">${s.duration_minutes ? s.duration_minutes+' min' : 'N/A'}</div></div>
+        <div class="sd-info-item"><div class="sd-info-label">Career Level</div><div class="sd-info-val">${s.target_career_level ? esc(normCareerLevel(s.target_career_level)) : 'N/A'}</div></div>
+        <div class="sd-info-item"><div class="sd-info-label">Session Type</div><div class="sd-info-val">${esc(s.session_type||'Mock')}</div></div>
+        <div class="sd-info-item"><div class="sd-info-label">Status</div><div class="sd-info-val">${esc(statusTx)}</div></div>
+      </div>
+    </div>`;
+
+    /* Full scorecard */
     if (hasScore) {
-      const score2 = parseInt(s.mock_overall_score) || 0;
-      html += `<div class="ses-scorecard">
-        <div class="ses-sc-header">
-          <div class="ses-sc-score">${score2}/100</div>
-          <div>${perfBadge(s.mock_performance_level)}</div>
-        </div>`;
-      const comps2 = [
-        ['Communication', s.score_communication], ['Structure', s.score_structure],
-        ['Role Knowledge', s.score_role_knowledge], ['Domain', s.score_domain_application],
-        ['Problem Solving', s.score_problem_solving],
+      html += `<div class="sd-section">
+        <div class="sd-heading">Scorecard</div>
+        <div class="sd-score-header">
+          <div class="sd-score-big">${score2}<span style="font-size:16px;color:var(--muted);font-weight:600;">/100</span></div>
+          <div>${s.mock_performance_level ? perfBadge(s.mock_performance_level) : ''}</div>
+        </div>
+        <div class="sd-comps">`;
+
+      const allComps = [
+        ['Communication',         s.score_communication],
+        ['Structure',             s.score_structure],
+        ['Role Knowledge',        s.score_role_knowledge],
+        ['Domain Application',    s.score_domain_application],
+        ['Problem Solving',       s.score_problem_solving],
+        ['Confidence',            s.score_confidence],
+        ['Question Handling',     s.score_question_handling],
+        ['Experience Relevance',  s.score_experience_relevance],
+        ['Resume Alignment',      s.score_resume_alignment],
+        ['Depth & Specificity',   s.depth_specificity],
       ];
-      html += comps2.map(([l, v]) => {
+      html += allComps.filter(([,v]) => v).map(([l, v]) => {
         const n = parseInt(v)||0;
-        return `<div class="comp-row"><span class="comp-label" style="font-size:12px;width:140px;">${esc(l)}</span>
-          <div class="comp-track"><div class="comp-fill" style="width:${n*10}%"></div></div>
+        const barColor = n >= 8 ? 'var(--green)' : n >= 6 ? 'var(--blue)' : n >= 4 ? 'var(--amber)' : 'var(--red)';
+        return `<div class="comp-row"><span class="comp-label">${esc(l)}</span>
+          <div class="comp-track"><div class="comp-fill" style="width:${n*10}%;background:${barColor}"></div></div>
           <span class="comp-val">${n}/10</span></div>`;
       }).join('');
       html += `</div>`;
+
+      /* Feedback blocks */
+      if (s.mock_strengths) {
+        html += `<div class="sd-fb"><div class="sd-fb-label strengths">Strengths</div><div class="sd-fb-text">${esc(s.mock_strengths)}</div></div>`;
+      }
+      if (s.mock_improvements) {
+        html += `<div class="sd-fb"><div class="sd-fb-label improve">Areas to Improve</div><div class="sd-fb-text">${esc(s.mock_improvements)}</div></div>`;
+      }
+      if (s.mock_next_focus) {
+        html += `<div class="sd-fb"><div class="sd-fb-label focus">Next Focus Area</div><div class="sd-fb-text">${esc(s.mock_next_focus)}</div></div>`;
+      }
+      if (s.mock_attention_areas) {
+        html += `<div class="sd-fb"><div class="sd-fb-label attention">Attention Areas</div><div class="sd-fb-text">${esc(s.mock_attention_areas)}</div></div>`;
+      }
+
+      html += `</div>`; // end sd-section
+    } else if (status === 'completed') {
+      html += `<div class="sd-section">
+        <div class="sd-heading">Scorecard</div>
+        <div style="font-size:13px;color:var(--muted);font-style:italic;">Scorecard is being generated. Check back shortly.</div>
+      </div>`;
     }
 
+    /* Action buttons */
+    html += `<div class="sd-actions">`;
+    if (s.video_url) html += `<button class="btn-sm" onclick="event.stopPropagation();openModal('${vidId}')">&#9654; Play Video</button>`;
+    if (s.audio_url) html += `<button class="btn-sm" onclick="event.stopPropagation();openModal('${audId}')">&#9654; Play Audio</button>`;
+    if (status === 'completed') {
+      html += `<a href="/interview-start" class="btn-sm" onclick="event.stopPropagation();return checkSlotAvailability(event)" style="text-decoration:none;">Retake Interview</a>`;
+    }
     html += `</div>`;
+
+    html += `</div>`; // end ses-detail
+    html += `</div>`; // end ses-card
 
     /* modals */
     const modCont = el('modals');
@@ -2105,6 +2216,31 @@ function renderInterviews(sessions, id) {
   });
 
   el('interviews-content').innerHTML = html;
+}
+
+/* ── Toggle interview accordion ─────────────────────────────────────────── */
+function toggleInterviewDetail(card, e) {
+  /* don't toggle if clicking a button/link inside */
+  if (e.target.closest('button, a, .modal')) return;
+  const detail = card.querySelector('.ses-detail');
+  if (!detail) return;
+  const isOpen = detail.classList.contains('open');
+  /* close all others first */
+  document.querySelectorAll('.ses-card.ses-expanded').forEach(c => {
+    if (c !== card) {
+      c.classList.remove('ses-expanded');
+      c.querySelector('.ses-detail')?.classList.remove('open');
+    }
+  });
+  if (isOpen) {
+    card.classList.remove('ses-expanded');
+    detail.classList.remove('open');
+  } else {
+    card.classList.add('ses-expanded');
+    detail.classList.add('open');
+    /* smooth scroll into view after animation */
+    setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+  }
 }
 
 /* ── Profile renderer ─────────────────────────────────────────────────────── */

@@ -627,6 +627,12 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
               audioEncoding = msg.encoding || 'pcm_f32le';
               audioSampleRate = msg.sample_rate || 24000;
               console.log(`[WS] Audio format: ${audioEncoding} @ ${audioSampleRate}Hz`);
+            } else if (msg.type === 'transfer_complete') {
+              const bar = document.getElementById('subtitle-bar');
+              document.getElementById('subtitle-speaker').textContent = 'System';
+              document.getElementById('subtitle-text').textContent = 'Connecting you to a team member...';
+              bar.style.display = 'block';
+              setTimeout(() => { window.location.href = '/dashboard'; }, 3000);
             }
           } catch { /* ignore parse errors */ }
         } else {
