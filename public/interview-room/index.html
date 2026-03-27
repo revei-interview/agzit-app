@@ -613,18 +613,38 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
             const msg = JSON.parse(event.data);
             if (msg.type === 'ready') {
               console.log('[WS] Pipeline ready, starting call');
-              // Apply agent UI preferences from server
-              if (msg.subtitles_enabled !== undefined) {
-                window._subtitlesEnabled = msg.subtitles_enabled !== false;
-                const ccBtn = document.getElementById('cc-toggle');
-                if (ccBtn) ccBtn.style.opacity = window._subtitlesEnabled ? '1' : '0.5';
+
+              // Apply agent UI defaults — localStorage user preference overrides after first visit
+              const agentCC = msg.subtitles_enabled !== false;
+              const agentAmbient = msg.ambient_sound_enabled === true;
+
+              // Seed localStorage from agent defaults on first visit
+              if (localStorage.getItem('subtitles_enabled') === null) {
+                localStorage.setItem('subtitles_enabled', agentCC);
               }
-              if (msg.ambient_sound_enabled === true) {
-                window._ambientEnabled = true;
-                const ambBtn = document.getElementById('ambient-toggle');
-                if (ambBtn) ambBtn.style.opacity = '1';
-                if (typeof startAmbientRoom === 'function') startAmbientRoom();
+              if (localStorage.getItem('ambient_enabled') === null) {
+                localStorage.setItem('ambient_enabled', agentAmbient);
               }
+
+              // Re-apply from localStorage (user override wins)
+              window._subtitlesEnabled = localStorage.getItem('subtitles_enabled') !== 'false';
+              window._ambientEnabled = localStorage.getItem('ambient_enabled') === 'true';
+
+              // Update CC toggle UI
+              const ccBtn = document.getElementById('subtitleToggle');
+              if (ccBtn) ccBtn.style.opacity = window._subtitlesEnabled ? '1' : '.5';
+              if (!window._subtitlesEnabled) {
+                const bar = document.getElementById('subtitle-bar');
+                if (bar) bar.style.display = 'none';
+              }
+
+              // Update ambient toggle UI + start if enabled
+              const ambBtn = document.getElementById('ambientToggle');
+              if (ambBtn) ambBtn.style.opacity = window._ambientEnabled ? '1' : '.5';
+              if (window._ambientEnabled && typeof startAmbientRoom === 'function') {
+                startAmbientRoom();
+              }
+
               onCallStart();
             } else if (msg.type === 'subtitle') {
               if (window._subtitlesEnabled !== false) {
