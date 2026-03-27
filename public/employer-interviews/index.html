@@ -346,9 +346,9 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     source.buffer = buffer;
     source.connect(gainNode);
     const now = audioCtx.currentTime;
-    if (playbackTime < now) playbackTime = now;
+    if (playbackTime < now) playbackTime = now + 0.002;
     source.start(playbackTime);
-    playbackTime += buffer.duration;
+    playbackTime += Math.max(0, buffer.duration - 0.005);
   }
 
   function clearPlayback() {

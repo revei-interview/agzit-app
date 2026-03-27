@@ -348,9 +348,10 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     source.buffer = buffer;
     source.connect(gainNode);
     const now = audioCtx.currentTime;
-    if (playbackTime < now) playbackTime = now;
+    if (playbackTime < now) playbackTime = now + 0.002; // small lead to avoid scheduling in the past
     source.start(playbackTime);
-    playbackTime += buffer.duration;
+    // Overlap chunks by 5ms to prevent audible gaps between TTS chunks
+    playbackTime += Math.max(0, buffer.duration - 0.005);
   }
 
   function clearPlayback() {

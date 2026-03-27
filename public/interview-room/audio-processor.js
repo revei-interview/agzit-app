@@ -58,12 +58,23 @@ class MulawCaptureProcessor extends AudioWorkletProcessor {
     // When we have enough for a chunk, encode and send
     while (this._buffer.length >= this._chunkSize) {
       const chunk = this._buffer.splice(0, this._chunkSize);
+
+      // Noise gate: compute RMS energy of the chunk
+      let sumSq = 0;
+      for (let i = 0; i < chunk.length; i++) sumSq += chunk[i] * chunk[i];
+      const rms = Math.sqrt(sumSq / chunk.length);
+
       const encoded = new Uint8Array(chunk.length);
-      for (let i = 0; i < chunk.length; i++) {
-        // Float32 [-1,1] → Int16 → mulaw
-        const s = Math.max(-1, Math.min(1, chunk[i]));
-        const pcm16 = Math.floor(s * 32767);
-        encoded[i] = MulawCaptureProcessor.encodeMulaw(pcm16);
+      if (rms < 0.005) {
+        // Below noise floor — send mulaw silence (0xFF) to avoid triggering VAD
+        encoded.fill(0xFF);
+      } else {
+        for (let i = 0; i < chunk.length; i++) {
+          // Float32 [-1,1] → Int16 → mulaw
+          const s = Math.max(-1, Math.min(1, chunk[i]));
+          const pcm16 = Math.floor(s * 32767);
+          encoded[i] = MulawCaptureProcessor.encodeMulaw(pcm16);
+        }
       }
       this.port.postMessage(encoded.buffer, [encoded.buffer]);
     }
