@@ -180,6 +180,18 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 
 <div class="toast" id="toast"></div>
 
+<!-- Subtitle bar -->
+<div id="subtitle-bar" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(9,16,31,0.85);color:#fff;padding:10px 24px;border-radius:20px;max-width:80%;text-align:center;font-size:15px;backdrop-filter:blur(10px);z-index:100;font-family:var(--font);box-shadow:0 4px 20px rgba(0,0,0,.3)">
+  <div id="subtitle-speaker" style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px"></div>
+  <div id="subtitle-text"></div>
+</div>
+
+<!-- Toggle buttons -->
+<div style="position:fixed;bottom:20px;right:20px;display:flex;gap:8px;z-index:100">
+  <button id="subtitleToggle" onclick="toggleSubtitles()" title="Toggle subtitles" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--white);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">CC</button>
+  <button id="ambientToggle" onclick="toggleAmbient()" title="Room ambience" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--white);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;opacity:.5">&#128266;</button>
+</div>
+
 <script>
 (async function () {
   // ── Constants ───────────────────────────────────────────────────────────────
@@ -602,6 +614,15 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
             if (msg.type === 'ready') {
               console.log('[WS] Pipeline ready, starting call');
               onCallStart();
+            } else if (msg.type === 'subtitle') {
+              if (window._subtitlesEnabled !== false) {
+                const bar = document.getElementById('subtitle-bar');
+                document.getElementById('subtitle-speaker').textContent = msg.speaker === 'ai' ? 'Alex (AI Interviewer)' : 'You';
+                document.getElementById('subtitle-text').textContent = msg.text;
+                bar.style.display = 'block';
+                clearTimeout(window._subtitleTimer);
+                window._subtitleTimer = setTimeout(() => { bar.style.display = 'none'; }, 4000);
+              }
             } else if (msg.type === 'audio_format') {
               audioEncoding = msg.encoding || 'pcm_f32le';
               audioSampleRate = msg.sample_rate || 24000;
@@ -648,6 +669,53 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   // ── End button ────────────────────────────────────────────────────────────────
   $('btnEnd').addEventListener('click', () => endCall('user_ended'));
 })();
+
+// ── Subtitle toggle ──
+window._subtitlesEnabled = localStorage.getItem('subtitles_enabled') !== 'false';
+document.getElementById('subtitleToggle').style.opacity = window._subtitlesEnabled ? '1' : '.5';
+function toggleSubtitles() {
+  window._subtitlesEnabled = !window._subtitlesEnabled;
+  localStorage.setItem('subtitles_enabled', window._subtitlesEnabled);
+  document.getElementById('subtitleToggle').style.opacity = window._subtitlesEnabled ? '1' : '.5';
+  if (!window._subtitlesEnabled) document.getElementById('subtitle-bar').style.display = 'none';
+}
+
+// ── Ambient room sound (brown noise at very low volume) ──
+window._ambientEnabled = localStorage.getItem('ambient_enabled') === 'true';
+document.getElementById('ambientToggle').style.opacity = window._ambientEnabled ? '1' : '.5';
+function toggleAmbient() {
+  window._ambientEnabled = !window._ambientEnabled;
+  localStorage.setItem('ambient_enabled', window._ambientEnabled);
+  document.getElementById('ambientToggle').style.opacity = window._ambientEnabled ? '1' : '.5';
+  if (window._ambientEnabled) startAmbientRoom();
+  else stopAmbientRoom();
+}
+function startAmbientRoom() {
+  if (window._ambientCtx) return;
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const bufferSize = 4096;
+  const brownNoise = ctx.createScriptProcessor(bufferSize, 1, 1);
+  let lastOut = 0.0;
+  brownNoise.onaudioprocess = function(e) {
+    const output = e.outputBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      const white = Math.random() * 2 - 1;
+      output[i] = (lastOut + (0.02 * white)) / 1.02;
+      lastOut = output[i];
+      output[i] *= 0.05;
+    }
+  };
+  const gain = ctx.createGain();
+  gain.gain.value = 0.015;
+  brownNoise.connect(gain);
+  gain.connect(ctx.destination);
+  window._ambientNode = brownNoise;
+  window._ambientCtx = ctx;
+}
+function stopAmbientRoom() {
+  if (window._ambientNode) { window._ambientNode.disconnect(); window._ambientNode = null; }
+  if (window._ambientCtx) { window._ambientCtx.close(); window._ambientCtx = null; }
+}
 </script>
 </body>
 </html>
