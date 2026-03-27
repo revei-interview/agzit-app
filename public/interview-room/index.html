@@ -293,7 +293,11 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   let callStartedAt  = null;
   let firstHeartbeat = true;
 
-  // ── Mulaw decode table (precomputed) ──────────────────────────────────────
+  // ── Audio format (updated by server's audio_format message) ─────────────
+  let audioEncoding  = 'pcm_f32le';  // default: high-quality PCM float32
+  let audioSampleRate = 24000;        // default: 24kHz
+
+  // ── Mulaw decode table (fallback for legacy mulaw streams) ─────────────
   const MULAW_DECODE = new Int16Array(256);
   (function buildTable() {
     for (let i = 0; i < 256; i++) {
@@ -308,9 +312,9 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   })();
 
   let audioChunkCount = 0;
-  function playMulawChunk(data) {
+  function playAudioChunk(data) {
     if (!audioCtx || !gainNode) {
-      console.warn('[Audio] playMulawChunk called but audioCtx or gainNode missing');
+      console.warn('[Audio] playAudioChunk called but audioCtx or gainNode missing');
       return;
     }
     if (audioCtx.state === 'suspended') {
@@ -319,29 +323,39 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     }
     audioChunkCount++;
     if (audioChunkCount <= 5 || audioChunkCount % 50 === 0) {
-      console.log(`[Audio] Playing chunk #${audioChunkCount}, size=${data.length}, ctxState=${audioCtx.state}, sampleRate=${audioCtx.sampleRate}`);
+      console.log(`[Audio] Playing chunk #${audioChunkCount}, size=${data.length}, encoding=${audioEncoding}, rate=${audioSampleRate}`);
     }
-    // Decode mulaw → Float32 at 8kHz
-    const decoded = new Float32Array(data.length);
-    for (let i = 0; i < data.length; i++) {
-      decoded[i] = MULAW_DECODE[data[i]] / 32768;
+
+    let samples;
+    let rate = audioSampleRate;
+
+    if (audioEncoding === 'pcm_f32le') {
+      // PCM float32 little-endian — direct playback, no decode needed
+      samples = new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4);
+    } else {
+      // Fallback: mulaw decode
+      samples = new Float32Array(data.length);
+      for (let i = 0; i < data.length; i++) {
+        samples[i] = MULAW_DECODE[data[i]] / 32768;
+      }
+      rate = 8000;
     }
+
     // Crossfade: fade-in/out at chunk boundaries to eliminate click artifacts
-    const fadeLen = Math.min(80, Math.floor(decoded.length / 4));
+    const fadeLen = Math.min(80, Math.floor(samples.length / 4));
     for (let i = 0; i < fadeLen; i++) {
-      decoded[i] *= i / fadeLen;
-      decoded[decoded.length - 1 - i] *= i / fadeLen;
+      samples[i] *= i / fadeLen;
+      samples[samples.length - 1 - i] *= i / fadeLen;
     }
-    // Create AudioBuffer at 8kHz — browser automatically resamples to native rate
-    const buffer = audioCtx.createBuffer(1, decoded.length, 8000);
-    buffer.getChannelData(0).set(decoded);
+
+    const buffer = audioCtx.createBuffer(1, samples.length, rate);
+    buffer.getChannelData(0).set(samples);
     const source = audioCtx.createBufferSource();
     source.buffer = buffer;
     source.connect(gainNode);
     const now = audioCtx.currentTime;
-    if (playbackTime < now) playbackTime = now + 0.002; // small lead to avoid scheduling in the past
+    if (playbackTime < now) playbackTime = now + 0.002;
     source.start(playbackTime);
-    // Overlap chunks by 5ms (40 samples at 8kHz) so crossfades blend smoothly
     playbackTime += Math.max(0, buffer.duration - 0.005);
   }
 
@@ -588,6 +602,10 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
             if (msg.type === 'ready') {
               console.log('[WS] Pipeline ready, starting call');
               onCallStart();
+            } else if (msg.type === 'audio_format') {
+              audioEncoding = msg.encoding || 'pcm_f32le';
+              audioSampleRate = msg.sample_rate || 24000;
+              console.log(`[WS] Audio format: ${audioEncoding} @ ${audioSampleRate}Hz`);
             }
           } catch { /* ignore parse errors */ }
         } else {
@@ -601,7 +619,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
             clearPlayback();
             $('statusRing').className = 'status-ring active';
           } else {
-            playMulawChunk(data);
+            playAudioChunk(data);
             $('statusRing').className = 'status-ring speaking';
           }
         }
