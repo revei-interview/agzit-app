@@ -224,7 +224,7 @@ var TEMPLATES = [
   { id:'horizon',       name:'Horizon',        desc:'Full-width colour header band. Clean single column.',       color:'#0C4A6E', premium:false },
   { id:'elite',         name:'Elite',          desc:'Premium dark header with gold accents.',                    color:'#92400E', premium:false },
   { id:'clarity',       name:'Clarity',        desc:'Structured with timeline-style work history.',              color:'#1D4ED8', premium:false },
-  { id:'prestige',      name:'Prestige',       desc:'Magazine-style two-column layout.',                         color:'#BE185D', premium:false },
+  { id:'prestige',      name:'Prestige',       desc:'Qatar/Bahrain finance — circular photo sidebar.',           color:'#0D5C63', premium:false, gcc:true },
   { id:'sharp',         name:'Sharp',          desc:'Bold section headers with strong visual hierarchy.',        color:'#DC2626', premium:false },
   { id:'refined',       name:'Refined',        desc:'Elegant serif typography. Finance and legal sectors.',      color:'#065F46', premium:false },
   { id:'pinnacle',      name:'Pinnacle',       desc:'Top-aligned two-tone header. Banking and consulting.',      color:'#1E3A5F', premium:false },
@@ -233,6 +233,8 @@ var TEMPLATES = [
   { id:'gradient',      name:'Gradient',       desc:'Modern gradient header. Startups and product roles.',       color:'#4F46E5', premium:false },
   { id:'atlas',         name:'Atlas',          desc:'Global professional. Multilingual-friendly layout.',        color:'#0369A1', premium:false },
   { id:'prestige_gold', name:'Prestige Gold',  desc:'Executive layout with deep navy and gold accents.',         color:'#78350F', premium:false },
+  { id:'gulf',           name:'Gulf',           desc:'UAE/Dubai corporate — sidebar with photo.',                 color:'#B8860B', premium:false, gcc:true },
+  { id:'emirates',       name:'Emirates',       desc:'Saudi/Qatar formal — photo header.',                       color:'#1B3A6B', premium:false, gcc:true },
 ];
 
 // ── Build template picker ─────────────────────────────────────────────────────
@@ -257,7 +259,7 @@ function buildTemplatePicker() {
         '</div>' +
       '</div>' +
       '<div class="tmpl-info">' +
-        '<div class="tmpl-name">' + t.name + '</div>' +
+        '<div class="tmpl-name">' + t.name + (t.gcc ? ' <span style="background:#B8860B;color:#fff;font-size:9px;padding:1px 6px;border-radius:3px;margin-left:6px;font-weight:700;vertical-align:middle;">GCC</span>' : '') + '</div>' +
         '<div class="tmpl-desc">' + t.desc + '</div>' +
       '</div>';
     grid.appendChild(card);
@@ -356,6 +358,7 @@ async function loadProfile() {
       email:            p.email_address           || '',
       phone:            p.phone_number            || '',
       location:         location,
+      photo:            p.profile_photo_url       || null,
       summary:          p.professional_summary_bio || '',
       soft_skills:      p.soft_skills             || '',
       tools:            tools,
@@ -651,7 +654,7 @@ function buildResumeHtml(tid, accent, p) {
     case 'horizon':      return wrapPage(buildHorizon(accent, p),   accent);
     case 'elite':        return wrapPage(buildExecutive(accent, p), accent);
     case 'clarity':      return wrapPage(buildModern(accent, p),    accent);
-    case 'prestige':     return wrapPage(buildModern(accent, p),    accent);
+    case 'prestige':     return wrapPage(buildPrestige(accent, p),   accent);
     case 'sharp':        return wrapPage(buildImpact(accent, p),    accent);
     case 'refined':      return wrapPage(buildClassic(accent, p),   accent);
     case 'pinnacle':     return wrapPage(buildModern(accent, p),    accent);
@@ -660,6 +663,8 @@ function buildResumeHtml(tid, accent, p) {
     case 'gradient':     return wrapPage(buildModern(accent, p),    accent);
     case 'atlas':        return wrapPage(buildClassic(accent, p),   accent);
     case 'prestige_gold':return wrapPage(buildExecutive(accent, p), accent);
+    case 'gulf':         return wrapPage(buildGulf(accent, p),      accent);
+    case 'emirates':     return wrapPage(buildEmirates(accent, p),  accent);
     default:             return wrapPage(buildClassic(accent, p),   accent);
   }
 }
@@ -1063,6 +1068,301 @@ function buildHorizon(accent, p) {
     html += '<div style="display:flex;flex-wrap:wrap;">' + p.languages.map(function(l) { return '<span style="display:inline-block;padding:3px 10px;background:#F1F5F9;border-radius:12px;font-size:11.5px;color:#334155;margin:3px 4px 3px 0;">' + esc(l) + '</span>'; }).join('') + '</div>';
   }
   html += buildPdfBtn(accent); html += buildFooter();
+  html += '</div></div>';
+  return html;
+}
+
+// ─── GCC Template 1: Gulf ───────────────────────────────────────────────────
+// Two-column: sidebar (photo + contact + skills) | main (experience + education)
+// Gold accent. UAE/Dubai corporate style.
+function buildGulf(accent, p) {
+  var ac = accent || '#B8860B';
+  var photo = p.photo
+    ? '<img src="' + esc(p.photo) + '" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;display:block;">'
+    : '<div style="width:100%;aspect-ratio:1;background:#e8e8e8;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:36px;color:#aaa;">&#128100;</div>';
+  var exps = (p.work_exp || []).map(function(j) {
+    var desc = (j.description || '').split(/\n|\u2022/).map(function(l) { return cleanBullet(l); }).filter(Boolean);
+    return '<div style="margin-bottom:14px;">' +
+      '<div style="font-weight:700;font-size:12px;color:#1a1a1a;">' + esc(j.title) + '</div>' +
+      '<div style="font-size:11px;color:' + ac + ';font-weight:600;">' + esc(j.company) + (j.city ? ', ' + esc(j.city) : '') + '</div>' +
+      '<div style="font-size:10px;color:#777;margin:2px 0 5px;">' + fmtDate(j.start) + ' \u2013 ' + (j.current ? 'Present' : fmtDate(j.end)) + '</div>' +
+      (desc.length ? '<div style="font-size:11px;color:#444;line-height:1.5;">' + desc.map(function(l) { return '&bull; ' + esc(l); }).join('<br>') + '</div>' : '') +
+    '</div>';
+  }).join('');
+  var edus = (p.education || []).map(function(e) {
+    return '<div style="margin-bottom:10px;">' +
+      '<div style="font-weight:700;font-size:11px;color:#1a1a1a;">' + esc(e.degree) + '</div>' +
+      '<div style="font-size:10px;color:' + ac + ';">' + esc(e.institution) + (e.city ? ', ' + esc(e.city) : '') + '</div>' +
+      '<div style="font-size:10px;color:#777;">' + fmtDate(e.start) + ' \u2013 ' + fmtDate(e.end) + '</div>' +
+    '</div>';
+  }).join('');
+  var certs = (p.certifications || []).map(function(c) {
+    return '<div style="font-size:11px;margin-bottom:5px;">\u25CF ' + esc(c.name) + (c.issuer ? ' \u2014 ' + esc(c.issuer) : '') + (c.date ? ' (' + fmtDate(c.date) + ')' : '') + '</div>';
+  }).join('');
+  var allSk = parseSkills(p.soft_skills).concat(p.tools || []);
+  var skills = allSk.map(function(s) {
+    return '<span style="display:inline-block;background:rgba(255,255,255,0.15);border-radius:3px;padding:2px 8px;font-size:10px;margin:2px;">' + esc(s) + '</span>';
+  }).join('');
+  var langs = (p.languages || []).map(function(l) {
+    return '<div style="font-size:11px;margin-bottom:4px;">\u25CF ' + esc(l) + '</div>';
+  }).join('');
+
+  var html = '<div style="font-family:\'Segoe UI\',Arial,sans-serif;display:flex;min-height:297mm;margin:0;">';
+  // Sidebar
+  html += '<div style="width:200px;min-width:200px;background:' + ac + ';color:white;padding:24px 16px;display:flex;flex-direction:column;gap:18px;">';
+  html += '<div>' + photo + '</div>';
+  html += '<div>';
+  html += '<div style="font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;opacity:.7;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.3);padding-bottom:4px;">CONTACT</div>';
+  if (p.email) html += '<div style="font-size:10px;margin-bottom:4px;word-break:break-all;">\u2709 ' + esc(p.email) + '</div>';
+  if (p.phone) html += '<div style="font-size:10px;margin-bottom:4px;">\u260E ' + esc(p.phone) + '</div>';
+  if (p.location) html += '<div style="font-size:10px;">\u2316 ' + esc(p.location) + '</div>';
+  html += '</div>';
+  if (skills) {
+    html += '<div><div style="font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;opacity:.7;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,.3);padding-bottom:4px;">SKILLS</div>' + skills + '</div>';
+  }
+  if (langs) {
+    html += '<div><div style="font-size:8px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;opacity:.7;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,.3);padding-bottom:4px;">LANGUAGES</div>' + langs + '</div>';
+  }
+  html += '<div style="margin-top:auto;font-size:8px;opacity:.5;text-align:center;">GCC Compatible</div>';
+  html += '</div>';
+  // Main
+  html += '<div style="flex:1;padding:28px 28px 24px;background:#fff;">';
+  html += '<div style="margin-bottom:20px;border-bottom:3px solid ' + ac + ';padding-bottom:14px;">';
+  html += '<div style="font-size:26px;font-weight:800;color:#1a1a1a;line-height:1.1;">' + esc(p.name) + '</div>';
+  var latestTitle = (p.work_exp || [])[0] ? (p.work_exp[0].title || '') : '';
+  html += '<div style="font-size:13px;color:' + ac + ';font-weight:600;margin-top:4px;">' + esc(latestTitle) + '</div>';
+  html += '</div>';
+  if (p.summary) {
+    html += '<div style="margin-bottom:18px;">';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:6px;">PROFESSIONAL SUMMARY</div>';
+    html += '<div style="font-size:11px;color:#444;line-height:1.6;">' + esc(p.summary) + '</div>';
+    html += '</div>';
+  }
+  if (exps) {
+    html += '<div style="margin-bottom:18px;">';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:10px;">WORK EXPERIENCE</div>';
+    html += exps;
+    html += '</div>';
+  }
+  if (edus) {
+    html += '<div style="margin-bottom:18px;">';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:10px;">EDUCATION</div>';
+    html += edus;
+    html += '</div>';
+  }
+  if (certs) {
+    html += '<div>';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:8px;">CERTIFICATIONS</div>';
+    html += certs;
+    html += '</div>';
+  }
+  html += buildPdfBtn(ac); html += buildFooter();
+  html += '</div></div>';
+  return html;
+}
+
+// ─── GCC Template 2: Emirates ────────────────────────────────────────────────
+// Full-width header with photo top-right. Navy formal style.
+// Saudi/Qatar government & banking sector standard.
+function buildEmirates(accent, p) {
+  var ac = accent || '#1B3A6B';
+  var photo = p.photo
+    ? '<img src="' + esc(p.photo) + '" style="width:90px;height:110px;object-fit:cover;border-radius:4px;border:3px solid white;display:block;">'
+    : '<div style="width:90px;height:110px;background:rgba(255,255,255,0.2);border-radius:4px;border:3px solid rgba(255,255,255,0.4);display:flex;align-items:center;justify-content:center;font-size:32px;">&#128100;</div>';
+  var achvs = p.key_achievements || [];
+  var exps = (p.work_exp || []).map(function(j) {
+    var desc = (j.description || '').split(/\n|\u2022/).map(function(l) { return cleanBullet(l); }).filter(Boolean);
+    return '<div style="margin-bottom:16px;padding-left:12px;border-left:3px solid ' + ac + ';">' +
+      '<div style="font-weight:700;font-size:12px;color:#1a1a1a;">' + esc(j.title) + '</div>' +
+      '<div style="font-size:11px;color:' + ac + ';font-weight:600;">' + esc(j.company) + (j.city ? ', ' + esc(j.city) : '') + '</div>' +
+      '<div style="font-size:10px;color:#888;margin:2px 0 6px;">' + fmtDate(j.start) + ' \u2013 ' + (j.current ? 'Present' : fmtDate(j.end)) + '</div>' +
+      (desc.length ? '<div style="font-size:11px;color:#444;line-height:1.5;">' + desc.map(function(l) { return '&bull; ' + esc(l); }).join('<br>') + '</div>' : '') +
+    '</div>';
+  }).join('');
+  var edus = (p.education || []).map(function(e) {
+    return '<div style="margin-bottom:10px;padding-left:12px;border-left:3px solid #ddd;">' +
+      '<div style="font-weight:700;font-size:11px;">' + esc(e.degree) + '</div>' +
+      '<div style="font-size:10px;color:' + ac + ';">' + esc(e.institution) + (e.city ? ', ' + esc(e.city) : '') + '</div>' +
+      '<div style="font-size:10px;color:#888;">' + fmtDate(e.start) + ' \u2013 ' + fmtDate(e.end) + '</div>' +
+    '</div>';
+  }).join('');
+  var allSk = parseSkills(p.soft_skills).concat(p.tools || []);
+  var allSkills = allSk.map(function(s) {
+    return '<span style="display:inline-block;background:#f0f4ff;border:1px solid #c8d5f0;border-radius:3px;padding:3px 10px;font-size:10px;margin:3px;color:#1a1a1a;">' + esc(s) + '</span>';
+  }).join('');
+  var certs = (p.certifications || []).map(function(c) {
+    return '<div style="font-size:11px;margin-bottom:5px;">\u25AA ' + esc(c.name) + (c.issuer ? ' \u2014 ' + esc(c.issuer) : '') + (c.date ? ' (' + fmtDate(c.date) + ')' : '') + '</div>';
+  }).join('');
+  var langs = (p.languages || []).map(function(l) {
+    return '<span style="display:inline-block;background:#f0f4ff;border-radius:3px;padding:3px 10px;font-size:10px;margin:3px;border:1px solid #c8d5f0;">' + esc(l) + '</span>';
+  }).join('');
+
+  var html = '<div style="font-family:\'Segoe UI\',Arial,sans-serif;background:#fff;min-height:297mm;">';
+  // Header
+  html += '<div style="background:' + ac + ';color:white;padding:28px 32px;display:flex;justify-content:space-between;align-items:flex-end;">';
+  html += '<div style="flex:1;">';
+  html += '<div style="font-size:30px;font-weight:800;line-height:1.1;">' + esc(p.name) + '</div>';
+  var latestTitle = (p.work_exp || [])[0] ? (p.work_exp[0].title || '') : '';
+  html += '<div style="font-size:14px;opacity:.85;font-weight:600;margin-top:4px;">' + esc(latestTitle) + '</div>';
+  html += '<div style="font-size:10px;opacity:.7;margin-top:8px;">' + [p.email, p.phone, p.location].filter(Boolean).map(esc).join('  |  ') + '</div>';
+  html += '</div>';
+  html += '<div>' + photo + '</div>';
+  html += '</div>';
+  // Body
+  html += '<div style="padding:24px 32px;">';
+  if (p.summary) {
+    html += '<div style="margin-bottom:18px;padding:14px;background:#f8f9fd;border-radius:6px;border-left:4px solid ' + ac + ';">';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:6px;">PROFILE SUMMARY</div>';
+    html += '<div style="font-size:11px;color:#444;line-height:1.6;">' + esc(p.summary) + '</div>';
+    html += '</div>';
+  }
+  if (achvs.length) {
+    html += '<div style="margin-bottom:18px;">';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:8px;">KEY ACHIEVEMENTS</div>';
+    html += achvs.map(function(a) { return '<div style="font-size:11px;margin-bottom:5px;padding-left:14px;position:relative;"><span style="position:absolute;left:0;color:' + ac + ';">&#9654;</span>' + esc(a) + '</div>'; }).join('');
+    html += '</div>';
+  }
+  if (exps) {
+    html += '<div style="margin-bottom:18px;">';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:10px;">PROFESSIONAL EXPERIENCE</div>';
+    html += exps;
+    html += '</div>';
+  }
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">';
+  html += '<div>';
+  if (edus) {
+    html += '<div style="margin-bottom:16px;">';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:8px;">EDUCATION</div>';
+    html += edus;
+    html += '</div>';
+  }
+  if (certs) {
+    html += '<div>';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:6px;">CERTIFICATIONS</div>';
+    html += certs;
+    html += '</div>';
+  }
+  html += '</div><div>';
+  if (allSkills) {
+    html += '<div style="margin-bottom:16px;">';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:8px;">SKILLS & TOOLS</div>';
+    html += allSkills;
+    html += '</div>';
+  }
+  if (langs) {
+    html += '<div>';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:6px;">LANGUAGES</div>';
+    html += langs;
+    html += '</div>';
+  }
+  html += '</div></div>';
+  html += buildPdfBtn(ac); html += buildFooter();
+  html += '</div>';
+  html += '<div style="text-align:center;padding:10px;font-size:8px;color:#ccc;">GCC Compatible \u2022 Emirates Format</div>';
+  html += '</div>';
+  return html;
+}
+
+// ─── GCC Template 3: Prestige ────────────────────────────────────────────────
+// Premium sidebar with circular photo. Teal accent.
+// Qatar/Bahrain finance & consulting style.
+function buildPrestige(accent, p) {
+  var ac = accent || '#0D5C63';
+  var photo = p.photo
+    ? '<img src="' + esc(p.photo) + '" style="width:100px;height:100px;object-fit:cover;border-radius:50%;border:3px solid white;display:block;margin:0 auto;">'
+    : '<div style="width:100px;height:100px;background:rgba(255,255,255,0.2);border-radius:50%;border:3px solid rgba(255,255,255,0.5);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto;">&#128100;</div>';
+  var exps = (p.work_exp || []).map(function(j) {
+    var desc = (j.description || '').split(/\n|\u2022/).map(function(l) { return cleanBullet(l); }).filter(Boolean);
+    return '<div style="margin-bottom:16px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;">' +
+        '<div>' +
+          '<div style="font-weight:700;font-size:12px;color:#1a1a1a;">' + esc(j.title) + '</div>' +
+          '<div style="font-size:11px;color:' + ac + ';font-weight:600;">' + esc(j.company) + (j.city ? ', ' + esc(j.city) : '') + '</div>' +
+        '</div>' +
+        '<div style="font-size:10px;color:#888;white-space:nowrap;margin-left:10px;">' + fmtDate(j.start) + ' \u2013 ' + (j.current ? 'Present' : fmtDate(j.end)) + '</div>' +
+      '</div>' +
+      (desc.length ? '<div style="font-size:11px;color:#444;line-height:1.5;margin-top:5px;">' + desc.map(function(l) { return '&bull; ' + esc(l); }).join('<br>') + '</div>' : '') +
+    '</div>';
+  }).join('');
+  var edus = (p.education || []).map(function(e) {
+    return '<div style="margin-bottom:8px;">' +
+      '<div style="font-weight:700;font-size:11px;color:white;">' + esc(e.degree) + '</div>' +
+      '<div style="font-size:10px;opacity:.75;">' + esc(e.institution) + '</div>' +
+      '<div style="font-size:10px;opacity:.55;">' + fmtDate(e.start) + ' \u2013 ' + fmtDate(e.end) + '</div>' +
+    '</div>';
+  }).join('');
+  var softSkills = parseSkills(p.soft_skills).map(function(s) {
+    return '<div style="font-size:10px;margin-bottom:5px;padding-left:10px;color:rgba(255,255,255,.85);">\u2713 ' + esc(s) + '</div>';
+  }).join('');
+  var tools = (p.tools || []).map(function(s) {
+    return '<span style="display:inline-block;background:rgba(255,255,255,.15);border-radius:3px;padding:2px 7px;font-size:10px;margin:2px;">' + esc(s) + '</span>';
+  }).join('');
+  var certs = (p.certifications || []).map(function(c) {
+    return '<div style="font-size:10px;margin-bottom:5px;color:rgba(255,255,255,.8);">\u2605 ' + esc(c.name) + (c.date ? ' (' + fmtDate(c.date) + ')' : '') + '</div>';
+  }).join('');
+  var langs = (p.languages || []).map(function(l) {
+    return '<div style="font-size:10px;margin-bottom:4px;color:rgba(255,255,255,.8);">\u25C6 ' + esc(l) + '</div>';
+  }).join('');
+  var achvs = p.key_achievements || [];
+  var latestTitle = (p.work_exp || [])[0] ? (p.work_exp[0].title || '') : '';
+
+  var html = '<div style="font-family:\'Segoe UI\',Arial,sans-serif;display:flex;min-height:297mm;margin:0;">';
+  // Sidebar
+  html += '<div style="width:220px;min-width:220px;background:' + ac + ';color:white;padding:28px 18px;display:flex;flex-direction:column;gap:20px;">';
+  html += '<div style="text-align:center;">' + photo;
+  html += '<div style="font-size:16px;font-weight:800;margin-top:12px;line-height:1.2;">' + esc(p.name) + '</div>';
+  html += '<div style="font-size:10px;opacity:.7;margin-top:4px;">' + esc(latestTitle) + '</div>';
+  html += '</div>';
+  html += '<div style="border-top:1px solid rgba(255,255,255,.2);padding-top:16px;">';
+  html += '<div style="font-size:8px;font-weight:700;letter-spacing:1.5px;opacity:.6;margin-bottom:8px;">CONTACT</div>';
+  if (p.email) html += '<div style="font-size:10px;margin-bottom:5px;word-break:break-all;opacity:.85;">\u2709 ' + esc(p.email) + '</div>';
+  if (p.phone) html += '<div style="font-size:10px;margin-bottom:5px;opacity:.85;">\u260E ' + esc(p.phone) + '</div>';
+  if (p.location) html += '<div style="font-size:10px;opacity:.85;">\u2316 ' + esc(p.location) + '</div>';
+  html += '</div>';
+  if (softSkills) {
+    html += '<div style="border-top:1px solid rgba(255,255,255,.2);padding-top:16px;">';
+    html += '<div style="font-size:8px;font-weight:700;letter-spacing:1.5px;opacity:.6;margin-bottom:8px;">CORE SKILLS</div>' + softSkills + '</div>';
+  }
+  if (tools) {
+    html += '<div style="border-top:1px solid rgba(255,255,255,.2);padding-top:16px;">';
+    html += '<div style="font-size:8px;font-weight:700;letter-spacing:1.5px;opacity:.6;margin-bottom:8px;">TOOLS</div>' + tools + '</div>';
+  }
+  if (edus) {
+    html += '<div style="border-top:1px solid rgba(255,255,255,.2);padding-top:16px;">';
+    html += '<div style="font-size:8px;font-weight:700;letter-spacing:1.5px;opacity:.6;margin-bottom:8px;">EDUCATION</div>' + edus + '</div>';
+  }
+  if (certs) {
+    html += '<div style="border-top:1px solid rgba(255,255,255,.2);padding-top:16px;">';
+    html += '<div style="font-size:8px;font-weight:700;letter-spacing:1.5px;opacity:.6;margin-bottom:8px;">CERTIFICATIONS</div>' + certs + '</div>';
+  }
+  if (langs) {
+    html += '<div style="border-top:1px solid rgba(255,255,255,.2);padding-top:16px;">';
+    html += '<div style="font-size:8px;font-weight:700;letter-spacing:1.5px;opacity:.6;margin-bottom:8px;">LANGUAGES</div>' + langs + '</div>';
+  }
+  html += '<div style="margin-top:auto;font-size:8px;opacity:.4;text-align:center;">GCC Compatible</div>';
+  html += '</div>';
+  // Main
+  html += '<div style="flex:1;padding:28px 28px 24px;background:#fff;">';
+  if (p.summary) {
+    html += '<div style="margin-bottom:18px;">';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;border-bottom:2px solid ' + ac + ';padding-bottom:4px;margin-bottom:8px;">PROFESSIONAL SUMMARY</div>';
+    html += '<div style="font-size:11px;color:#444;line-height:1.6;">' + esc(p.summary) + '</div>';
+    html += '</div>';
+  }
+  if (achvs.length) {
+    html += '<div style="margin-bottom:18px;">';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;border-bottom:2px solid ' + ac + ';padding-bottom:4px;margin-bottom:8px;">KEY ACHIEVEMENTS</div>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
+    html += achvs.map(function(a) { return '<div style="font-size:11px;background:#f5f9f9;border-radius:4px;padding:6px 10px;border-left:3px solid ' + ac + ';">' + esc(a) + '</div>'; }).join('');
+    html += '</div></div>';
+  }
+  if (exps) {
+    html += '<div>';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;border-bottom:2px solid ' + ac + ';padding-bottom:4px;margin-bottom:12px;">PROFESSIONAL EXPERIENCE</div>';
+    html += exps;
+    html += '</div>';
+  }
+  html += buildPdfBtn(ac); html += buildFooter();
   html += '</div></div>';
   return html;
 }
