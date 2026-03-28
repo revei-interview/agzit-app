@@ -1510,7 +1510,7 @@ async function init() {
 }
 
 // ── Referral functions ───────────────────────────────────────────────────────
-function sendReferral() {
+window.sendReferral = function() {
   const email = document.getElementById('referral-email').value.trim();
   const msgEl = document.getElementById('referral-message');
   const btn = document.getElementById('ref-send-btn');
@@ -1554,7 +1554,7 @@ function sendReferral() {
     btn.disabled = false;
     btn.textContent = 'Send Invite';
   });
-}
+};
 
 function loadReferralStats() {
   fetch('/api/candidate/referral-stats', { credentials: 'include' })
@@ -1594,7 +1594,7 @@ function loadReferralHistory() {
     .catch(err => console.error('Referral history error:', err));
 }
 
-function generateCareerReport() {
+window.generateCareerReport = function() {
   const btn = document.getElementById('ca-generate-btn');
   const loading = document.getElementById('ca-loading');
   const error = document.getElementById('ca-error');
@@ -1628,7 +1628,7 @@ function generateCareerReport() {
     }
     console.error('Career report error:', err);
   });
-}
+};
 
 function displayCareerReport(report) {
   const container = document.getElementById('ca-report');
