@@ -78,10 +78,26 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 .btn-end:disabled { background: #374151; color: rgba(255,255,255,.3); cursor: not-allowed; }
 
 /* ── Self-view panel ── */
-.self-panel { background: rgba(255,255,255,.03); border-left: 1px solid rgba(255,255,255,.07); padding: 20px; display: flex; flex-direction: column; gap: 14px; }
-.self-label { font-size: 11px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: rgba(255,255,255,.3); }
+.self-panel { background: rgba(255,255,255,.03); border-left: 1px solid rgba(255,255,255,.07); padding: 0; display: flex; flex-direction: column; }
 #selfVideo { width: 100%; border-radius: 10px; background: rgba(255,255,255,.05); aspect-ratio: 4/3; object-fit: cover; }
-.self-info { font-size: 12px; color: rgba(255,255,255,.4); line-height: 1.6; }
+
+/* ── Participants panel ── */
+.participants-panel { padding: 16px 16px 4px; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 0; }
+.participant-label { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.35); margin-bottom: 10px; }
+.participant-card { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px; margin-bottom: 6px; background: rgba(255,255,255,.05); }
+.participant-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; position: relative; flex-shrink: 0; }
+.p-avatar-ai { background: #1A44C2; color: white; }
+.p-avatar-you { background: #0B7A47; color: white; }
+.participant-info { flex: 1; min-width: 0; }
+.participant-name { font-size: 13px; font-weight: 600; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.participant-role { font-size: 11px; color: rgba(255,255,255,.5); }
+.participant-status { font-size: 10px; color: #0B7A47; }
+.speaking-ring { position: absolute; inset: -3px; border-radius: 50%; border: 2px solid transparent; transition: border-color .2s; }
+.participant-card.ai-speaking .speaking-ring { border-color: #38A169; animation: p-pulse 1s infinite; }
+@keyframes p-pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+.camera-section { padding: 14px 16px; }
+.cam-label { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.35); margin-bottom: 6px; }
+.cam-msg { font-size: 12px; color: rgba(255,255,255,.4); line-height: 1.6; margin-top: 6px; }
 
 /* ── Toast ── */
 .toast {
@@ -157,7 +173,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 <div class="main" id="mainArea" style="display:none">
   <div class="stage">
     <div class="status-ring connecting" id="statusRing">
-      <div class="ai-avatar">AI</div>
+      <div class="ai-avatar">A</div>
     </div>
     <div>
       <div class="status-text" id="statusText">Connecting to interviewer…</div>
@@ -173,9 +189,35 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   </div>
 
   <div class="self-panel">
-    <div class="self-label">Your Camera</div>
-    <video id="selfVideo" autoplay muted playsinline></video>
-    <div class="self-info" id="selfInfo">Camera preview will start when the call begins.</div>
+    <div class="participants-panel">
+      <div class="participant-label">PARTICIPANTS</div>
+      <div class="participant-card" id="pc-alex">
+        <div class="participant-avatar p-avatar-ai">
+          <span>A</span>
+          <div class="speaking-ring" id="alex-ring"></div>
+        </div>
+        <div class="participant-info">
+          <div class="participant-name">Alex</div>
+          <div class="participant-role">AI Interviewer</div>
+        </div>
+        <div class="participant-status" id="alex-status">●</div>
+      </div>
+      <div class="participant-card" id="pc-candidate">
+        <div class="participant-avatar p-avatar-you">
+          <span id="candidateInitials">Y</span>
+        </div>
+        <div class="participant-info">
+          <div class="participant-name" id="candidateDisplayName">You</div>
+          <div class="participant-role">Candidate</div>
+        </div>
+        <div class="participant-status candidate-status">●</div>
+      </div>
+    </div>
+    <div class="camera-section">
+      <div class="cam-label">Your Camera</div>
+      <video id="selfVideo" autoplay muted playsinline></video>
+      <div class="cam-msg" id="selfInfo">Camera preview will start when the call begins.</div>
+    </div>
   </div>
 </div>
 
@@ -187,11 +229,6 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   <div id="subtitle-text"></div>
 </div>
 
-<!-- Toggle buttons -->
-<div style="position:fixed;bottom:20px;right:20px;display:flex;gap:8px;z-index:100">
-  <button id="subtitleToggle" onclick="toggleSubtitles()" title="Toggle subtitles" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--white);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">CC</button>
-  <button id="ambientToggle" onclick="toggleAmbient()" title="Room ambience" style="width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--white);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;opacity:.5">&#128266;</button>
-</div>
 
 <script>
 (async function () {
@@ -204,6 +241,11 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   const $ = id => document.getElementById(id);
+
+  function setAlexSpeaking(isSpeaking) {
+    const pc = document.getElementById('pc-alex');
+    if (pc) { isSpeaking ? pc.classList.add('ai-speaking') : pc.classList.remove('ai-speaking'); }
+  }
 
   function showOverlayErr(msg) {
     $('overlayErr').textContent = msg;
@@ -283,6 +325,12 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 
   // Update topbar with role
   $('topRole').textContent = variableValues.interview_role || 'Mock Interview';
+
+  // Populate candidate name in participants panel
+  const cname = variableValues.candidate_name || 'You';
+  const cInitials = cname.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase() || 'Y';
+  $('candidateDisplayName').textContent = cname;
+  $('candidateInitials').textContent = cInitials;
 
   // ── Ready — show launch button ───────────────────────────────────────────────
   $('overlayTitle').textContent = 'Ready to begin';
@@ -533,7 +581,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     $('topbar').style.display   = 'flex';
     $('mainArea').style.display = 'grid';
     $('btnEnd').disabled        = false;
-    $('statusRing').className   = 'status-ring active';
+    $('statusRing').className   = 'status-ring active'; setAlexSpeaking(false);
     $('statusText').textContent = 'Connected — interviewer is ready';
     $('statusSub').textContent  = 'Speak clearly into your microphone';
 
@@ -686,7 +734,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
             // ── Agent speaking: streaming deltas ──
             if (msg.type === 'response.audio_transcript.delta') {
               _rtAgentTranscript += (msg.delta || '');
-              $('statusRing').className = 'status-ring speaking';
+              $('statusRing').className = 'status-ring speaking'; setAlexSpeaking(true);
               if (window._subtitlesEnabled !== false) {
                 const bar = document.getElementById('subtitle-bar');
                 document.getElementById('subtitle-speaker').textContent = 'Alex (AI Interviewer)';
@@ -722,12 +770,12 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
                 clearTimeout(window._subtitleTimer);
                 window._subtitleTimer = setTimeout(() => { bar.style.display = 'none'; }, 4000);
               }
-              $('statusRing').className = 'status-ring active';
+              $('statusRing').className = 'status-ring active'; setAlexSpeaking(false);
             }
 
             // ── Response done: reset ring ──
             if (msg.type === 'response.done') {
-              $('statusRing').className = 'status-ring active';
+              $('statusRing').className = 'status-ring active'; setAlexSpeaking(false);
             }
 
             // ── Debug: log important events ──
@@ -759,14 +807,9 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
         await realtimePc.setRemoteDescription(answer);
         console.log('[Realtime] WebRTC connected');
 
-        // Apply defaults
-        window._subtitlesEnabled = localStorage.getItem('subtitles_enabled') !== 'false';
-        window._ambientEnabled = localStorage.getItem('ambient_enabled') === 'true';
-        const ccBtn = document.getElementById('subtitleToggle');
-        if (ccBtn) ccBtn.style.opacity = window._subtitlesEnabled ? '1' : '.5';
-        const ambBtn = document.getElementById('ambientToggle');
-        if (ambBtn) ambBtn.style.opacity = window._ambientEnabled ? '1' : '.5';
-        if (window._ambientEnabled && typeof startAmbientRoom === 'function') startAmbientRoom();
+        // Apply defaults — CC always on, ambient off
+        window._subtitlesEnabled = true;
+        window._ambientEnabled = false;
 
         realtimePc.onconnectionstatechange = () => {
           console.log('[Realtime] Connection state:', realtimePc.connectionState);
@@ -841,36 +884,9 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
             if (msg.type === 'ready') {
               console.log('[WS] Pipeline ready, starting call');
 
-              // Apply agent UI defaults — localStorage user preference overrides after first visit
-              const agentCC = msg.subtitles_enabled !== false;
-              const agentAmbient = msg.ambient_sound_enabled === true;
-
-              // Seed localStorage from agent defaults on first visit
-              if (localStorage.getItem('subtitles_enabled') === null) {
-                localStorage.setItem('subtitles_enabled', agentCC);
-              }
-              if (localStorage.getItem('ambient_enabled') === null) {
-                localStorage.setItem('ambient_enabled', agentAmbient);
-              }
-
-              // Re-apply from localStorage (user override wins)
-              window._subtitlesEnabled = localStorage.getItem('subtitles_enabled') !== 'false';
-              window._ambientEnabled = localStorage.getItem('ambient_enabled') === 'true';
-
-              // Update CC toggle UI
-              const ccBtn = document.getElementById('subtitleToggle');
-              if (ccBtn) ccBtn.style.opacity = window._subtitlesEnabled ? '1' : '.5';
-              if (!window._subtitlesEnabled) {
-                const bar = document.getElementById('subtitle-bar');
-                if (bar) bar.style.display = 'none';
-              }
-
-              // Update ambient toggle UI + start if enabled
-              const ambBtn = document.getElementById('ambientToggle');
-              if (ambBtn) ambBtn.style.opacity = window._ambientEnabled ? '1' : '.5';
-              if (window._ambientEnabled && typeof startAmbientRoom === 'function') {
-                startAmbientRoom();
-              }
+              // CC always on, ambient off (toggle buttons removed)
+              window._subtitlesEnabled = true;
+              window._ambientEnabled = false;
 
               onCallStart();
             } else if (msg.type === 'subtitle') {
@@ -903,10 +919,10 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
           if (data.length === 1 && data[0] === 0xFF) {
             console.log('[WS] Barge-in interrupt received');
             clearPlayback();
-            $('statusRing').className = 'status-ring active';
+            $('statusRing').className = 'status-ring active'; setAlexSpeaking(false);
           } else {
             playAudioChunk(data);
-            $('statusRing').className = 'status-ring speaking';
+            $('statusRing').className = 'status-ring speaking'; setAlexSpeaking(true);
           }
         }
       };
@@ -937,26 +953,11 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   $('btnEnd').addEventListener('click', () => endCall('user_ended'));
 })();
 
-// ── Subtitle toggle ──
-window._subtitlesEnabled = localStorage.getItem('subtitles_enabled') !== 'false';
-document.getElementById('subtitleToggle').style.opacity = window._subtitlesEnabled ? '1' : '.5';
-function toggleSubtitles() {
-  window._subtitlesEnabled = !window._subtitlesEnabled;
-  localStorage.setItem('subtitles_enabled', window._subtitlesEnabled);
-  document.getElementById('subtitleToggle').style.opacity = window._subtitlesEnabled ? '1' : '.5';
-  if (!window._subtitlesEnabled) document.getElementById('subtitle-bar').style.display = 'none';
-}
+// ── Subtitles: always on by default (toggle buttons removed) ──
+window._subtitlesEnabled = true;
 
-// ── Ambient room sound (brown noise at very low volume) ──
-window._ambientEnabled = localStorage.getItem('ambient_enabled') === 'true';
-document.getElementById('ambientToggle').style.opacity = window._ambientEnabled ? '1' : '.5';
-function toggleAmbient() {
-  window._ambientEnabled = !window._ambientEnabled;
-  localStorage.setItem('ambient_enabled', window._ambientEnabled);
-  document.getElementById('ambientToggle').style.opacity = window._ambientEnabled ? '1' : '.5';
-  if (window._ambientEnabled) startAmbientRoom();
-  else stopAmbientRoom();
-}
+// ── Ambient: off by default (toggle buttons removed) ──
+window._ambientEnabled = false;
 function startAmbientRoom() {
   if (window._ambientCtx) return;
   try {
