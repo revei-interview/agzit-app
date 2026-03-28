@@ -213,6 +213,7 @@ router.post('/mock-session-start', requireAppToken, async (req, res) => {
       jd_raw_text         = '',
       specialisation      = '',
       interview_type      = 'technical',
+      questions_asked     = '',
       started_at,
     } = req.body;
 
@@ -238,6 +239,7 @@ router.post('/mock-session-start', requireAppToken, async (req, res) => {
         share_expires_at,
         specialisation,
         interview_type,
+        questions_asked,
       };
       if (started_at) updates.started_at = started_at;
 
@@ -281,6 +283,7 @@ router.post('/mock-session-start', requireAppToken, async (req, res) => {
       share_expires_at,
       specialisation,
       interview_type,
+      questions_asked,
       audio_url:                '',
       video_url:                '',
       recording_id:             '',
