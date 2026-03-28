@@ -604,7 +604,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
         realtimeDc.onopen = () => {
           console.log('[Realtime] DataChannel open');
 
-          // Send session update with instructions + VAD config
+          // 1. Session update with tuned pauses for interview feel
           realtimeDc.send(JSON.stringify({
             type: 'session.update',
             session: {
@@ -612,29 +612,32 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
               turn_detection: {
                 type: 'server_vad',
                 threshold: 0.5,
-                prefix_padding_ms: 300,
-                silence_duration_ms: 700
+                prefix_padding_ms: 500,
+                silence_duration_ms: 1000,
+                create_response: true
               },
               input_audio_transcription: { model: 'whisper-1' },
               modalities: ['audio', 'text']
             }
           }));
+          console.log('[Realtime] Sent session.update');
 
-          // Trigger agent to speak first with the greeting
-          const greeting = sessionGreeting || 'Hello! Welcome. Please introduce yourself.';
-          realtimeDc.send(JSON.stringify({
-            type: 'conversation.item.create',
-            item: {
-              type: 'message',
-              role: 'user',
-              content: [{
-                type: 'input_text',
-                text: '__SYSTEM__: Start the interview now. Say the opening greeting.'
-              }]
-            }
-          }));
-          realtimeDc.send(JSON.stringify({ type: 'response.create' }));
-          console.log('[Realtime] Sent session.update + greeting trigger');
+          // 2. Auto-trigger greeting after short delay (agent speaks first)
+          setTimeout(() => {
+            realtimeDc.send(JSON.stringify({
+              type: 'conversation.item.create',
+              item: {
+                type: 'message',
+                role: 'user',
+                content: [{
+                  type: 'input_text',
+                  text: '[Begin the interview. Say your opening greeting now.]'
+                }]
+              }
+            }));
+            realtimeDc.send(JSON.stringify({ type: 'response.create' }));
+            console.log('[Realtime] Sent greeting trigger');
+          }, 500);
         };
 
         // Accumulate streaming agent transcript deltas
