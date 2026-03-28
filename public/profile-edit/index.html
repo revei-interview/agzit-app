@@ -398,6 +398,12 @@
         <label class="label">Specialisation / Sub-Industry</label>
         <div id="sub-industry-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;"></div>
       </div>
+      <div class="field" id="dpr-spec-field" style="display:none;">
+        <label class="label">Specialisation</label>
+        <select id="f_dpr_specialisation">
+          <option value="">Select your specialisation</option>
+        </select>
+      </div>
       <div class="field">
         <label class="label">Total Work Experience (years)</label>
         <input type="number" id="f_total_work_experience" min="0" max="50" placeholder="e.g. 5">
@@ -1181,12 +1187,47 @@ function updateEditSubIndustries(industryKey, savedSubs) {
   });
 }
 
+// ── DPR Specialisation map (industry key → dropdown options) ──────────────
+var DPR_SPEC_MAP = {
+  compliance:    ['KYC / CDD / EDD', 'Transaction Monitoring', 'Sanctions Screening', 'AML Investigations', 'Fraud Operations', 'Regulatory Reporting', 'QA / QC Compliance'],
+  banking:       ['Corporate Banking', 'Retail Banking', 'Trade Finance', 'Treasury / ALM'],
+  finance:       ['Financial Analysis / FP&A', 'Audit', 'Risk Management', 'Tax'],
+  software:      ['Software Engineering', 'Data Science / Analytics', 'Cloud / DevOps', 'Cybersecurity', 'QA / Testing'],
+  it:            ['Software Engineering', 'Data Science / Analytics', 'Cloud / DevOps', 'Cybersecurity', 'QA / Testing'],
+  cybersecurity: ['Software Engineering', 'Data Science / Analytics', 'Cloud / DevOps', 'Cybersecurity', 'QA / Testing'],
+  data:          ['Software Engineering', 'Data Science / Analytics', 'Cloud / DevOps', 'Cybersecurity', 'QA / Testing'],
+  hr:            ['Talent Acquisition', 'Learning & Development', 'HR Business Partner', 'Compensation & Benefits'],
+  operations:    ['Supply Chain', 'Process Excellence', 'Logistics', 'Customer Operations'],
+  sales:         ['B2B Sales', 'Account Management', 'Business Development', 'Pre-Sales / Solutions'],
+  healthcare:    ['Clinical Operations', 'Medical Coding', 'Pharmacy', 'Healthcare Admin'],
+  legal:         ['Corporate Law', 'Compliance & Regulatory', 'Litigation', 'Contracts'],
+  accounting:    ['Financial Analysis / FP&A', 'Audit', 'Risk Management', 'Tax'],
+  marketing:     ['Digital Marketing', 'Brand Management', 'Content Strategy', 'Performance Marketing'],
+};
+
+function updateEditDprSpec(industryKey, savedVal) {
+  var field = document.getElementById('dpr-spec-field');
+  var sel = document.getElementById('f_dpr_specialisation');
+  if (!field || !sel) return;
+  var opts = DPR_SPEC_MAP[industryKey] || [];
+  if (!opts.length) { field.style.display = 'none'; sel.innerHTML = '<option value="">Select your specialisation</option>'; return; }
+  field.style.display = '';
+  sel.innerHTML = '<option value="">Select your specialisation</option>';
+  opts.forEach(function(s) {
+    var o = document.createElement('option');
+    o.value = s; o.textContent = s;
+    sel.appendChild(o);
+  });
+  if (savedVal) sel.value = savedVal;
+}
+
 // Attach industry change listener once DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
   var indSel = document.getElementById('f_compliance_domains');
   if (indSel) {
     indSel.addEventListener('change', function() {
       updateEditSubIndustries(this.value);
+      updateEditDprSpec(this.value);
     });
   }
 });
@@ -1263,6 +1304,7 @@ function populateForm(p) {
   // Sub-industry: populate and check saved values
   var industryKey = extractIndustryKey(p.compliance_domains);
   updateEditSubIndustries(industryKey, p.candidate_sub_industries || []);
+  updateEditDprSpec(industryKey, p.dpr_specialisation || '');
 
   // Gender and Date of Birth
   setVal('f_gender', p.gender);
@@ -1557,6 +1599,7 @@ async function saveProfile() {
     country_of_nationality:       getVal('f_country_of_nationality'),
     residential_country:          getVal('f_residential_country'),
     compliance_domains:           getVal('f_compliance_domains'),
+    dpr_specialisation:           getVal('f_dpr_specialisation'),
     candidate_sub_industries:     Array.from(document.querySelectorAll('#sub-industry-list .sub-pill.active')).map(function(el) { return el.dataset.value; }),
     current_annual_ctc_with_currency:  (getVal('f_current_ctc_currency')  + ' ' + getVal('f_current_ctc_amount')).trim(),
     expected_annual_ctc_with_currency: (getVal('f_expected_ctc_currency') + ' ' + getVal('f_expected_ctc_amount')).trim(),

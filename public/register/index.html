@@ -644,6 +644,14 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
           <div id="reg-sub-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;"></div>
         </div>
       </div>
+      <div class="form-row" id="reg-dpr-spec-field" style="display:none;">
+        <div class="field" style="grid-column:1/-1;">
+          <label>Specialisation</label>
+          <select class="input agzit-select" id="s1-dpr-specialisation">
+            <option value="">Select your specialisation</option>
+          </select>
+        </div>
+      </div>
       <!-- Additional details divider -->
       <div style="margin:24px 0 18px;padding-top:20px;border-top:1px solid var(--line);">
         <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);">Additional Details</span>
@@ -1200,6 +1208,40 @@ function updateRegSubIndustries(key) {
     pill.onclick = function() { this.classList.toggle('active'); };
     list.appendChild(pill);
   });
+}
+
+// ── DPR Specialisation dropdown (dependent on industry) ───────────────────
+var REG_DPR_SPEC_MAP = {
+  compliance:    ['KYC / CDD / EDD', 'Transaction Monitoring', 'Sanctions Screening', 'AML Investigations', 'Fraud Operations', 'Regulatory Reporting', 'QA / QC Compliance'],
+  banking:       ['Corporate Banking', 'Retail Banking', 'Trade Finance', 'Treasury / ALM'],
+  finance:       ['Financial Analysis / FP&A', 'Audit', 'Risk Management', 'Tax'],
+  software:      ['Software Engineering', 'Data Science / Analytics', 'Cloud / DevOps', 'Cybersecurity', 'QA / Testing'],
+  it:            ['Software Engineering', 'Data Science / Analytics', 'Cloud / DevOps', 'Cybersecurity', 'QA / Testing'],
+  cybersecurity: ['Software Engineering', 'Data Science / Analytics', 'Cloud / DevOps', 'Cybersecurity', 'QA / Testing'],
+  data:          ['Software Engineering', 'Data Science / Analytics', 'Cloud / DevOps', 'Cybersecurity', 'QA / Testing'],
+  hr:            ['Talent Acquisition', 'Learning & Development', 'HR Business Partner', 'Compensation & Benefits'],
+  operations:    ['Supply Chain', 'Process Excellence', 'Logistics', 'Customer Operations'],
+  sales:         ['B2B Sales', 'Account Management', 'Business Development', 'Pre-Sales / Solutions'],
+  healthcare:    ['Clinical Operations', 'Medical Coding', 'Pharmacy', 'Healthcare Admin'],
+  legal:         ['Corporate Law', 'Compliance & Regulatory', 'Litigation', 'Contracts'],
+  accounting:    ['Financial Analysis / FP&A', 'Audit', 'Risk Management', 'Tax'],
+  marketing:     ['Digital Marketing', 'Brand Management', 'Content Strategy', 'Performance Marketing'],
+};
+
+function updateRegDprSpec(industryKey, savedVal) {
+  var field = document.getElementById('reg-dpr-spec-field');
+  var sel = document.getElementById('s1-dpr-specialisation');
+  if (!field || !sel) return;
+  var opts = REG_DPR_SPEC_MAP[industryKey] || [];
+  if (!opts.length) { field.style.display = 'none'; sel.innerHTML = '<option value="">Select your specialisation</option>'; return; }
+  field.style.display = '';
+  sel.innerHTML = '<option value="">Select your specialisation</option>';
+  opts.forEach(function(s) {
+    var o = document.createElement('option');
+    o.value = s; o.textContent = s;
+    sel.appendChild(o);
+  });
+  if (savedVal) sel.value = savedVal;
 }
 
 /* ── Country list (ISO-2 codes) ─────────────────────────────────────────── */
@@ -2194,6 +2236,7 @@ async function submitDPR() {
       project_date:                v('project_date') || '',
       project_summary:             v('project_summary') || '',
       industry:                    v('s1-industry'),
+      dpr_specialisation:          v('s1-dpr-specialisation'),
       candidate_sub_industries:    Array.from(document.querySelectorAll('#reg-sub-list .sub-pill.active')).map(function(el) { return el.dataset.value; }),
       gender:                      v('gender'),
       dob:                         v('dob'),
@@ -2300,6 +2343,7 @@ function collectFormData() {
     s1_first: v('s1-first'), s1_last: v('s1-last'), s1_headline: v('s1-headline'),
     s1_exp: v('s1-exp'), s1_phone_code: v('s1-phone-code'), s1_phone_num: v('s1-phone-num'),
     s1_industry: v('s1-industry'),
+    s1_dpr_specialisation: v('s1-dpr-specialisation'),
     s1_sub_industries: Array.from(document.querySelectorAll('#reg-sub-list .sub-pill.active')).map(function(el) { return el.dataset.value; }),
     gender: v('gender'), dob: v('dob'),
     nationality: v('nationality'),
@@ -2358,13 +2402,14 @@ function restoreDraft() {
   set('s1-exp', d.s1_exp); set('s1-phone-code', d.s1_phone_code); set('s1-phone-num', d.s1_phone_num);
   set('s1-industry', d.s1_industry); set('gender', d.gender); set('dob', d.dob);
   set('nationality', d.nationality);
-  // Restore sub-industries
+  // Restore sub-industries + dpr specialisation
   if (d.s1_industry) {
     updateRegSubIndustries(d.s1_industry);
     (d.s1_sub_industries || []).forEach(function(v) {
       var pill = document.querySelector('#reg-sub-list .sub-pill[data-value="' + CSS.escape(v) + '"]');
       if (pill) pill.classList.add('active');
     });
+    updateRegDprSpec(d.s1_industry, d.s1_dpr_specialisation || '');
   }
   set('addr_line1', d.addr_line1); set('addr_line2', d.addr_line2); set('addr_city', d.addr_city);
   set('addr_state', d.addr_state); set('addr_zip', d.addr_zip); set('addr_country', d.addr_country);
@@ -2457,9 +2502,10 @@ function restoreDraft() {
   console.log('[draft] Restored saved progress from', d._saved);
 }
 
-// Wire industry → sub-industry change listener
+// Wire industry → sub-industry + dpr-specialisation change listener
 document.getElementById('s1-industry').addEventListener('change', function() {
   updateRegSubIndustries(this.value);
+  updateRegDprSpec(this.value);
 });
 
 // Restore on page load

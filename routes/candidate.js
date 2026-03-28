@@ -398,6 +398,7 @@ router.get('/dashboard', ...guard, async (req, res) => {
         resume_upload:         meta.resume_upload,
         has_resume:            meta.has_resume,
         candidate_sub_industries: candidateSubIndustries,
+        dpr_specialisation:      meta.dpr_specialisation || '',
       } : null,
       entitlements: {
         sessions_20: parseInt(userMeta.mock_sessions_remaining_20) || 0,
@@ -679,6 +680,7 @@ router.get('/profile', ...guard, async (req, res) => {
         // ── New fields
         key_achievements:                 meta.key_achievements,
         candidate_sub_industries:         candidateSubIndustries,
+        dpr_specialisation:              meta.dpr_specialisation || '',
         badges,
       },
     });
@@ -1416,10 +1418,12 @@ router.post('/interviews/start', ...guard, async (req, res) => {
     if (!profilePostId) return res.status(400).json({ ok: false, error: 'DPR profile not found. Please complete registration first.' });
 
     // ── Validate body ─────────────────────────────────────────────────────────
-    const interviewRole  = typeof req.body.interview_role === 'string'       ? req.body.interview_role.trim()       : '';
-    const careerLevelIn  = typeof req.body.target_career_level === 'string'  ? req.body.target_career_level.trim()  : '';
-    const chosenMinutes  = parseInt(req.body.chosen_minutes) || 0;
-    const jdText         = typeof req.body.jd_raw_text === 'string'          ? req.body.jd_raw_text.trim()          : '';
+    const interviewRole   = typeof req.body.interview_role === 'string'       ? req.body.interview_role.trim()       : '';
+    const careerLevelIn   = typeof req.body.target_career_level === 'string'  ? req.body.target_career_level.trim()  : '';
+    const chosenMinutes   = parseInt(req.body.chosen_minutes) || 0;
+    const jdText          = typeof req.body.jd_raw_text === 'string'          ? req.body.jd_raw_text.trim()          : '';
+    const specialisation  = typeof req.body.specialisation === 'string'       ? req.body.specialisation.trim()       : '';
+    const interviewType   = typeof req.body.interview_type === 'string'       ? req.body.interview_type.trim()       : 'technical';
 
     if (!interviewRole)                  return res.status(400).json({ ok: false, error: 'interview_role is required' });
     if (![20, 30].includes(chosenMinutes)) return res.status(400).json({ ok: false, error: 'chosen_minutes must be 20 or 30' });
@@ -1509,6 +1513,8 @@ router.post('/interviews/start', ...guard, async (req, res) => {
         share_token:          shareToken,
         share_expires_at:     shareExpiresAt,
         jd_raw_text:          jdText,
+        specialisation,
+        interview_type:       interviewType,
       },
       { 'x-wp-app-token': wpToken }
     ).catch(err => {
@@ -1866,7 +1872,7 @@ router.put('/profile', ...guard, async (req, res) => {
       'preferred_work_type', 'work_level',
       'gender', 'date_of_birth',
       'email_visibility', 'phone_visibility',
-      'professional_headline',
+      'professional_headline', 'dpr_specialisation',
     ];
     // Textarea fields that accept freeform rich text — sanitize HTML tags
     const TEXTAREA_FIELDS = new Set([
@@ -2640,6 +2646,7 @@ router.post('/dpr', requireAuth, async (req, res) => {
       ['professional_summary_bio',           s(skills.summary)],
       ['total_work_experience',              String(parseInt(personal.experience) || 0)],
       ['compliance_domains',                 JSON.stringify([s(personal.industry)].filter(Boolean))],
+      ['dpr_specialisation',                 s(personal.dpr_specialisation)],
       ['current_employment_status',          s(job_preferences.employment_status)],
       ['notice_period_in_days',              s(job_preferences.notice_period)],
       ['current_annual_ctc_with_currency',   s(job_preferences.current_ctc)],

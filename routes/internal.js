@@ -181,6 +181,8 @@ router.get('/vapi-variables', requireAppToken, async (req, res) => {
         target_career_level: careerLevel,
         context_pack:        contextPack,
         total_experience:    totalExperience,
+        specialisation:      sessionRow.specialisation || '',
+        interview_type:      sessionRow.interview_type || 'technical',
       },
     });
   } catch (err) {
@@ -209,6 +211,8 @@ router.post('/mock-session-start', requireAppToken, async (req, res) => {
       share_token         = '',
       share_expires_at    = '',
       jd_raw_text         = '',
+      specialisation      = '',
+      interview_type      = 'technical',
       started_at,
     } = req.body;
 
@@ -232,6 +236,8 @@ router.post('/mock-session-start', requireAppToken, async (req, res) => {
         jd_raw_text,
         share_token,
         share_expires_at,
+        specialisation,
+        interview_type,
       };
       if (started_at) updates.started_at = started_at;
 
@@ -273,6 +279,8 @@ router.post('/mock-session-start', requireAppToken, async (req, res) => {
       jd_raw_text,
       share_token,
       share_expires_at,
+      specialisation,
+      interview_type,
       audio_url:                '',
       video_url:                '',
       recording_id:             '',

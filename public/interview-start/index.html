@@ -77,6 +77,14 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 .field-textarea { resize: vertical; min-height: 120px; }
 .field-hint { font-size: 12px; color: var(--muted); margin-top: 5px; }
 
+/* ── Interview Type cards ── */
+.type-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.type-card { border: 2px solid var(--line); border-radius: 10px; padding: 16px; cursor: pointer; transition: all .2s; }
+.type-card:hover { border-color: var(--blue); background: var(--blue-lt); }
+.type-card.selected { border-color: var(--blue); background: var(--blue-lt); }
+.type-title { font-weight: 700; font-size: 14px; color: var(--ink); margin-bottom: 4px; }
+.type-desc { font-size: 12px; color: var(--soft); line-height: 1.5; }
+
 /* ── Plan selector ── */
 .plan-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
 .plan-opt { border: 2px solid var(--line); border-radius: 12px; padding: 16px; cursor: pointer; transition: all .15s; position: relative; }
@@ -175,6 +183,28 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
         </select>
       </div>
 
+      <div class="field-group">
+        <label class="field-label" for="interviewSpecialisation">Specialisation</label>
+        <select id="interviewSpecialisation" class="field-select" required>
+          <option value="">Select specialisation</option>
+        </select>
+        <p class="field-hint">Pre-filled from your DPR profile — change if needed</p>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Interview Type</label>
+        <div class="type-cards">
+          <div class="type-card selected" data-value="technical" onclick="selectInterviewType(this)">
+            <div class="type-title">Technical</div>
+            <div class="type-desc">Process knowledge, domain depth, tool familiarity, scenario handling</div>
+          </div>
+          <div class="type-card" data-value="managerial" onclick="selectInterviewType(this)">
+            <div class="type-title">Managerial / Scenario</div>
+            <div class="type-desc">Leadership, decisions under pressure, stakeholder handling, team management</div>
+          </div>
+        </div>
+      </div>
+
       <div class="divider"></div>
       <div class="section-label">Session Duration</div>
 
@@ -214,6 +244,45 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   function showErr(msg)  { const el = $('alertErr');  el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
   function showWarn(msg) { const el = $('alertWarn'); el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
 
+  // ── Industry → Specialisation map ──────────────────────────────────────────
+  const SPECIALISATION_MAP = {
+    compliance:      ['KYC / CDD / EDD', 'Transaction Monitoring', 'Sanctions Screening', 'AML Investigations', 'Fraud Operations', 'Regulatory Reporting', 'QA / QC Compliance'],
+    banking:         ['Corporate Banking', 'Retail Banking', 'Trade Finance', 'Treasury / ALM'],
+    finance:         ['Financial Analysis / FP&A', 'Audit', 'Risk Management', 'Tax'],
+    software:        ['Software Engineering', 'Data Science / Analytics', 'Cloud / DevOps', 'Cybersecurity', 'QA / Testing'],
+    it:              ['Software Engineering', 'Data Science / Analytics', 'Cloud / DevOps', 'Cybersecurity', 'QA / Testing'],
+    cybersecurity:   ['Software Engineering', 'Data Science / Analytics', 'Cloud / DevOps', 'Cybersecurity', 'QA / Testing'],
+    data:            ['Software Engineering', 'Data Science / Analytics', 'Cloud / DevOps', 'Cybersecurity', 'QA / Testing'],
+    hr:              ['Talent Acquisition', 'Learning & Development', 'HR Business Partner', 'Compensation & Benefits'],
+    operations:      ['Supply Chain', 'Process Excellence', 'Logistics', 'Customer Operations'],
+    sales:           ['B2B Sales', 'Account Management', 'Business Development', 'Pre-Sales / Solutions'],
+    healthcare:      ['Clinical Operations', 'Medical Coding', 'Pharmacy', 'Healthcare Admin'],
+    legal:           ['Corporate Law', 'Compliance & Regulatory', 'Litigation', 'Contracts'],
+    accounting:      ['Financial Analysis / FP&A', 'Audit', 'Risk Management', 'Tax'],
+    marketing:       ['Digital Marketing', 'Brand Management', 'Content Strategy', 'Performance Marketing'],
+  };
+
+  function populateSpecialisation(industryKey, preselect) {
+    const sel = $('interviewSpecialisation');
+    const prev = preselect || sel.value;
+    sel.innerHTML = '<option value="">Select specialisation</option>';
+    const key = (industryKey || '').toLowerCase().replace(/[^a-z_]/g, '');
+    const opts = SPECIALISATION_MAP[key] || [];
+    opts.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s;
+      o.textContent = s;
+      sel.appendChild(o);
+    });
+    if (prev) sel.value = prev;
+  }
+
+  // ── Interview Type selection ─────────────────────────────────────────────────
+  window.selectInterviewType = function (el) {
+    document.querySelectorAll('.type-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+  };
+
   // ── Load dashboard data ───────────────────────────────────────────────────
   let entitlements = { sessions_20: 0, sessions_30: 0 };
   try {
@@ -232,6 +301,14 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     if (d.profile?.current_career_level) {
       const opt = Array.from($('careerLevel').options).find(o => o.value === d.profile.current_career_level);
       if (opt) $('careerLevel').value = d.profile.current_career_level;
+    }
+
+    // Populate specialisation from industry + pre-fill from DPR
+    if (d.profile?.compliance_domains) {
+      let raw = d.profile.compliance_domains;
+      try { raw = JSON.parse(raw); } catch {}
+      const industry = Array.isArray(raw) ? (raw[0] || '') : String(raw);
+      populateSpecialisation(industry, d.profile.dpr_specialisation || '');
     }
   } catch (e) {
     showErr('Failed to load account data. Please refresh.');
@@ -323,6 +400,8 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
           target_career_level:  level,
           chosen_minutes:       parseInt(selectedPlan),
           jd_raw_text:          jd,
+          specialisation:       $('interviewSpecialisation').value || '',
+          interview_type:       document.querySelector('.type-card.selected')?.dataset.value || 'technical',
         }),
       });
       const d = await r.json();
