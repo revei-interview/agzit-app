@@ -224,12 +224,12 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
       </div>
 
       <div class="divider"></div>
-      <div class="section-label">Job Description <span style="font-size:10px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--muted)">(Optional — improves question relevance)</span></div>
+      <div class="section-label">Job Description <span style="color:#E53E3E">*</span></div>
 
       <div class="field-group">
-        <label class="field-label" for="jdText">Paste Job Description</label>
-        <textarea id="jdText" class="field-textarea" placeholder="Paste the full job description here for more targeted interview questions…"></textarea>
-        <p class="field-hint">Leave blank to use a general interview for your selected role.</p>
+        <label class="field-label" for="jdText">Paste Job Description <span style="color:#E53E3E">*</span></label>
+        <textarea id="jdText" class="field-textarea" required placeholder="Paste the full job description here for more targeted interview questions…"></textarea>
+        <p class="field-hint">Required — paste the job description you are targeting</p>
       </div>
 
       <button class="btn-submit" id="btnStart" disabled>Start Interview</button>
@@ -386,6 +386,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 
     if (!role)        { showErr('Please enter the target role.'); return; }
     if (!level)       { showErr('Please select a career level.'); return; }
+    if (!jd)          { showErr('Please paste the job description — it helps Alex ask targeted questions.'); return; }
     if (!selectedPlan){ showErr('Please select an interview plan.'); return; }
 
     $('btnStart').disabled = true;
