@@ -663,5 +663,42 @@ router.post('/save-employer-recording-urls', requireAppToken, async (req, res) =
   }
 });
 
+// ── GET /api/internal/previous-question-ids ──────────────────────────────────
+// Returns question IDs already asked to this candidate in previous sessions.
+// Used by daily-backend blueprint system for question rotation.
+// Graceful fallback: returns empty array if table doesn't exist yet.
+
+router.get('/previous-question-ids', requireAppToken, async (req, res) => {
+  try {
+    const { dpr_id } = req.query;
+    if (!dpr_id) return res.json({ ok: true, question_ids: [] });
+
+    const [rows] = await pool.execute(
+      `SELECT DISTINCT meta_value AS question_id
+       FROM wp_postmeta
+       WHERE post_id = ?
+         AND meta_key LIKE 'mock_interview_sessions_%_questions_asked'
+         AND meta_value IS NOT NULL
+         AND meta_value != ''
+       ORDER BY meta_id DESC
+       LIMIT 200`,
+      [dpr_id]
+    );
+
+    // Each row stores a comma-separated list of question IDs per session
+    const ids = [];
+    for (const r of rows) {
+      const parts = String(r.question_id).split(',').map(s => s.trim()).filter(Boolean);
+      ids.push(...parts);
+    }
+    const unique = [...new Set(ids)];
+
+    res.json({ ok: true, question_ids: unique, count: unique.length });
+  } catch (e) {
+    console.error('[internal/previous-question-ids]', e.message);
+    res.json({ ok: true, question_ids: [] }); // graceful fallback
+  }
+});
+
 module.exports = router;
 
