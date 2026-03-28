@@ -1189,7 +1189,12 @@ function updateEditSubIndustries(industryKey, savedSubs) {
 
 // ── DPR Specialisation map (industry key → dropdown options) ──────────────
 var DPR_SPEC_MAP = {
-  compliance:    ['KYC / CDD / EDD', 'Transaction Monitoring', 'Sanctions Screening', 'AML Investigations', 'Fraud Operations', 'Regulatory Reporting', 'QA / QC Compliance'],
+  compliance:    [
+    {value:'kyc',label:'KYC / CDD / EDD'},{value:'transaction_monitoring',label:'Transaction Monitoring'},
+    {value:'sanctions_screening',label:'Sanctions Screening'},{value:'aml_investigations',label:'AML Investigations'},
+    {value:'fraud_operations',label:'Fraud Operations'},{value:'regulatory_reporting',label:'Regulatory Reporting'},
+    {value:'qa_qc',label:'QA / QC Compliance'},{value:'name_screening',label:'Name Screening'},
+  ],
   banking:       ['Corporate Banking', 'Retail Banking', 'Trade Finance', 'Treasury / ALM'],
   finance:       ['Financial Analysis / FP&A', 'Audit', 'Risk Management', 'Tax'],
   software:      ['Software Engineering', 'Data Science / Analytics', 'Cloud / DevOps', 'Cybersecurity', 'QA / Testing'],
@@ -1215,7 +1220,8 @@ function updateEditDprSpec(industryKey, savedVal) {
   sel.innerHTML = '<option value="">Select your specialisation</option>';
   opts.forEach(function(s) {
     var o = document.createElement('option');
-    o.value = s; o.textContent = s;
+    if (typeof s === 'object') { o.value = s.value; o.textContent = s.label; }
+    else { o.value = s; o.textContent = s; }
     sel.appendChild(o);
   });
   if (savedVal) sel.value = savedVal;
