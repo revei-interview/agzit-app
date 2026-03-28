@@ -319,9 +319,13 @@ router.post('/save-interview-artifacts', requireAppToken, async (req, res) => {
   try {
     const {
       sid,
-      audio_url    = '',
-      video_url    = '',
-      recording_id = '',
+      audio_url      = '',
+      video_url      = '',
+      recording_id   = '',
+      transcript     = '',
+      duration_sec,
+      ended_reason   = 'completed',
+      call_id        = '',
     } = req.body;
 
     if (!isValidSid(sid)) {
@@ -340,8 +344,10 @@ router.post('/save-interview-artifacts', requireAppToken, async (req, res) => {
       interview_status: 'completed',
       audio_url:        audio_url    || '',
       video_url:        video_url    || '',
-      recording_id:     recording_id || '',
+      recording_id:     recording_id || call_id || '',
     };
+    if (transcript)   updates.transcript       = transcript;
+    if (duration_sec) updates.duration_minutes  = String(Math.ceil(Number(duration_sec) / 60));
 
     await Promise.all(
       Object.entries(updates).map(([k, v]) => upsertPostMeta(profileId, `${prefix}${k}`, v))
