@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="icon" href="data:,">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Interview Room — AGZIT</title>
@@ -730,29 +731,37 @@ function toggleAmbient() {
 }
 function startAmbientRoom() {
   if (window._ambientCtx) return;
-  const ctx = new (window.AudioContext || window.webkitAudioContext)();
-  const bufferSize = 4096;
-  const brownNoise = ctx.createScriptProcessor(bufferSize, 1, 1);
-  let lastOut = 0.0;
-  brownNoise.onaudioprocess = function(e) {
-    const output = e.outputBuffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const bufLen = ctx.sampleRate * 2;
+    const noiseBuf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    let lastOut = 0.0;
+    for (let i = 0; i < bufLen; i++) {
       const white = Math.random() * 2 - 1;
-      output[i] = (lastOut + (0.02 * white)) / 1.02;
-      lastOut = output[i];
-      output[i] *= 0.05;
+      lastOut = (lastOut + 0.02 * white) / 1.02;
+      data[i] = lastOut * 0.05;
     }
-  };
-  const gain = ctx.createGain();
-  gain.gain.value = 0.015;
-  brownNoise.connect(gain);
-  gain.connect(ctx.destination);
-  window._ambientNode = brownNoise;
-  window._ambientCtx = ctx;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 200;
+    const gain = ctx.createGain();
+    gain.gain.value = 0.015;
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuf;
+    src.loop = true;
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    src.start();
+    window._ambientSource = src;
+    window._ambientCtx = ctx;
+  } catch(e) { console.log('[Ambient] not available:', e.message); }
 }
 function stopAmbientRoom() {
-  if (window._ambientNode) { window._ambientNode.disconnect(); window._ambientNode = null; }
-  if (window._ambientCtx) { window._ambientCtx.close(); window._ambientCtx = null; }
+  try { window._ambientSource?.stop(); } catch(e) {}
+  window._ambientSource = null;
+  if (window._ambientCtx) { window._ambientCtx.close().catch(()=>{}); window._ambientCtx = null; }
 }
 </script>
 </body>
