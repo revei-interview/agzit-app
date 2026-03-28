@@ -597,32 +597,104 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
         console.log('[Realtime] Mic tracks added');
 
         // DataChannel for events (transcripts, etc.)
+        const sessionInstructions = rtRes.instructions || '';
+        const sessionGreeting = rtRes.greeting || '';
         realtimeDc = realtimePc.createDataChannel('oai-events');
-        realtimeDc.onopen = () => console.log('[Realtime] DataChannel open');
+
+        realtimeDc.onopen = () => {
+          console.log('[Realtime] DataChannel open');
+
+          // Send session update with instructions + VAD config
+          realtimeDc.send(JSON.stringify({
+            type: 'session.update',
+            session: {
+              instructions: sessionInstructions,
+              turn_detection: {
+                type: 'server_vad',
+                threshold: 0.5,
+                prefix_padding_ms: 300,
+                silence_duration_ms: 700
+              },
+              input_audio_transcription: { model: 'whisper-1' },
+              modalities: ['audio', 'text']
+            }
+          }));
+
+          // Trigger agent to speak first with the greeting
+          const greeting = sessionGreeting || 'Hello! Welcome. Please introduce yourself.';
+          realtimeDc.send(JSON.stringify({
+            type: 'conversation.item.create',
+            item: {
+              type: 'message',
+              role: 'user',
+              content: [{
+                type: 'input_text',
+                text: '__SYSTEM__: Start the interview now. Say the opening greeting.'
+              }]
+            }
+          }));
+          realtimeDc.send(JSON.stringify({ type: 'response.create' }));
+          console.log('[Realtime] Sent session.update + greeting trigger');
+        };
+
+        // Accumulate streaming agent transcript deltas
+        let _rtAgentTranscript = '';
+        let _rtAgentDeltaTimer = null;
+
         realtimeDc.onmessage = (e) => {
           try {
             const msg = JSON.parse(e.data);
-            // Show transcripts as subtitles
-            if (msg.type === 'response.audio_transcript.done' && window._subtitlesEnabled !== false) {
-              const bar = document.getElementById('subtitle-bar');
-              document.getElementById('subtitle-speaker').textContent = 'Alex (AI Interviewer)';
-              document.getElementById('subtitle-text').textContent = msg.transcript || '';
-              bar.style.display = 'block';
-              clearTimeout(window._subtitleTimer);
-              window._subtitleTimer = setTimeout(() => { bar.style.display = 'none'; }, 4000);
+
+            // ── Agent speaking: streaming deltas ──
+            if (msg.type === 'response.audio_transcript.delta') {
+              _rtAgentTranscript += (msg.delta || '');
               $('statusRing').className = 'status-ring speaking';
-            } else if (msg.type === 'conversation.item.input_audio_transcription.completed' && window._subtitlesEnabled !== false) {
-              const bar = document.getElementById('subtitle-bar');
-              document.getElementById('subtitle-speaker').textContent = 'You';
-              document.getElementById('subtitle-text').textContent = msg.transcript || '';
-              bar.style.display = 'block';
-              clearTimeout(window._subtitleTimer);
-              window._subtitleTimer = setTimeout(() => { bar.style.display = 'none'; }, 4000);
-              $('statusRing').className = 'status-ring active';
-            } else if (msg.type === 'response.done') {
+              if (window._subtitlesEnabled !== false) {
+                const bar = document.getElementById('subtitle-bar');
+                document.getElementById('subtitle-speaker').textContent = 'Alex (AI Interviewer)';
+                document.getElementById('subtitle-text').textContent = _rtAgentTranscript;
+                bar.style.display = 'block';
+                clearTimeout(_rtAgentDeltaTimer);
+                _rtAgentDeltaTimer = setTimeout(() => { bar.style.display = 'none'; }, 4000);
+              }
+            }
+
+            // ── Agent done speaking: finalize subtitle ──
+            if (msg.type === 'response.audio_transcript.done') {
+              _rtAgentTranscript = ''; // reset for next response
+              if (window._subtitlesEnabled !== false) {
+                const bar = document.getElementById('subtitle-bar');
+                document.getElementById('subtitle-speaker').textContent = 'Alex (AI Interviewer)';
+                document.getElementById('subtitle-text').textContent = msg.transcript || '';
+                bar.style.display = 'block';
+                clearTimeout(_rtAgentDeltaTimer);
+                _rtAgentDeltaTimer = setTimeout(() => { bar.style.display = 'none'; }, 4000);
+              }
+            }
+
+            // ── Candidate transcript (from Whisper) ──
+            if (msg.type === 'conversation.item.input_audio_transcription.completed') {
+              if (window._subtitlesEnabled !== false) {
+                const bar = document.getElementById('subtitle-bar');
+                document.getElementById('subtitle-speaker').textContent = 'You';
+                document.getElementById('subtitle-text').textContent = msg.transcript || '';
+                bar.style.display = 'block';
+                clearTimeout(window._subtitleTimer);
+                window._subtitleTimer = setTimeout(() => { bar.style.display = 'none'; }, 4000);
+              }
               $('statusRing').className = 'status-ring active';
             }
-          } catch { /* ignore */ }
+
+            // ── Response done: reset ring ──
+            if (msg.type === 'response.done') {
+              $('statusRing').className = 'status-ring active';
+            }
+
+            // ── Debug: log important events ──
+            if (['session.created', 'session.updated', 'error'].includes(msg.type)) {
+              console.log('[Realtime] Event:', msg.type, msg);
+            }
+          } catch { /* ignore parse errors */ }
         };
 
         // SDP exchange with OpenAI
