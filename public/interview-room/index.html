@@ -307,6 +307,9 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   let firstHeartbeat = true;
   let realtimePc     = null;  // WebRTC PeerConnection for OpenAI Realtime
   let realtimeDc     = null;  // DataChannel for OpenAI Realtime events
+  let realtimeTranscript  = [];   // collected transcript for scorecard
+  let rtCallLogId         = null;
+  let rtVariableValues    = null;
 
   // ── Audio format (updated by server's audio_format message) ─────────────
   let audioEncoding  = 'pcm_f32le';  // default: high-quality PCM float32
@@ -451,6 +454,31 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     $('statusText').textContent = 'Ending session…';
     $('statusRing').className   = 'status-ring connecting';
 
+    // ── Realtime path: send collected transcript to scorecard pipeline ──
+    if (realtimePc && realtimeTranscript.length > 0) {
+      const transcriptText = realtimeTranscript
+        .map(t => `${t.role === 'ai' ? 'AI' : 'Candidate'}: ${t.text}`)
+        .join('\n');
+      const durationSec = callStartedAt ? Math.floor((Date.now() - callStartedAt) / 1000) : 0;
+      console.log(`[Realtime] Sending transcript to scorecard: ${realtimeTranscript.length} turns, ${transcriptText.length} chars, ${durationSec}s`);
+      fetch('/api/candidate/interviews/realtime-complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          sid:              sid,
+          call_id:          rtCallLogId,
+          transcript:       transcriptText,
+          variable_values:  rtVariableValues || {},
+          duration_sec:     durationSec,
+        }),
+      }).then(r => r.json()).then(r => {
+        console.log('[Realtime] Scorecard webhook response:', r);
+      }).catch(err => {
+        console.error('[Realtime] Failed to send transcript:', err.message);
+      });
+    }
+
     if (realtimePc) {
       try { realtimePc.close(); } catch { /* ignore */ }
       realtimePc = null;
@@ -565,6 +593,9 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
       if (agentVoiceId && agentVoiceId.startsWith('openai-realtime:')) {
         console.log('[Realtime] Using OpenAI Realtime WebRTC path');
 
+        // Reset transcript collection for this call
+        realtimeTranscript = [];
+
         // 1a. Get ephemeral session token from Vokeva backend
         const rtRes = await postJson(`${VOKEVA_BASE}/api/calls/realtime-session`, {
           agentId:    VOKEVA_AGENT_ID,
@@ -577,7 +608,11 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
         if (!rtRes.client_secret) {
           throw new Error(rtRes.error || 'Failed to create realtime session');
         }
-        console.log('[Realtime] Got session, voice:', rtRes.voice);
+        console.log('[Realtime] Got session, voice:', rtRes.voice, 'callLogId:', rtRes.callLogId);
+
+        // Store session metadata for scorecard webhook (outer-scoped)
+        rtCallLogId      = rtRes.callLogId || null;
+        rtVariableValues = rtRes.variable_values || variableValues || {};
 
         // 2a. Set up WebRTC PeerConnection
         realtimePc = new RTCPeerConnection();
@@ -662,9 +697,10 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
               }
             }
 
-            // ── Agent done speaking: finalize subtitle ──
+            // ── Agent done speaking: finalize subtitle + collect transcript ──
             if (msg.type === 'response.audio_transcript.done') {
               _rtAgentTranscript = ''; // reset for next response
+              if (msg.transcript) realtimeTranscript.push({ role: 'ai', text: msg.transcript });
               if (window._subtitlesEnabled !== false) {
                 const bar = document.getElementById('subtitle-bar');
                 document.getElementById('subtitle-speaker').textContent = 'Alex (AI Interviewer)';
@@ -675,8 +711,9 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
               }
             }
 
-            // ── Candidate transcript (from Whisper) ──
+            // ── Candidate transcript (from Whisper) + collect transcript ──
             if (msg.type === 'conversation.item.input_audio_transcription.completed') {
+              if (msg.transcript) realtimeTranscript.push({ role: 'candidate', text: msg.transcript });
               if (window._subtitlesEnabled !== false) {
                 const bar = document.getElementById('subtitle-bar');
                 document.getElementById('subtitle-speaker').textContent = 'You';

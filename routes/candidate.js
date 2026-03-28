@@ -1573,6 +1573,55 @@ router.post('/interviews/complete', ...guard, async (req, res) => {
   }
 });
 
+// ── POST /api/candidate/interviews/realtime-complete ─────────────────────────
+// Proxy: browser → agzit-app → agzit-daily-backend /vokeva/webhook
+// Needed because the browser can't hold VOKEVA_WEBHOOK_SECRET.
+// Called by interview-room when an OpenAI Realtime WebRTC call ends.
+
+router.post('/interviews/realtime-complete', ...guard, async (req, res) => {
+  try {
+    const { sid, transcript, variable_values, duration_sec, call_id } = req.body;
+    if (!sid || !transcript) {
+      return res.status(400).json({ ok: false, error: 'sid and transcript are required' });
+    }
+
+    const dailyUrl = (process.env.RENDER_BACKEND_URL || 'https://agzit-daily-backend.onrender.com').replace(/\/$/, '');
+    const webhookSecret = process.env.VOKEVA_WEBHOOK_SECRET || '';
+
+    const payload = {
+      sid:              String(sid).trim().toUpperCase(),
+      call_id:          call_id || '',
+      transcript:       String(transcript),
+      transcript_log:   [],
+      variable_values:  variable_values || {},
+      duration_sec:     Number(duration_sec) || 0,
+      recording_url:    '',
+      video_url:        '',
+      ended_reason:     'completed',
+    };
+
+    console.log(`[realtime-complete] Proxying to daily-backend: sid=${payload.sid} transcript=${payload.transcript.length} chars`);
+
+    const resp = await fetch(`${dailyUrl}/vokeva/webhook`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-vokeva-secret': webhookSecret,
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    const result = await resp.json().catch(() => ({}));
+    console.log(`[realtime-complete] daily-backend responded: ${resp.status}`, result);
+
+    res.json({ ok: true, proxied: true, sid: payload.sid });
+  } catch (err) {
+    console.error('[realtime-complete]', err.message);
+    res.status(500).json({ ok: false, error: 'Failed to send transcript' });
+  }
+});
+
 // ── POST /api/candidate/interview-queue/join ─────────────────────────────────
 // Book a scheduled interview slot. preferred_time is required (confirmed time).
 router.post('/interview-queue/join', ...guard, async (req, res) => {
