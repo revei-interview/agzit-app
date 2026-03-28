@@ -78,12 +78,12 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 .field-hint { font-size: 12px; color: var(--muted); margin-top: 5px; }
 
 /* ── Interview Type cards ── */
-.type-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.type-card { border: 2px solid var(--line); border-radius: 10px; padding: 16px; cursor: pointer; transition: all .2s; }
-.type-card:hover { border-color: var(--blue); background: var(--blue-lt); }
-.type-card.selected { border-color: var(--blue); background: var(--blue-lt); }
-.type-title { font-weight: 700; font-size: 14px; color: var(--ink); margin-bottom: 4px; }
-.type-desc { font-size: 12px; color: var(--soft); line-height: 1.5; }
+.type-cards { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px; }
+.type-card { border:2px solid var(--line,#E4E6EF); border-radius:10px; padding:16px; cursor:pointer; transition:all .2s; }
+.type-card:hover { border-color:#1A44C2; background:#EAF0FF; }
+.type-card.selected { border-color:#1A44C2; background:#EAF0FF; }
+.type-title { font-weight:700; font-size:14px; color:#09101F; margin-bottom:4px; }
+.type-desc { font-size:12px; color:#3A4163; line-height:1.5; }
 
 /* ── Plan selector ── */
 .plan-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
@@ -183,24 +183,24 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
         </select>
       </div>
 
-      <div class="field-group">
-        <label class="field-label" for="interviewSpecialisation">Specialisation</label>
-        <select id="interviewSpecialisation" class="field-select" required>
-          <option value="">Select specialisation</option>
+      <div class="field-group" id="specialisationGroup">
+        <label class="field-label" for="specialisation">Specialisation <span style="color:#E53E3E">*</span></label>
+        <select id="specialisation" name="specialisation" class="field-select" required>
+          <option value="">Select your specialisation</option>
         </select>
-        <p class="field-hint">Pre-filled from your DPR profile — change if needed</p>
+        <div class="field-hint">Options depend on your industry from your DPR profile</div>
       </div>
 
       <div class="field-group">
-        <label class="field-label">Interview Type</label>
+        <label class="field-label">Interview Type <span style="color:#E53E3E">*</span></label>
         <div class="type-cards">
           <div class="type-card selected" data-value="technical" onclick="selectInterviewType(this)">
             <div class="type-title">Technical</div>
-            <div class="type-desc">Process knowledge, domain depth, tool familiarity, scenario handling</div>
+            <div class="type-desc">Domain knowledge, tools, processes, scenario handling</div>
           </div>
           <div class="type-card" data-value="managerial" onclick="selectInterviewType(this)">
             <div class="type-title">Managerial / Scenario</div>
-            <div class="type-desc">Leadership, decisions under pressure, stakeholder handling, team management</div>
+            <div class="type-desc">Leadership, decisions under pressure, stakeholder handling</div>
           </div>
         </div>
       </div>
@@ -245,10 +245,11 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   function showWarn(msg) { const el = $('alertWarn'); el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
 
   // ── Industry → Specialisation map ──────────────────────────────────────────
-  const SPECIALISATION_MAP = {
+  const SPEC_MAP = {
     compliance:      ['KYC / CDD / EDD', 'Transaction Monitoring', 'Sanctions Screening', 'AML Investigations', 'Fraud Operations', 'Regulatory Reporting', 'QA / QC Compliance'],
     banking:         ['Corporate Banking', 'Retail Banking', 'Trade Finance', 'Treasury / ALM'],
     finance:         ['Financial Analysis / FP&A', 'Audit', 'Risk Management', 'Tax'],
+    technology:      ['Software Engineering', 'Data Science / Analytics', 'Cloud / DevOps', 'Cybersecurity', 'QA / Testing'],
     software:        ['Software Engineering', 'Data Science / Analytics', 'Cloud / DevOps', 'Cybersecurity', 'QA / Testing'],
     it:              ['Software Engineering', 'Data Science / Analytics', 'Cloud / DevOps', 'Cybersecurity', 'QA / Testing'],
     cybersecurity:   ['Software Engineering', 'Data Science / Analytics', 'Cloud / DevOps', 'Cybersecurity', 'QA / Testing'],
@@ -262,19 +263,19 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     marketing:       ['Digital Marketing', 'Brand Management', 'Content Strategy', 'Performance Marketing'],
   };
 
-  function populateSpecialisation(industryKey, preselect) {
-    const sel = $('interviewSpecialisation');
-    const prev = preselect || sel.value;
-    sel.innerHTML = '<option value="">Select specialisation</option>';
-    const key = (industryKey || '').toLowerCase().replace(/[^a-z_]/g, '');
-    const opts = SPECIALISATION_MAP[key] || [];
-    opts.forEach(s => {
+  function populateSpecialisation(industry, preselect) {
+    const sel = document.getElementById('specialisation');
+    if (!sel) return;
+    const key = (industry || '').toLowerCase().trim();
+    const options = SPEC_MAP[key] || [];
+    sel.innerHTML = '<option value="">Select your specialisation</option>';
+    options.forEach(opt => {
       const o = document.createElement('option');
-      o.value = s;
-      o.textContent = s;
+      o.value = opt.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      o.textContent = opt;
       sel.appendChild(o);
     });
-    if (prev) sel.value = prev;
+    if (preselect) sel.value = preselect;
   }
 
   // ── Interview Type selection ─────────────────────────────────────────────────
@@ -400,7 +401,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
           target_career_level:  level,
           chosen_minutes:       parseInt(selectedPlan),
           jd_raw_text:          jd,
-          specialisation:       $('interviewSpecialisation').value || '',
+          specialisation:       document.getElementById('specialisation')?.value || '',
           interview_type:       document.querySelector('.type-card.selected')?.dataset.value || 'technical',
         }),
       });
