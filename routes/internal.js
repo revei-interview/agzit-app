@@ -146,12 +146,13 @@ router.get('/vapi-variables', requireAppToken, async (req, res) => {
 
     // Fetch profile-level fields and session row in parallel
     const [profileMeta, sessionRow] = await Promise.all([
-      getPostMetaValues(profileId, ['full_name', 'current_career_level', 'work_level']),
+      getPostMetaValues(profileId, ['full_name', 'current_career_level', 'work_level', 'total_work_experience']),
       getSessionRow(profileId, rowIndex),
     ]);
 
     const candidateName   = profileMeta.full_name || '';
     const interviewRole   = sessionRow.interview_role || '';
+    const totalExperience = parseFloat(profileMeta.total_work_experience) || 0;
 
     // target_career_level fallback chain (mirrors wordpress-rest-endpoint-v2)
     const careerLevel = sessionRow.target_career_level
@@ -179,6 +180,7 @@ router.get('/vapi-variables', requireAppToken, async (req, res) => {
         interview_role:      interviewRole,
         target_career_level: careerLevel,
         context_pack:        contextPack,
+        total_experience:    totalExperience,
       },
     });
   } catch (err) {
