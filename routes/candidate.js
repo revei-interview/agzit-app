@@ -190,13 +190,20 @@ async function getProfileId(userId) {
 }
 
 // Fetch all non-private postmeta for a WP post (excludes ACF field-key rows)
+// Request-scoped cache for wp_postmeta reads (same profile fetched 3× per page load)
+const _metaCache = new Map();
+
 async function fetchPostMeta(postId) {
+  const key = `meta_${postId}`;
+  if (_metaCache.has(key)) return _metaCache.get(key);
   const [rows] = await pool.execute(
     "SELECT meta_key, meta_value FROM wp_postmeta WHERE post_id = ? AND LEFT(meta_key, 1) != '_'",
     [postId]
   );
   const meta = {};
   for (const r of rows) meta[r.meta_key] = r.meta_value;
+  _metaCache.set(key, meta);
+  setTimeout(() => _metaCache.delete(key), 30000); // auto-clear after 30s
   return meta;
 }
 
@@ -408,120 +415,98 @@ router.get('/dashboard', ...guard, async (req, res) => {
 });
 
 // Calculate verified badges based on employer_interview posts with tier system
+// Batched: 2 queries instead of 12 (1 email lookup + 1 bulk meta fetch)
+const BADGE_COMPETENCY_MAP = {
+  'score_communication':        'Communication Clarity',
+  'score_answer_structure':     'Answer Structure',
+  'score_role_knowledge':       'Role Knowledge',
+  'score_domain_application':   'Domain Application',
+  'score_problem_solving':      'Problem Solving',
+  'score_confidence_presence':  'Confidence & Presence',
+  'score_question_handling':    'Question Handling',
+  'score_experience_relevance': 'Experience Relevance',
+  'score_resume_alignment':     'Resume Alignment',
+  'score_depth_specificity':    'Depth & Specificity',
+};
+const BADGE_META_KEYS = Object.keys(BADGE_COMPETENCY_MAP);
+
 const calculateVerifiedBadges = async (userId) => {
   try {
-    // Get candidate email
+    // Query 1: get candidate email
     const [candidate] = await pool.execute(
       'SELECT email FROM agzit_users WHERE id = ?',
       [userId]
     );
-
-    if (!candidate || !candidate[0] || !candidate[0].email) {
-      return [];
-    }
-
+    if (!candidate || !candidate[0] || !candidate[0].email) return [];
     const candidateEmail = candidate[0].email;
 
-    // Find all employer_interview posts
-    const [interviews] = await pool.execute(`
-      SELECT p.ID as interview_id, p.post_date
+    // Query 2: fetch ALL score meta for ALL employer interviews in one shot
+    const metaKeyPh = BADGE_META_KEYS.map(() => '?').join(',');
+    const [allScores] = await pool.execute(`
+      SELECT p.ID as interview_id, pm.meta_key, CAST(pm.meta_value AS DECIMAL(5,2)) as score
       FROM wp_posts p
+      JOIN wp_postmeta pm_email ON p.ID = pm_email.post_id
+        AND pm_email.meta_key = 'candidate_email'
+        AND pm_email.meta_value = ?
       JOIN wp_postmeta pm ON p.ID = pm.post_id
+        AND pm.meta_key IN (${metaKeyPh})
       WHERE p.post_type = 'employer_interview'
-        AND pm.meta_key = 'candidate_email'
-        AND pm.meta_value = ?
         AND p.post_status = 'publish'
-      GROUP BY p.ID
       ORDER BY p.post_date DESC
-      LIMIT 50
-    `, [candidateEmail]);
+    `, [candidateEmail, ...BADGE_META_KEYS]);
 
-    // Need at least 3 interviews for any badge
-    if (!interviews || interviews.length < 3) {
-      return [];
+    // Group scores by interview ID, then by meta_key
+    const byInterview = {};
+    for (const row of allScores) {
+      if (!byInterview[row.interview_id]) byInterview[row.interview_id] = {};
+      byInterview[row.interview_id][row.meta_key] = parseFloat(row.score) || 0;
     }
+
+    const interviewIds = Object.keys(byInterview);
+    // Need at least 3 interviews for any badge
+    if (interviewIds.length < 3) return [];
 
     const badges = [];
 
-    // Competency to meta_key mapping
-    const competencyMap = {
-      'score_communication': 'Communication Clarity',
-      'score_answer_structure': 'Answer Structure',
-      'score_role_knowledge': 'Role Knowledge',
-      'score_domain_application': 'Domain Application',
-      'score_problem_solving': 'Problem Solving',
-      'score_confidence_presence': 'Confidence & Presence',
-      'score_question_handling': 'Question Handling',
-      'score_experience_relevance': 'Experience Relevance',
-      'score_resume_alignment': 'Resume Alignment',
-      'score_depth_specificity': 'Depth & Specificity'
-    };
+    // Calculate per-competency badges (all from in-memory data, no DB)
+    for (const [metaKey, competencyName] of Object.entries(BADGE_COMPETENCY_MAP)) {
+      const scores = interviewIds
+        .map(id => byInterview[id][metaKey])
+        .filter(s => s != null && s > 0);
 
-    // Calculate competency badges with TIER SYSTEM
-    for (const [metaKey, competencyName] of Object.entries(competencyMap)) {
-      const [scores] = await pool.execute(`
-        SELECT CAST(pm.meta_value AS DECIMAL(5,2)) as score
-        FROM wp_posts p
-        JOIN wp_postmeta pm_email ON p.ID = pm_email.post_id
-        JOIN wp_postmeta pm ON p.ID = pm.post_id
-        WHERE p.post_type = 'employer_interview'
-          AND pm_email.meta_key = 'candidate_email'
-          AND pm_email.meta_value = ?
-          AND pm.meta_key = ?
-          AND p.post_status = 'publish'
-        ORDER BY p.post_date DESC
-        LIMIT 50
-      `, [candidateEmail, metaKey]);
-
-      if (scores && scores.length >= 3) {
-        const avgScore = scores.reduce((sum, row) => sum + (parseFloat(row.score) || 0), 0) / scores.length;
+      if (scores.length >= 3) {
+        const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length;
 
         // Tier system: 0-60 no badge, 61-75 silver, 76-85 gold, 86-100 platinum
-        let tier = null;
-        let tierIcon = '';
-        let tierName = '';
+        let tier = null, tierIcon = '', tierName = '';
+        if (avgScore >= 86)      { tier = 'platinum'; tierIcon = '💎'; tierName = 'Platinum Member'; }
+        else if (avgScore >= 76) { tier = 'gold';     tierIcon = '🥇'; tierName = 'Gold Member'; }
+        else if (avgScore >= 61) { tier = 'silver';   tierIcon = '🥈'; tierName = 'Silver Member'; }
 
-        if (avgScore >= 86) {
-          tier = 'platinum';
-          tierIcon = '💎';
-          tierName = 'Platinum Member';
-        } else if (avgScore >= 76) {
-          tier = 'gold';
-          tierIcon = '🥇';
-          tierName = 'Gold Member';
-        } else if (avgScore >= 61) {
-          tier = 'silver';
-          tierIcon = '🥈';
-          tierName = 'Silver Member';
-        }
-        // avgScore < 61 = no badge (tier = null)
-
-        // Only add badge if tier exists (score >= 61)
         if (tier) {
           badges.push({
             name: `${tierIcon} ${tierName}`,
             competency: competencyName,
             score: Math.round(avgScore * 10) / 10,
-            tier: tier,
+            tier,
             type: 'competency',
-            nextTier: tier === 'silver' ? 'Gold (76+)' : tier === 'gold' ? 'Platinum (86+)' : 'Expert Level'
+            nextTier: tier === 'silver' ? 'Gold (76+)' : tier === 'gold' ? 'Platinum (86+)' : 'Expert Level',
           });
         }
       }
     }
 
-    // Also add overall Experience Verified badge (always shown if 3+ interviews)
+    // Experience Verified badge (always shown if 3+ interviews)
     badges.push({
       name: '✓ Latest Experience Verified via AI Interview',
       competency: 'experience_verified',
       score: null,
       tier: null,
       type: 'experience_verified',
-      interviewCount: interviews.length
+      interviewCount: interviewIds.length,
     });
 
     return badges;
-
   } catch (error) {
     console.error('Badge calculation error:', error);
     return [];
@@ -1115,24 +1100,42 @@ router.get('/interviews', ...guard, async (req, res) => {
       );
 
       if (empPosts.length) {
-        const ph = EMP_INTERVIEW_KEYS.map(() => '?').join(',');
-        employer_interviews = await Promise.all(empPosts.map(async (p) => {
-          const [metaRows] = await pool.execute(
-            `SELECT meta_key, meta_value FROM wp_postmeta WHERE post_id = ? AND meta_key IN (${ph})`,
-            [p.ID, ...EMP_INTERVIEW_KEYS]
-          );
-          const m = {};
-          for (const r of metaRows) m[r.meta_key] = r.meta_value;
+        // Batch: 1 query for ALL meta across all employer interview posts
+        const postIds = empPosts.map(p => p.ID);
+        const idPh = postIds.map(() => '?').join(',');
+        const keyPh = EMP_INTERVIEW_KEYS.map(() => '?').join(',');
+        const [allMetaRows] = await pool.execute(
+          `SELECT post_id, meta_key, meta_value FROM wp_postmeta WHERE post_id IN (${idPh}) AND meta_key IN (${keyPh})`,
+          [...postIds, ...EMP_INTERVIEW_KEYS]
+        );
+        const metaByPost = {};
+        for (const r of allMetaRows) {
+          if (!metaByPost[r.post_id]) metaByPost[r.post_id] = {};
+          metaByPost[r.post_id][r.meta_key] = r.meta_value;
+        }
 
-          // Resolve employer display name
-          let employer_name = m.company_name || null;
-          if (!employer_name && m.admin_user_id) {
-            const [[eu]] = await pool.execute(
-              'SELECT first_name, last_name FROM agzit_users WHERE id = ? LIMIT 1',
-              [parseInt(m.admin_user_id)]
-            ).catch(() => [[null]]);
-            if (eu) employer_name = [eu.first_name, eu.last_name].filter(Boolean).join(' ') || null;
+        // Batch: 1 query for ALL employer names that need resolution
+        const adminIds = [];
+        for (const p of empPosts) {
+          const m = metaByPost[p.ID] || {};
+          if (!m.company_name && m.admin_user_id) adminIds.push(parseInt(m.admin_user_id));
+        }
+        const adminNames = {};
+        if (adminIds.length) {
+          const aPh = adminIds.map(() => '?').join(',');
+          const [adminRows] = await pool.execute(
+            `SELECT id, first_name, last_name FROM agzit_users WHERE id IN (${aPh})`,
+            adminIds
+          );
+          for (const a of adminRows) {
+            adminNames[a.id] = [a.first_name, a.last_name].filter(Boolean).join(' ') || null;
           }
+        }
+
+        employer_interviews = empPosts.map(p => {
+          const m = metaByPost[p.ID] || {};
+          let employer_name = m.company_name || null;
+          if (!employer_name && m.admin_user_id) employer_name = adminNames[parseInt(m.admin_user_id)] || null;
 
           return {
             post_id:            p.ID,
@@ -1158,7 +1161,7 @@ router.get('/interviews', ...guard, async (req, res) => {
             score_resume_alignment:     m.score_resume_alignment || null,
             depth_specificity:          m.depth_specificity || null,
           };
-        }));
+        });
       }
     }
 
