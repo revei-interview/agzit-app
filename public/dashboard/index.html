@@ -2219,7 +2219,7 @@ function renderInterviews(sessions, id) {
 }
 
 /* ── Toggle interview accordion ─────────────────────────────────────────── */
-function toggleInterviewDetail(card, e) {
+window.toggleInterviewDetail = function(card, e) {
   /* don't toggle if clicking a button/link inside */
   if (e.target.closest('button, a, .modal')) return;
   const detail = card.querySelector('.ses-detail');
@@ -2241,7 +2241,7 @@ function toggleInterviewDetail(card, e) {
     /* smooth scroll into view after animation */
     setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
   }
-}
+};
 
 /* ── Profile renderer ─────────────────────────────────────────────────────── */
 function renderProfile(p) {
