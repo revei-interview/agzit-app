@@ -72,6 +72,16 @@ app.use('/api/webhooks', require('./routes/webhooks'));
 app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
 app.use('/shared', express.static(path.join(__dirname, 'public/shared')));
 
+// ── No-cache for HTML pages (forces browser to always fetch fresh JS/CSS) ──
+app.use((req, res, next) => {
+  if (req.accepts('html') && !req.path.startsWith('/api/') && !req.path.startsWith('/assets/') && !req.path.startsWith('/shared/')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  next();
+});
+
 // ── API Routes ─────────────────────────────────────────────────────────────
 app.use('/api/auth',                          authLimiter, require('./routes/auth'));
 // AI endpoints get a stricter hourly limiter applied first
