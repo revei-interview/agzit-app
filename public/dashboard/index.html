@@ -231,9 +231,19 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
 .comp-val   { font-size: 12px; font-weight: 700; color: var(--ink); width: 30px; text-align: right; flex-shrink: 0; }
 
 /* Feedback blocks */
-.fb-block { margin-top: 18px; }
-.fb-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: 7px; }
+.fb-block { margin-top: 0; margin-bottom: 16px; padding-left: 12px; }
+.fb-block[data-fb="strengths"]  { border-left: 3px solid #0B7A47; }
+.fb-block[data-fb="improve"]    { border-left: 3px solid #D69E2E; }
+.fb-block[data-fb="attention"]  { border-left: 3px solid #E53E3E; }
+.fb-block[data-fb="focus"]      { border-left: 3px solid #1A44C2; }
+.fb-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 7px; }
 .fb-text  { font-size: 13px; color: var(--soft); line-height: 1.75; white-space: pre-line; }
+
+/* Scorecard history pills */
+.sc-history { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.sc-pill { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; background: var(--surface); color: var(--soft); cursor: pointer; border: 1px solid var(--line); transition: all .15s; white-space: nowrap; }
+.sc-pill:hover { border-color: var(--blue); color: var(--blue); }
+.sc-pill.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 
 /* ── Session cards ───────────────────────────────────────────────────────── */
 .ses-card {
@@ -1965,7 +1975,10 @@ function render(d, pd, id) {
   updateVisibilitySidebar(prof.profile_visibility, prof.email_visibility, prof.phone_visibility, prof.resume_visibility);
 
   /* ── Scorecard tab ───────────────────────────────────────────────────────── */
-  if (sc && sc.mock_overall_score) renderScorecard(sc);
+  if (sc && sc.mock_overall_score) {
+    renderScorecard(sc);
+    loadScorecardHistory();
+  }
 
   /* ── Interviews tab ──────────────────────────────────────────────────────── */
   if (recent.length) renderInterviews(recent, id);
@@ -2018,25 +2031,32 @@ function renderScorecard(sc) {
     ['Depth & Specificity',    sc.depth_specificity],
   ];
 
+  const barColor = (v) => v <= 3 ? '#E53E3E' : v <= 5 ? '#D69E2E' : v <= 7 ? '#38A169' : '#1A44C2';
   const bars = comps.map(([label, val]) => {
     const v = parseInt(val) || 0;
     return `<div class="comp-row">
       <span class="comp-label">${esc(label)}</span>
-      <div class="comp-track"><div class="comp-fill" style="width:${v*10}%"></div></div>
+      <div class="comp-track"><div class="comp-fill" style="width:${v*10}%;background:${barColor(v)}"></div></div>
       <span class="comp-val">${v}/10</span>
     </div>`;
   }).join('');
 
+  const FB_KEYS = { 'Strengths':'strengths', 'Areas to Improve':'improve', 'Attention Areas':'attention', 'Next Focus':'focus' };
   const feedbacks = [
     ['Strengths',       sc.mock_strengths],
     ['Areas to Improve', sc.mock_improvements],
     ['Attention Areas', sc.mock_attention_areas],
     ['Next Focus',      sc.mock_next_focus],
   ].filter(([,v]) => v).map(([label, val]) =>
-    `<div class="fb-block"><div class="fb-label">${esc(label)}</div><div class="fb-text">${esc(val)}</div></div>`
+    `<div class="fb-block" data-fb="${FB_KEYS[label]}"><div class="fb-label">${esc(label)}</div><div class="fb-text">${esc(val)}</div></div>`
   ).join('');
 
+  // Preserve existing pills if already rendered
+  const existingPills = document.getElementById('sc-history-row');
+  const pillsHtml = existingPills ? existingPills.outerHTML : '<div id="sc-history-row"></div>';
+
   el('scorecard-content').innerHTML = `
+    ${pillsHtml}
     <div class="score-ring-row">
       <svg width="110" height="110" viewBox="0 0 110 110" style="flex-shrink:0;">
         <circle cx="55" cy="55" r="44" fill="none" stroke="#E4E6EF" stroke-width="9"/>
@@ -2056,7 +2076,37 @@ function renderScorecard(sc) {
     <div class="divider"></div>
     <div class="card-title" style="margin-bottom:14px;">Competency Breakdown</div>
     ${bars}
-    ${feedbacks ? `<div class="divider"></div>${feedbacks}` : ''}`;
+    ${feedbacks ? `<div class="divider"></div><div style="margin-top:18px;">${feedbacks}</div>` : ''}`;
+}
+
+/* ── Scorecard history pills ─────────────────────────────────────────────── */
+let _allScorecards = [];
+async function loadScorecardHistory() {
+  try {
+    const res = await fetch('/api/candidate/scorecard', { credentials: 'include' });
+    const data = await res.json();
+    if (!data.ok || !data.all_scorecards || data.all_scorecards.length < 2) return;
+    _allScorecards = data.all_scorecards.slice(0, 5);
+    renderScorecardPills(_allScorecards, 0);
+  } catch (_) {}
+}
+
+function renderScorecardPills(list, activeIdx) {
+  const row = document.getElementById('sc-history-row');
+  if (!row) return;
+  row.className = 'sc-history';
+  row.innerHTML = list.map((s, i) => {
+    const d = s.started_at ? fmtDate(s.started_at).replace(/\s\d{4}$/, '') : '';
+    const role = (s.interview_role || 'Mock').split(' ').slice(0, 2).join(' ');
+    const sc = parseInt(s.mock_overall_score) || 0;
+    return `<button class="sc-pill${i === activeIdx ? ' active' : ''}" onclick="selectScorecard(${i})">${d} &middot; ${esc(role)} &middot; ${sc}</button>`;
+  }).join('');
+}
+
+function selectScorecard(idx) {
+  if (!_allScorecards[idx]) return;
+  renderScorecardPills(_allScorecards, idx);
+  renderScorecard(_allScorecards[idx]);
 }
 
 /* ── Interviews renderer ──────────────────────────────────────────────────── */
