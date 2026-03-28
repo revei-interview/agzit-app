@@ -305,6 +305,8 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
   let clockTimer     = null;
   let callStartedAt  = null;
   let firstHeartbeat = true;
+  let realtimePc     = null;  // WebRTC PeerConnection for OpenAI Realtime
+  let realtimeDc     = null;  // DataChannel for OpenAI Realtime events
 
   // ── Audio format (updated by server's audio_format message) ─────────────
   let audioEncoding  = 'pcm_f32le';  // default: high-quality PCM float32
@@ -449,6 +451,11 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
     $('statusText').textContent = 'Ending session…';
     $('statusRing').className   = 'status-ring connecting';
 
+    if (realtimePc) {
+      try { realtimePc.close(); } catch { /* ignore */ }
+      realtimePc = null;
+      realtimeDc = null;
+    }
     if (ws) {
       try { ws.close(); } catch { /* ignore */ }
       ws = null;
@@ -551,10 +558,117 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
         throw new Error(tokenRes.error || 'Failed to get stream token');
       }
 
-      const { wsUrl, callLogId } = tokenRes;
-      console.log('[WS] Got stream URL, callLogId:', callLogId);
+      const { wsUrl, callLogId, voice_id: agentVoiceId } = tokenRes;
+      console.log('[WS] Got stream URL, callLogId:', callLogId, 'voice_id:', agentVoiceId);
 
-      // 2. Set up AudioContext for playback (use native rate — we resample 8kHz→native in playMulawChunk)
+      // ── Branch: OpenAI Realtime (WebRTC) vs Vokeva pipeline (WebSocket) ──
+      if (agentVoiceId && agentVoiceId.startsWith('openai-realtime:')) {
+        console.log('[Realtime] Using OpenAI Realtime WebRTC path');
+
+        // 1a. Get ephemeral session token from Vokeva backend
+        const rtRes = await postJson(`${VOKEVA_BASE}/api/calls/realtime-session`, {
+          agentId:    VOKEVA_AGENT_ID,
+          sid:        sid,
+          ...variableValues,
+        }, {
+          'Authorization': 'Bearer ' + VOKEVA_API_KEY,
+        });
+
+        if (!rtRes.client_secret) {
+          throw new Error(rtRes.error || 'Failed to create realtime session');
+        }
+        console.log('[Realtime] Got session, voice:', rtRes.voice);
+
+        // 2a. Set up WebRTC PeerConnection
+        realtimePc = new RTCPeerConnection();
+
+        // Audio output: play through <audio> element
+        const audioEl = document.createElement('audio');
+        audioEl.autoplay = true;
+        realtimePc.ontrack = e => {
+          audioEl.srcObject = e.streams[0];
+          console.log('[Realtime] Audio track received');
+        };
+
+        // Audio input: mic → WebRTC
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micStream.getTracks().forEach(t => realtimePc.addTrack(t, micStream));
+        $('micDot').classList.add('active');
+        console.log('[Realtime] Mic tracks added');
+
+        // DataChannel for events (transcripts, etc.)
+        realtimeDc = realtimePc.createDataChannel('oai-events');
+        realtimeDc.onopen = () => console.log('[Realtime] DataChannel open');
+        realtimeDc.onmessage = (e) => {
+          try {
+            const msg = JSON.parse(e.data);
+            // Show transcripts as subtitles
+            if (msg.type === 'response.audio_transcript.done' && window._subtitlesEnabled !== false) {
+              const bar = document.getElementById('subtitle-bar');
+              document.getElementById('subtitle-speaker').textContent = 'Alex (AI Interviewer)';
+              document.getElementById('subtitle-text').textContent = msg.transcript || '';
+              bar.style.display = 'block';
+              clearTimeout(window._subtitleTimer);
+              window._subtitleTimer = setTimeout(() => { bar.style.display = 'none'; }, 4000);
+              $('statusRing').className = 'status-ring speaking';
+            } else if (msg.type === 'conversation.item.input_audio_transcription.completed' && window._subtitlesEnabled !== false) {
+              const bar = document.getElementById('subtitle-bar');
+              document.getElementById('subtitle-speaker').textContent = 'You';
+              document.getElementById('subtitle-text').textContent = msg.transcript || '';
+              bar.style.display = 'block';
+              clearTimeout(window._subtitleTimer);
+              window._subtitleTimer = setTimeout(() => { bar.style.display = 'none'; }, 4000);
+              $('statusRing').className = 'status-ring active';
+            } else if (msg.type === 'response.done') {
+              $('statusRing').className = 'status-ring active';
+            }
+          } catch { /* ignore */ }
+        };
+
+        // SDP exchange with OpenAI
+        const offer = await realtimePc.createOffer();
+        await realtimePc.setLocalDescription(offer);
+
+        const sdpRes = await fetch('https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + rtRes.client_secret.value,
+            'Content-Type': 'application/sdp',
+          },
+          body: offer.sdp,
+        });
+
+        if (!sdpRes.ok) {
+          const errText = await sdpRes.text().catch(() => '');
+          throw new Error('SDP exchange failed: ' + sdpRes.status + ' ' + errText);
+        }
+
+        const answer = { type: 'answer', sdp: await sdpRes.text() };
+        await realtimePc.setRemoteDescription(answer);
+        console.log('[Realtime] WebRTC connected');
+
+        // Apply defaults
+        window._subtitlesEnabled = localStorage.getItem('subtitles_enabled') !== 'false';
+        window._ambientEnabled = localStorage.getItem('ambient_enabled') === 'true';
+        const ccBtn = document.getElementById('subtitleToggle');
+        if (ccBtn) ccBtn.style.opacity = window._subtitlesEnabled ? '1' : '.5';
+        const ambBtn = document.getElementById('ambientToggle');
+        if (ambBtn) ambBtn.style.opacity = window._ambientEnabled ? '1' : '.5';
+        if (window._ambientEnabled && typeof startAmbientRoom === 'function') startAmbientRoom();
+
+        realtimePc.onconnectionstatechange = () => {
+          console.log('[Realtime] Connection state:', realtimePc.connectionState);
+          if (realtimePc.connectionState === 'disconnected' || realtimePc.connectionState === 'failed') {
+            if (callActive) endCall('call_ended');
+          }
+        };
+
+        onCallStart();
+
+      } else {
+      // ── Existing Vokeva WebSocket pipeline path ──
+
+      // 2. Set up AudioContext for playback
       audioCtx = new AudioContext();
       if (audioCtx.state === 'suspended') await audioCtx.resume();
       console.log('[Audio] AudioContext created, sampleRate:', audioCtx.sampleRate);
@@ -569,7 +683,7 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
       ws.onopen = async () => {
         console.log('[WS] Connected to Vokeva');
 
-        // 4. Set up AudioWorklet for mic capture (48kHz → 8kHz mulaw)
+        // 4. Set up AudioWorklet for mic capture (48kHz → 16kHz linear16)
         try {
           const captureCtx = new AudioContext();
           await captureCtx.audioWorklet.addModule('/interview-room/audio-processor.js');
@@ -694,6 +808,8 @@ button { font-family: var(--font); cursor: pointer; border: none; background: no
         console.error('[WS] WebSocket error:', e);
         toast('Connection error — please try again.');
       };
+
+      } // end else (Vokeva WS path)
 
     } catch (e) {
       console.error('[ws start]', e);
