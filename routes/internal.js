@@ -146,7 +146,22 @@ router.get('/vapi-variables', requireAppToken, async (req, res) => {
 
     // Fetch profile-level fields and session row in parallel
     const [profileMeta, sessionRow] = await Promise.all([
-      getPostMetaValues(profileId, ['full_name', 'current_career_level', 'work_level', 'total_work_experience']),
+      getPostMetaValues(profileId, [
+        'full_name', 'current_career_level', 'work_level', 'total_work_experience',
+        'work_experience',
+        'work_experience_0_job_title',
+        'work_experience_0_company_name', 'work_experience_1_company_name',
+        'work_experience_2_company_name', 'work_experience_3_company_name',
+        'work_experience_4_company_name', 'work_experience_5_company_name',
+        'work_experience_6_company_name',
+        'compliance_tools',
+        'compliance_tools_0_tool_name', 'compliance_tools_1_tool_name',
+        'compliance_tools_2_tool_name', 'compliance_tools_3_tool_name',
+        'compliance_tools_4_tool_name', 'compliance_tools_5_tool_name',
+        'compliance_tools_6_tool_name', 'compliance_tools_7_tool_name',
+        'compliance_tools_8_tool_name', 'compliance_tools_9_tool_name',
+        'soft_skills',
+      ]),
       getSessionRow(profileId, rowIndex),
     ]);
 
@@ -159,6 +174,27 @@ router.get('/vapi-variables', requireAppToken, async (req, res) => {
       || profileMeta.current_career_level
       || profileMeta.work_level
       || 'mid';
+
+    // Build structured resume fields
+    const currentRole = profileMeta.work_experience_0_job_title || '';
+
+    const companyNames = [];
+    for (let i = 0; i <= 6; i++) {
+      const co = profileMeta[`work_experience_${i}_company_name`];
+      if (co && co.trim()) companyNames.push(co.trim());
+    }
+    const companies = companyNames.join(', ');
+
+    const toolNames = [];
+    for (let i = 0; i <= 9; i++) {
+      const t = profileMeta[`compliance_tools_${i}_tool_name`];
+      if (t && t.trim()) toolNames.push(t.trim());
+    }
+    const tools = toolNames.join(', ');
+
+    const keyProcesses   = profileMeta.soft_skills || '';
+    const jobDescription = sessionRow.jd_raw_text || '';
+    const dprId          = String(profileId || '');
 
     const contextPack = sessionRow.context_pack || '';
 
@@ -183,6 +219,12 @@ router.get('/vapi-variables', requireAppToken, async (req, res) => {
         total_experience:    totalExperience,
         specialisation:      sessionRow.specialisation || '',
         interview_type:      sessionRow.interview_type || 'technical',
+        current_role:        currentRole,
+        companies:           companies,
+        tools:               tools,
+        key_processes:       keyProcesses,
+        job_description:     jobDescription,
+        dpr_id:              dprId,
       },
     });
   } catch (err) {
