@@ -235,6 +235,10 @@ var TEMPLATES = [
   { id:'prestige_gold', name:'Prestige Gold',  desc:'Executive layout with deep navy and gold accents.',         color:'#78350F', premium:false },
   { id:'gulf',           name:'Gulf',           desc:'UAE/Dubai corporate — sidebar with photo.',                 color:'#B8860B', premium:false, gcc:true },
   { id:'emirates',       name:'Emirates',       desc:'Saudi/Qatar formal — photo header.',                       color:'#1B3A6B', premium:false, gcc:true },
+  { id:'khaleeji',       name:'Khaleeji',       desc:'GCC premium with profile photo — UAE, Saudi, Qatar, Kuwait.',color:'#1a3a5c', premium:true,  gcc:true, photo:true, tag:'GCC + Photo' },
+  { id:'fresher_clean',  name:'Fresh Start',    desc:'Clean fresher format — education, projects, skills.',        color:'#2c5f8a', premium:true,  fresher:true, tag:'Fresher' },
+  { id:'fresher_project',name:'Project Pro',    desc:'Project-focused fresher — projects, internships, certs.',    color:'#1e7b4d', premium:true,  fresher:true, tag:'Fresher' },
+  { id:'fresher_bold',   name:'Bold Graduate',  desc:'Bold modern fresher — strong header, skills grid.',          color:'#6b21a8', premium:true,  fresher:true, tag:'Fresher' },
 ];
 
 // ── Build template picker ─────────────────────────────────────────────────────
@@ -259,7 +263,7 @@ function buildTemplatePicker() {
         '</div>' +
       '</div>' +
       '<div class="tmpl-info">' +
-        '<div class="tmpl-name">' + t.name + (t.gcc ? ' <span style="background:#B8860B;color:#fff;font-size:9px;padding:1px 6px;border-radius:3px;margin-left:6px;font-weight:700;vertical-align:middle;">GCC</span>' : '') + '</div>' +
+        '<div class="tmpl-name">' + t.name + (t.tag ? ' <span style="background:' + (t.fresher ? '#16a34a' : '#B8860B') + ';color:#fff;font-size:9px;padding:1px 6px;border-radius:3px;margin-left:6px;font-weight:700;vertical-align:middle;">' + t.tag + '</span>' : (t.gcc ? ' <span style="background:#B8860B;color:#fff;font-size:9px;padding:1px 6px;border-radius:3px;margin-left:6px;font-weight:700;vertical-align:middle;">GCC</span>' : '')) + '</div>' +
         '<div class="tmpl-desc">' + t.desc + '</div>' +
       '</div>';
     grid.appendChild(card);
@@ -353,6 +357,14 @@ async function loadProfile() {
       };
     });
 
+    var projects = (p.final_year_project || []).map(function(pr) {
+      return {
+        title:   pr.project_heading || '',
+        summary: pr.project_summary || '',
+        date:    pr.project_date    || '',
+      };
+    });
+
     PROFILE = {
       name:             p.full_name               || '',
       email:            p.email_address           || '',
@@ -367,6 +379,8 @@ async function loadProfile() {
       work_exp:         workExp,
       education:        education,
       certifications:   certifications,
+      projects:         projects,
+      total_experience: parseInt(p.total_work_experience) || 0,
     };
 
     // Check for saved resume in URL
@@ -665,6 +679,10 @@ function buildResumeHtml(tid, accent, p) {
     case 'prestige_gold':return wrapPage(buildExecutive(accent, p), accent);
     case 'gulf':         return wrapPage(buildGulf(accent, p),      accent);
     case 'emirates':     return wrapPage(buildEmirates(accent, p),  accent);
+    case 'khaleeji':     return wrapPage(buildKhaleeji(accent, p),  accent);
+    case 'fresher_clean':   return wrapPage(buildFresherClean(accent, p),   accent);
+    case 'fresher_project': return wrapPage(buildFresherProject(accent, p), accent);
+    case 'fresher_bold':    return wrapPage(buildFresherBold(accent, p),    accent);
     default:             return wrapPage(buildClassic(accent, p),   accent);
   }
 }
@@ -1365,6 +1383,335 @@ function buildPrestige(accent, p) {
   html += buildPdfBtn(ac); html += buildFooter();
   html += '</div></div>';
   return html;
+}
+
+// ─── GCC Template 4: Khaleeji (photo) ─────────────────────────────────────────
+// Gulf premium with circular photo in header. UAE/Saudi/Qatar/Kuwait.
+function buildKhaleeji(accent, p) {
+  var ac = accent || '#1a3a5c';
+  var photo = p.photo
+    ? '<img src="' + esc(p.photo) + '" style="width:110px;height:110px;object-fit:cover;border-radius:50%;border:4px solid rgba(255,255,255,.8);display:block;">'
+    : '';
+  var exps = (p.work_exp || []).map(function(j) {
+    var desc = (j.description || '').split(/\n|\u2022/).map(function(l) { return cleanBullet(l); }).filter(Boolean);
+    return '<div style="margin-bottom:14px;padding-left:12px;border-left:3px solid ' + ac + ';">' +
+      '<div style="font-weight:700;font-size:12px;color:#1a1a1a;">' + esc(j.title) + '</div>' +
+      '<div style="font-size:11px;color:' + ac + ';font-weight:600;">' + esc(j.company) + (j.city ? ', ' + esc(j.city) : '') + '</div>' +
+      '<div style="font-size:10px;color:#888;margin:2px 0 5px;">' + fmtDate(j.start) + ' \u2013 ' + (j.current ? 'Present' : fmtDate(j.end)) + '</div>' +
+      (desc.length ? '<div style="font-size:11px;color:#444;line-height:1.5;">' + desc.map(function(l) { return '&bull; ' + esc(l); }).join('<br>') + '</div>' : '') +
+    '</div>';
+  }).join('');
+  var edus = (p.education || []).map(function(e) {
+    return '<div style="margin-bottom:10px;">' +
+      '<div style="font-weight:700;font-size:11px;">' + esc(e.degree) + '</div>' +
+      '<div style="font-size:10px;color:' + ac + ';">' + esc(e.institution) + (e.city ? ', ' + esc(e.city) : '') + '</div>' +
+      '<div style="font-size:10px;color:#888;">' + fmtDate(e.start) + ' \u2013 ' + fmtDate(e.end) + '</div>' +
+    '</div>';
+  }).join('');
+  var allSk = parseSkills(p.soft_skills).concat(p.tools || []);
+  var skills = allSk.map(function(s) {
+    return '<span style="display:inline-block;background:#f0f4ff;border:1px solid #c8d5f0;border-radius:3px;padding:3px 10px;font-size:10px;margin:3px;color:#1a1a1a;">' + esc(s) + '</span>';
+  }).join('');
+  var certs = (p.certifications || []).map(function(c) {
+    return '<div style="font-size:11px;margin-bottom:5px;">\u25AA ' + esc(c.name) + (c.issuer ? ' \u2014 ' + esc(c.issuer) : '') + (c.date ? ' (' + fmtDate(c.date) + ')' : '') + '</div>';
+  }).join('');
+  var langs = (p.languages || []).map(function(l) {
+    return '<span style="display:inline-block;background:#f0f4ff;border-radius:3px;padding:3px 10px;font-size:10px;margin:3px;border:1px solid #c8d5f0;">' + esc(l) + '</span>';
+  }).join('');
+
+  var html = '<div style="font-family:\'Segoe UI\',Arial,sans-serif;background:#fff;min-height:297mm;">';
+  // Header with photo
+  html += '<div style="background:' + ac + ';color:white;padding:28px 32px;display:flex;align-items:center;gap:24px;">';
+  if (photo) html += '<div>' + photo + '</div>';
+  html += '<div style="flex:1;">';
+  html += '<div style="font-size:28px;font-weight:800;line-height:1.1;">' + esc(p.name) + '</div>';
+  var latestTitle = (p.work_exp || [])[0] ? (p.work_exp[0].title || '') : '';
+  html += '<div style="font-size:13px;opacity:.85;font-weight:600;margin-top:4px;">' + esc(latestTitle) + '</div>';
+  html += '<div style="font-size:10px;opacity:.7;margin-top:8px;">' + [p.email, p.phone, p.location].filter(Boolean).map(esc).join('  |  ') + '</div>';
+  html += '</div></div>';
+  // Body
+  html += '<div style="padding:24px 32px;">';
+  if (p.summary) {
+    html += '<div style="margin-bottom:18px;padding:14px;background:#f8f9fd;border-radius:6px;border-left:4px solid ' + ac + ';">';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:6px;">PROFILE SUMMARY</div>';
+    html += '<div style="font-size:11px;color:#444;line-height:1.6;">' + esc(p.summary) + '</div>';
+    html += '</div>';
+  }
+  if (exps) {
+    html += '<div style="margin-bottom:18px;">';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:10px;">PROFESSIONAL EXPERIENCE</div>';
+    html += exps + '</div>';
+  }
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">';
+  html += '<div>';
+  if (edus) {
+    html += '<div style="margin-bottom:16px;">';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:8px;">EDUCATION</div>';
+    html += edus + '</div>';
+  }
+  if (certs) {
+    html += '<div><div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:6px;">CERTIFICATIONS</div>' + certs + '</div>';
+  }
+  html += '</div><div>';
+  if (skills) {
+    html += '<div style="margin-bottom:16px;">';
+    html += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:8px;">SKILLS & TOOLS</div>';
+    html += skills + '</div>';
+  }
+  if (langs) {
+    html += '<div><div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:6px;">LANGUAGES</div>' + langs + '</div>';
+  }
+  html += '</div></div>';
+  html += buildPdfBtn(ac); html += buildFooter();
+  html += '</div>';
+  html += '<div style="text-align:center;padding:10px;font-size:8px;color:#ccc;">GCC Compatible \u2022 Khaleeji Format</div>';
+  html += '</div>';
+  return html;
+}
+
+// ─── Fresher helpers ──────────────────────────────────────────────────────────
+function buildProjectsHtml(accent, projects) {
+  if (!projects || !projects.length) return '';
+  var html = '';
+  projects.forEach(function(pr) {
+    html += '<div style="margin-bottom:12px;">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;">';
+    html += '<span style="font-weight:700;font-size:12px;color:#1a1a1a;">' + esc(pr.title) + '</span>';
+    if (pr.date) html += '<span style="font-size:10px;color:#94A3B8;">' + esc(fmtDate(pr.date)) + '</span>';
+    html += '</div>';
+    if (pr.summary) {
+      var lines = pr.summary.split(/\n/).map(function(l) { return l.trim(); }).filter(Boolean);
+      html += '<div style="font-size:11px;color:#444;line-height:1.5;margin-top:4px;">' + lines.map(function(l) { return '&bull; ' + esc(l); }).join('<br>') + '</div>';
+    }
+    html += '</div>';
+  });
+  return html;
+}
+
+// ─── Fresher Template 1: Fresh Start (clean academic) ─────────────────────────
+function buildFresherClean(accent, p) {
+  var ac = accent || '#2c5f8a';
+  function fSec(t) { return '<div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;border-bottom:2px solid ' + ac + ';padding-bottom:4px;margin:18px 0 10px;">' + t + '</div>'; }
+  var h = '<div class="page">';
+  h += '<div style="text-align:center;padding-bottom:16px;border-bottom:3px solid ' + ac + ';margin-bottom:6px;">';
+  h += '<div style="font-size:26px;font-weight:800;color:#0A1A3A;">' + esc(p.name) + '</div>';
+  h += '<div style="font-size:12px;color:' + ac + ';font-weight:600;margin-top:4px;">Fresh Graduate</div>';
+  h += '<div style="font-size:11px;color:#64748B;margin-top:6px;">' + [p.email, p.phone, p.location].filter(Boolean).map(esc).join(' &middot; ') + '</div>';
+  h += '</div>';
+  if (p.summary) {
+    h += fSec('Career Objective');
+    h += '<p style="font-size:12px;color:#334155;line-height:1.6;text-align:justify;">' + esc(p.summary) + '</p>';
+  }
+  if (p.education && p.education.length) {
+    h += fSec('Education');
+    p.education.forEach(function(e) {
+      var per = fmtDate(e.start) + (e.end ? ' \u2013 ' + fmtDate(e.end) : '');
+      h += '<div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:baseline;">';
+      h += '<div><span style="font-weight:700;font-size:12.5px;color:#1a1a1a;">' + esc(e.degree) + '</span>';
+      h += '<div style="font-size:11px;color:#475569;margin-top:2px;">' + esc(e.institution) + ([e.city, e.country].filter(Boolean).length ? ' &middot; ' + [e.city, e.country].filter(Boolean).map(esc).join(', ') : '') + '</div></div>';
+      h += '<span style="font-size:10px;color:#94A3B8;white-space:nowrap;">' + esc(per) + '</span>';
+      h += '</div>';
+    });
+  }
+  var projs = p.projects || [];
+  if (projs.length) {
+    h += fSec('Projects');
+    h += buildProjectsHtml(ac, projs);
+  }
+  var allSk = parseSkills(p.soft_skills).concat(p.tools || []);
+  if (allSk.length) {
+    h += fSec('Skills & Tools');
+    h += '<div style="display:flex;flex-wrap:wrap;">' + allSk.map(function(s) { return '<span class="sk">' + esc(s) + '</span>'; }).join('') + '</div>';
+  }
+  if (p.certifications && p.certifications.length) {
+    h += fSec('Certifications');
+    p.certifications.forEach(function(c) {
+      h += '<div style="margin-bottom:6px;"><span style="font-weight:600;">' + esc(c.name) + '</span>';
+      if (c.issuer) h += ' <span style="color:#64748B;">&middot; ' + esc(c.issuer) + '</span>';
+      if (c.date)   h += ' <span style="color:#94A3B8;">&middot; ' + esc(fmtDate(c.date)) + '</span>';
+      h += '</div>';
+    });
+  }
+  if (p.languages && p.languages.length) {
+    h += fSec('Languages');
+    h += '<div style="display:flex;flex-wrap:wrap;">' + p.languages.map(function(l) { return '<span class="sk">' + esc(l) + '</span>'; }).join('') + '</div>';
+  }
+  // Show work experience only if it exists (internships)
+  if (p.work_exp && p.work_exp.length) {
+    h += fSec('Internships / Work Experience');
+    p.work_exp.forEach(function(w) {
+      var per = fmtDate(w.start) + ' \u2013 ' + (w.current ? 'Present' : fmtDate(w.end));
+      h += '<div style="margin-bottom:10px;">';
+      h += '<div style="display:flex;justify-content:space-between;"><span class="jt">' + esc(w.title) + '</span><span style="font-size:10px;color:#94A3B8;">' + esc(per) + '</span></div>';
+      h += '<div class="jc">' + esc(w.company) + '</div>';
+      h += '</div>';
+    });
+  }
+  h += buildPdfBtn(ac); h += buildFooter(); h += '</div>';
+  return h;
+}
+
+// ─── Fresher Template 2: Project Pro (project-focused) ────────────────────────
+function buildFresherProject(accent, p) {
+  var ac = accent || '#1e7b4d';
+  function mHead(t) { return '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:' + ac + ';margin-bottom:8px;">' + t + '</div>'; }
+  var allSk = parseSkills(p.soft_skills).concat(p.tools || []);
+
+  // Two-column: sidebar (contact + skills + certs + languages) | main (objective + education + projects)
+  var left = '<div style="width:34%;background:#F8FAFC;padding:32px 18px 24px;border-right:1px solid #E2E8F0;">';
+  left += mHead('Contact');
+  if (p.email)    left += '<div style="font-size:11px;color:#334155;margin-bottom:5px;word-break:break-all;">\u2709 ' + esc(p.email) + '</div>';
+  if (p.phone)    left += '<div style="font-size:11px;color:#334155;margin-bottom:5px;">\u260E ' + esc(p.phone) + '</div>';
+  if (p.location) left += '<div style="font-size:11px;color:#334155;margin-bottom:5px;">' + esc(p.location) + '</div>';
+  if (allSk.length) {
+    left += '<div style="margin-top:18px;">' + mHead('Skills & Tools');
+    allSk.forEach(function(s) { left += '<div style="font-size:11px;color:#334155;padding:3px 0;border-bottom:1px solid #E2E8F0;">' + esc(s) + '</div>'; });
+    left += '</div>';
+  }
+  if (p.certifications && p.certifications.length) {
+    left += '<div style="margin-top:18px;">' + mHead('Certifications');
+    p.certifications.forEach(function(c) {
+      left += '<div style="margin-bottom:6px;">';
+      left += '<div style="font-size:11px;color:#334155;font-weight:600;">' + esc(c.name) + '</div>';
+      if (c.issuer) left += '<div style="font-size:10px;color:#64748B;">' + esc(c.issuer) + '</div>';
+      left += '</div>';
+    });
+    left += '</div>';
+  }
+  if (p.languages && p.languages.length) {
+    left += '<div style="margin-top:18px;">' + mHead('Languages');
+    p.languages.forEach(function(l) { left += '<div style="font-size:11px;color:#334155;padding:3px 0;">' + esc(l) + '</div>'; });
+    left += '</div>';
+  }
+  left += '</div>';
+
+  var right = '<div style="flex:1;padding:32px 24px;">';
+  right += '<div style="margin-bottom:18px;border-bottom:3px solid ' + ac + ';padding-bottom:12px;">';
+  right += '<div style="font-size:24px;font-weight:800;color:#0A1A3A;">' + esc(p.name) + '</div>';
+  right += '<div style="font-size:12px;color:' + ac + ';font-weight:600;margin-top:2px;">Fresh Graduate</div>';
+  right += '</div>';
+  if (p.summary) {
+    right += '<div style="margin-bottom:16px;">';
+    right += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:6px;">CAREER OBJECTIVE</div>';
+    right += '<div style="font-size:11.5px;color:#334155;line-height:1.6;">' + esc(p.summary) + '</div>';
+    right += '</div>';
+  }
+  if (p.education && p.education.length) {
+    right += '<div style="margin-bottom:16px;">';
+    right += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:8px;">EDUCATION</div>';
+    p.education.forEach(function(e) {
+      var per = fmtDate(e.start) + (e.end ? ' \u2013 ' + fmtDate(e.end) : '');
+      right += '<div style="margin-bottom:10px;">';
+      right += '<div style="font-size:12px;color:#1a1a1a;font-weight:700;">' + esc(e.degree) + '</div>';
+      right += '<div style="font-size:11px;color:#475569;">' + esc(e.institution) + '</div>';
+      if (per) right += '<div style="font-size:10px;color:#94A3B8;">' + esc(per) + '</div>';
+      right += '</div>';
+    });
+    right += '</div>';
+  }
+  var projs = p.projects || [];
+  if (projs.length) {
+    right += '<div style="margin-bottom:16px;">';
+    right += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:8px;">PROJECTS</div>';
+    right += buildProjectsHtml(ac, projs);
+    right += '</div>';
+  }
+  if (p.work_exp && p.work_exp.length) {
+    right += '<div>';
+    right += '<div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:' + ac + ';text-transform:uppercase;margin-bottom:8px;">INTERNSHIPS / EXPERIENCE</div>';
+    p.work_exp.forEach(function(w) {
+      var per = fmtDate(w.start) + ' \u2013 ' + (w.current ? 'Present' : fmtDate(w.end));
+      right += '<div style="margin-bottom:10px;">';
+      right += '<div style="font-size:11.5px;font-weight:700;color:#1a1a1a;">' + esc(w.title) + '</div>';
+      right += '<div style="font-size:10.5px;color:' + ac + ';">' + esc(w.company) + '</div>';
+      right += '<div style="font-size:10px;color:#94A3B8;">' + esc(per) + '</div>';
+      right += '</div>';
+    });
+    right += '</div>';
+  }
+  right += buildPdfBtn(ac); right += buildFooter(); right += '</div>';
+
+  return '<div class="page" style="padding:0;"><div style="display:flex;min-height:100%;">' + left + right + '</div></div>';
+}
+
+// ─── Fresher Template 3: Bold Graduate ────────────────────────────────────────
+function buildFresherBold(accent, p) {
+  var ac = accent || '#6b21a8';
+  function bSec(t) { return '<div style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:#fff;text-transform:uppercase;background:' + ac + ';padding:6px 14px;border-radius:4px;margin:18px 0 10px;display:inline-block;">' + t + '</div>'; }
+  var allSk = parseSkills(p.soft_skills).concat(p.tools || []);
+  var h = '<div class="page">';
+  // Bold header
+  h += '<div style="background:' + ac + ';color:#fff;padding:28px 32px;border-radius:0 0 12px 12px;margin-bottom:4px;">';
+  h += '<div style="font-size:30px;font-weight:900;letter-spacing:-1px;">' + esc(p.name) + '</div>';
+  h += '<div style="font-size:14px;font-weight:600;opacity:.85;margin-top:4px;">Fresh Graduate</div>';
+  h += '<div style="font-size:10px;opacity:.7;margin-top:8px;">' + [p.email, p.phone, p.location].filter(Boolean).map(esc).join('  |  ') + '</div>';
+  h += '</div>';
+  if (p.summary) {
+    h += bSec('About Me');
+    h += '<p style="font-size:12px;color:#334155;line-height:1.6;text-align:justify;margin-top:0;">' + esc(p.summary) + '</p>';
+  }
+  // Skills grid
+  if (allSk.length) {
+    h += bSec('Skills & Tools');
+    h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">';
+    h += allSk.map(function(s) { return '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:6px;padding:6px 10px;font-size:11px;text-align:center;font-weight:600;color:#4c1d95;">' + esc(s) + '</div>'; }).join('');
+    h += '</div>';
+  }
+  if (p.education && p.education.length) {
+    h += bSec('Education');
+    p.education.forEach(function(e) {
+      var per = fmtDate(e.start) + (e.end ? ' \u2013 ' + fmtDate(e.end) : '');
+      h += '<div style="margin-bottom:12px;padding:10px 14px;background:#faf5ff;border-left:4px solid ' + ac + ';border-radius:4px;">';
+      h += '<div style="font-weight:700;font-size:13px;color:#1a1a1a;">' + esc(e.degree) + '</div>';
+      h += '<div style="font-size:11px;color:#475569;margin-top:2px;">' + esc(e.institution) + ([e.city, e.country].filter(Boolean).length ? ' &middot; ' + [e.city, e.country].filter(Boolean).map(esc).join(', ') : '') + '</div>';
+      if (per) h += '<div style="font-size:10px;color:#94A3B8;margin-top:2px;">' + esc(per) + '</div>';
+      h += '</div>';
+    });
+  }
+  var projs = p.projects || [];
+  if (projs.length) {
+    h += bSec('Projects');
+    projs.forEach(function(pr) {
+      h += '<div style="margin-bottom:12px;padding:10px 14px;background:#f8fafc;border-left:4px solid ' + ac + ';border-radius:4px;">';
+      h += '<div style="display:flex;justify-content:space-between;align-items:baseline;">';
+      h += '<span style="font-weight:700;font-size:12px;color:#1a1a1a;">' + esc(pr.title) + '</span>';
+      if (pr.date) h += '<span style="font-size:10px;color:#94A3B8;">' + esc(fmtDate(pr.date)) + '</span>';
+      h += '</div>';
+      if (pr.summary) {
+        var lines = pr.summary.split(/\n/).map(function(l) { return l.trim(); }).filter(Boolean);
+        h += '<div style="font-size:11px;color:#444;line-height:1.5;margin-top:4px;">' + lines.map(function(l) { return '&bull; ' + esc(l); }).join('<br>') + '</div>';
+      }
+      h += '</div>';
+    });
+  }
+  if (p.certifications && p.certifications.length) {
+    h += bSec('Certifications');
+    p.certifications.forEach(function(c) {
+      h += '<div style="margin-bottom:6px;"><span style="font-weight:600;">' + esc(c.name) + '</span>';
+      if (c.issuer) h += ' <span style="color:#64748B;">&middot; ' + esc(c.issuer) + '</span>';
+      if (c.date)   h += ' <span style="color:#94A3B8;">&middot; ' + esc(fmtDate(c.date)) + '</span>';
+      h += '</div>';
+    });
+  }
+  if (p.languages && p.languages.length) {
+    h += bSec('Languages');
+    h += '<div style="display:flex;flex-wrap:wrap;">' + p.languages.map(function(l) {
+      return '<span style="display:inline-block;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:20px;padding:4px 12px;font-size:11px;margin:3px;font-weight:600;color:#4c1d95;">' + esc(l) + '</span>';
+    }).join('') + '</div>';
+  }
+  // Show work experience only if it exists (internships)
+  if (p.work_exp && p.work_exp.length) {
+    h += bSec('Internships / Experience');
+    p.work_exp.forEach(function(w) {
+      var per = fmtDate(w.start) + ' \u2013 ' + (w.current ? 'Present' : fmtDate(w.end));
+      h += '<div style="margin-bottom:10px;">';
+      h += '<div style="display:flex;justify-content:space-between;"><span style="font-weight:700;font-size:12px;">' + esc(w.title) + '</span><span style="font-size:10px;color:#94A3B8;">' + esc(per) + '</span></div>';
+      h += '<div style="font-size:11px;color:' + ac + ';">' + esc(w.company) + '</div>';
+      h += '</div>';
+    });
+  }
+  h += buildPdfBtn(ac); h += buildFooter(); h += '</div>';
+  return h;
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
