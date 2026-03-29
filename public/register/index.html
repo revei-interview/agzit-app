@@ -135,14 +135,6 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
 .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; display: none; margin-left: 8px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Specialisation pills */
-.sub-pill {
-  display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 20px;
-  border: 1.5px solid var(--line); font-size: 13px; font-weight: 500; color: var(--soft);
-  cursor: pointer; transition: all .15s; user-select: none;
-}
-.sub-pill:hover { border-color: var(--blue); color: var(--blue); }
-.sub-pill.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 
 /* Phone field */
 .phone-row { display: flex; gap: 8px; }
@@ -639,19 +631,24 @@ textarea.input { resize: vertical; min-height: 100px; height: auto; padding: 12p
           </select>
         </div>
       </div>
-      <!-- Specialisation (shown when industry is selected) -->
-      <div class="form-row" id="reg-sub-field" style="display:none;">
-        <div class="field" style="grid-column:1/-1;">
-          <label>Specialisation <span style="font-size:12px;color:var(--muted);font-weight:400;">(select all that apply)</span></label>
-          <div id="reg-sub-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;"></div>
-        </div>
-      </div>
       <div class="form-row" id="reg-dpr-spec-field" style="display:none;">
         <div class="field" style="grid-column:1/-1;">
           <label>Specialisation</label>
-          <select class="input agzit-select" id="s1-dpr-specialisation">
-            <option value="">Select your specialisation</option>
-          </select>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:4px;">
+            <div>
+              <label style="font-size:12px; color:var(--muted); margin-bottom:4px; display:block;">Primary Specialisation *</label>
+              <select class="input agzit-select" id="s1-dpr-specialisation" required>
+                <option value="">Select primary</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:12px; color:var(--muted); margin-bottom:4px; display:block;">Secondary Specialisation (optional)</label>
+              <select class="input agzit-select" id="s1-dpr-specialisation-secondary">
+                <option value="">None</option>
+              </select>
+            </div>
+          </div>
+          <div style="font-size:11.5px; color:var(--muted); margin-top:4px;">Primary is your main area. Secondary is optional.</div>
         </div>
       </div>
       <!-- Additional details divider -->
@@ -1135,83 +1132,6 @@ let currentStep = 0;
 
 const CUR_YEAR = new Date().getFullYear();
 
-// ── Industry → Sub-specialisation map (synced from config/industries.js) ────
-var INDUSTRY_SUBS = {
-  accounting:{subs:['Accounts Payable','Accounts Receivable','GST','Taxation','Bookkeeping','Reconciliation']},
-  administration:{subs:['Executive Assistant','Office Manager','Receptionist','Facilities Management','Personal Assistant']},
-  media:{subs:['Media Planning','Public Relations','Advertising','Corporate Communications','Event Management']},
-  architecture:{subs:['Architectural Design','Interior Design','Urban Planning','Landscape Architecture','BIM / Revit']},
-  audit:{subs:['Internal Audit','External Audit','SOX Compliance','Statutory Audit','IS Audit']},
-  aviation:{subs:['Pilot','Cabin Crew','Airport Operations','Air Traffic Control','Aircraft Maintenance']},
-  banking:{subs:['Retail Banking','Trade Finance','Loan Processing','Credit Analysis','NBFC']},
-  civil:{subs:['Structural Engineering','Geotechnical','Quantity Surveying','Land Surveying','Construction Management']},
-  compliance:{subs:['KYC','AML','Transaction Monitoring','Sanctions','CKYC','FATF Compliance']},
-  customer_support:{subs:['Voice Support','Chat Support','Email Support','Technical Support','Customer Success']},
-  cybersecurity:{subs:['SOC Analyst','VAPT','InfoSec','Penetration Testing','Vulnerability Assessment']},
-  data:{subs:['Data Analysis','Business Intelligence','Data Engineering','Data Science','Tableau / Power BI']},
-  engineering:{subs:['Process Engineering','Industrial Engineering','Quality Engineering','R&D Engineering','Project Engineering']},
-  erp_crm:{subs:['SAP','Oracle ERP','Salesforce','Microsoft Dynamics','ServiceNow']},
-  finance:{subs:['Treasury','Cash Management','FP&A','Corporate Finance','Financial Planning']},
-  fraud:{subs:['Fraud Analyst','AML','Chargeback','Fraud Investigation','Anti-Money Laundering']},
-  freshers:{subs:['Management Trainee','Graduate Engineer Trainee','Internship','Apprenticeship','Campus Recruitment']},
-  government:{subs:['Civil Services','Municipal Administration','Policy Analysis','Public Finance','Defence Civilian']},
-  design:{subs:['UI/UX Design','Graphic Design','Web Design','Motion Graphics','Brand Design']},
-  hse:{subs:['Safety Officer','Environmental Health','NEBOSH','Fire Safety','Occupational Health']},
-  healthcare:{subs:['Nursing','Physician','Lab Technician','Pharmacy','Medical Coding']},
-  hospitality:{subs:['Hotel Management','Food & Beverage','Front Office','Housekeeping','Chef / Culinary']},
-  hr:{subs:['Talent Acquisition','Recruiter','HRBP','Learning & Development','Payroll','HR Generalist']},
-  insurance:{subs:['Underwriting','Claims Processing','Actuarial','Reinsurance','Insurance Sales']},
-  it:{subs:['System Admin','Network Admin','IT Support','Infrastructure','ERP','IT Operations']},
-  hardware_it:{subs:['Desktop Support','Hardware Repair','Field Engineer','IT Technician','CCTV / Security Systems']},
-  content:{subs:['Content Writing','Copywriting','Technical Writing','Editing','Journalism']},
-  translation:{subs:['Translation','Interpretation','Localisation','Subtitling','Transcription']},
-  legal:{subs:['Corporate Law','Litigation','Contract Management','Paralegal','Intellectual Property']},
-  supply_chain:{subs:['Warehouse Management','Inventory Control','Distribution','Freight / Shipping','Procurement Logistics']},
-  marine:{subs:['Merchant Navy','Port Operations','Ship Management','Offshore Operations','Maritime Law']},
-  marketing:{subs:['Digital Marketing','SEO / SEM','Content Marketing','Brand Management','Growth Marketing']},
-  mech_electrical:{subs:['HVAC','Electrical Systems','Plumbing','Maintenance Engineering','Electromechanical']},
-  mining:{subs:['Mine Planning','Geologist','Drilling Engineer','Blasting','Mineral Processing']},
-  oil_gas:{subs:['Upstream','Downstream','Refinery Operations','Pipeline Engineering','Renewable Energy']},
-  operations:{subs:['Business Operations','Process Improvement','Back Office','Vendor Management','MIS Reporting']},
-  other:{subs:[]},
-  pharma:{subs:['Clinical Research','Regulatory Affairs','Drug Safety','Pharmacovigilance','Quality Assurance']},
-  procurement:{subs:['Strategic Sourcing','Vendor Management','Purchase Management','Category Management','Contract Negotiation']},
-  product:{subs:['Product Strategy','Product Owner','Roadmap Planning','User Research','Agile / Scrum']},
-  manufacturing:{subs:['Production Planning','Plant Operations','Lean Manufacturing','Six Sigma','Quality Control']},
-  qa:{subs:['Manual Testing','Automation Testing','QA Lead','Performance Testing','Quality Assurance']},
-  r_and_d:{subs:['Research Scientist','Lab Research','Product Development','Innovation','Technical Research']},
-  retail:{subs:['Store Manager','Visual Merchandising','Retail Sales','Inventory Management','E-commerce Operations']},
-  risk:{subs:['Credit Risk','Market Risk','Operational Risk','Basel','Risk Analyst']},
-  sales:{subs:['Inside Sales','Field Sales','Key Account Management','Business Development','Channel Sales']},
-  security:{subs:['Security Supervisor','Loss Prevention','Physical Security','Access Control','CCTV Monitoring']},
-  management:{subs:['CEO / MD','VP / Director','General Manager','Country Head','Business Head']},
-  site_engineering:{subs:['Site Engineer','Project Manager','Construction Supervisor','Planning Engineer','QS / Estimation']},
-  software:{subs:['React','Node.js','Python','Java','Full Stack Developer','Backend','Frontend']},
-  network_admin:{subs:['Network Engineer','System Administrator','Cisco / CCNA','Cloud Infrastructure','DevOps']},
-  education:{subs:['School Teacher','Lecturer / Professor','Corporate Trainer','Curriculum Design','EdTech']},
-  telecom:{subs:['RF Engineer','Telecom Operations','5G / LTE','Network Planning','Tower Operations']},
-  transport:{subs:['Fleet Management','Logistics Coordinator','Delivery / Courier','Dispatch','Commercial Driving']},
-  travel:{subs:['Travel Agent','Tour Operations','Airline Ticketing','Visa Processing','Destination Management']},
-};
-
-function updateRegSubIndustries(key) {
-  var field = document.getElementById('reg-sub-field');
-  var list = document.getElementById('reg-sub-list');
-  if (!key || !INDUSTRY_SUBS[key] || !INDUSTRY_SUBS[key].subs.length) {
-    field.style.display = 'none'; list.innerHTML = ''; return;
-  }
-  field.style.display = '';
-  list.innerHTML = '';
-  INDUSTRY_SUBS[key].subs.slice().sort().forEach(function(sub) {
-    var pill = document.createElement('span');
-    pill.className = 'sub-pill';
-    pill.textContent = sub;
-    pill.dataset.value = sub;
-    pill.onclick = function() { this.classList.toggle('active'); };
-    list.appendChild(pill);
-  });
-}
-
 // ── DPR Specialisation dropdown (dependent on industry) ───────────────────
 var REG_DPR_SPEC_MAP = {
   compliance: [
@@ -1415,21 +1335,35 @@ var REG_DPR_SPEC_MAP = {
   ],
 };
 
-function updateRegDprSpec(industryKey, savedVal) {
+function updateRegDprSpec(industryKey, savedVal, savedSecondary) {
   var field = document.getElementById('reg-dpr-spec-field');
   var sel = document.getElementById('s1-dpr-specialisation');
+  var sel2 = document.getElementById('s1-dpr-specialisation-secondary');
   if (!field || !sel) return;
   var opts = REG_DPR_SPEC_MAP[industryKey] || [];
-  if (!opts.length) { field.style.display = 'none'; sel.innerHTML = '<option value="">Select your specialisation</option>'; return; }
+  if (!opts.length) {
+    field.style.display = 'none';
+    sel.innerHTML = '<option value="">Select primary</option>';
+    if (sel2) sel2.innerHTML = '<option value="">None</option>';
+    return;
+  }
   field.style.display = '';
-  sel.innerHTML = '<option value="">Select your specialisation</option>';
+  sel.innerHTML = '<option value="">Select primary</option>';
+  if (sel2) sel2.innerHTML = '<option value="">None</option>';
   opts.forEach(function(s) {
-    var o = document.createElement('option');
-    if (typeof s === 'object') { o.value = s.value; o.textContent = s.label; }
-    else { o.value = s; o.textContent = s; }
-    sel.appendChild(o);
+    var o1 = document.createElement('option');
+    if (typeof s === 'object') { o1.value = s.value; o1.textContent = s.label; }
+    else { o1.value = s; o1.textContent = s; }
+    sel.appendChild(o1);
+    if (sel2) {
+      var o2 = document.createElement('option');
+      if (typeof s === 'object') { o2.value = s.value; o2.textContent = s.label; }
+      else { o2.value = s; o2.textContent = s; }
+      sel2.appendChild(o2);
+    }
   });
   if (savedVal) sel.value = savedVal;
+  if (savedSecondary && sel2) sel2.value = savedSecondary;
 }
 
 /* ── Country list (ISO-2 codes) ─────────────────────────────────────────── */
@@ -2425,7 +2359,7 @@ async function submitDPR() {
       project_summary:             v('project_summary') || '',
       industry:                    v('s1-industry'),
       dpr_specialisation:          v('s1-dpr-specialisation'),
-      candidate_sub_industries:    Array.from(document.querySelectorAll('#reg-sub-list .sub-pill.active')).map(function(el) { return el.dataset.value; }),
+      dpr_specialisation_secondary: v('s1-dpr-specialisation-secondary'),
       gender:                      v('gender'),
       dob:                         v('dob'),
       nationality:                 v('nationality'),
@@ -2532,7 +2466,7 @@ function collectFormData() {
     s1_exp: v('s1-exp'), s1_phone_code: v('s1-phone-code'), s1_phone_num: v('s1-phone-num'),
     s1_industry: v('s1-industry'),
     s1_dpr_specialisation: v('s1-dpr-specialisation'),
-    s1_sub_industries: Array.from(document.querySelectorAll('#reg-sub-list .sub-pill.active')).map(function(el) { return el.dataset.value; }),
+    s1_dpr_specialisation_secondary: v('s1-dpr-specialisation-secondary'),
     gender: v('gender'), dob: v('dob'),
     nationality: v('nationality'),
     addr_line1: v('addr_line1'), addr_line2: v('addr_line2'), addr_city: v('addr_city'),
@@ -2590,14 +2524,9 @@ function restoreDraft() {
   set('s1-exp', d.s1_exp); set('s1-phone-code', d.s1_phone_code); set('s1-phone-num', d.s1_phone_num);
   set('s1-industry', d.s1_industry); set('gender', d.gender); set('dob', d.dob);
   set('nationality', d.nationality);
-  // Restore sub-industries + dpr specialisation
+  // Restore specialisation dropdowns
   if (d.s1_industry) {
-    updateRegSubIndustries(d.s1_industry);
-    (d.s1_sub_industries || []).forEach(function(v) {
-      var pill = document.querySelector('#reg-sub-list .sub-pill[data-value="' + CSS.escape(v) + '"]');
-      if (pill) pill.classList.add('active');
-    });
-    updateRegDprSpec(d.s1_industry, d.s1_dpr_specialisation || '');
+    updateRegDprSpec(d.s1_industry, d.s1_dpr_specialisation || '', d.s1_dpr_specialisation_secondary || '');
   }
   set('addr_line1', d.addr_line1); set('addr_line2', d.addr_line2); set('addr_city', d.addr_city);
   set('addr_state', d.addr_state); set('addr_zip', d.addr_zip); set('addr_country', d.addr_country);
@@ -2690,9 +2619,8 @@ function restoreDraft() {
   console.log('[draft] Restored saved progress from', d._saved);
 }
 
-// Wire industry → sub-industry + dpr-specialisation change listener
+// Wire industry → specialisation change listener
 document.getElementById('s1-industry').addEventListener('change', function() {
-  updateRegSubIndustries(this.value);
   updateRegDprSpec(this.value);
 });
 
