@@ -1411,13 +1411,42 @@ function visBadgeCls(v) {
   if (n === 'private' || n === 'not_shown') return 'private';
   return 'verified';
 }
+function visSelectOptions(field, current) {
+  const n = normVis(current);
+  const opts = field === 'profile_visibility'
+    ? [['public','Public'],['private','Private']]
+    : [['public','Public'],['verified_only','Verified Employers Only'],['private','Private']];
+  const prefix = field === 'email_visibility' || field === 'phone_visibility' ? 'co_' : field === 'resume_visibility' ? 're_' : '';
+  return opts.map(([val, label]) => {
+    const rawVal = prefix + val;
+    const sel = n === val ? ' selected' : '';
+    return `<option value="${rawVal}"${sel}>${label}</option>`;
+  }).join('');
+}
+
+function onVisChange(selectEl, field) {
+  fetch('/api/candidate/visibility', {
+    method: 'PATCH', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ [field]: selectEl.value }),
+  }).then(r => r.json()).then(d => {
+    if (!d.ok) { alert(d.error || 'Failed to save'); return; }
+    selectEl.style.borderColor = '#86EFAC';
+    setTimeout(() => { selectEl.style.borderColor = ''; }, 1500);
+  }).catch(() => alert('Network error'));
+}
+
 function updateVisibilitySidebar(pv, ev, phv, rv) {
   if (!pv && !ev && !phv && !rv) return;
+  const fields = [['Profile','profile_visibility',pv],['Email','email_visibility',ev],['Phone','phone_visibility',phv],['Resume','resume_visibility',rv]];
   el('vis-full').innerHTML = `<div class="card-title" style="margin-bottom:4px;">Visibility</div>` +
     `<div class="vis-grid">` +
-    [['Profile', pv],['Email', ev],['Phone', phv],['Resume', rv]]
-    .map(([k,v]) => `<div class="vis-item"><span class="vis-label">${k}</span><span class="vis-badge ${visBadgeCls(v)}">${visLabel(v)}</span></div>`)
-    .join('') +
+    fields.map(([label, field, val]) =>
+      `<div class="vis-item"><span class="vis-label">${label}</span>` +
+      `<select onchange="onVisChange(this,'${field}')" style="font-size:12px;font-weight:600;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;width:100%;font-family:inherit;">` +
+      visSelectOptions(field, val) +
+      `</select></div>`
+    ).join('') +
     `</div>` +
     `<div class="vis-note">Controls what employers see on your public DPR page.</div>`;
 }
@@ -2731,9 +2760,11 @@ window.deleteSavedResume = async function(id, btn) {
 
 // Load saved resumes when the tab is shown
 var origSwitchTab = window.switchTab;
+var _tabLoaded = {};
 window.switchTab = function(name) {
   origSwitchTab(name);
-  if (name === 'resumes') loadSavedResumes();
+  if (name === 'resumes' && !_tabLoaded.resumes) { _tabLoaded.resumes = true; loadSavedResumes(); }
+  if (name === 'scorecard' && !_tabLoaded.scorecard) { _tabLoaded.scorecard = true; loadScorecardHistory(); }
 };
 
 /* ── Credit Info Panel Toggle ─────────────────────────────────────────────── */

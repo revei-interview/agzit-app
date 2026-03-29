@@ -69,8 +69,8 @@ app.use(passport.initialize());
 app.use('/api/webhooks', require('./routes/webhooks'));
 
 // ── Static files ───────────────────────────────────────────────────────────
-app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
-app.use('/shared', express.static(path.join(__dirname, 'public/shared')));
+app.use('/assets', express.static(path.join(__dirname, 'public/assets'), { maxAge: '1d' }));
+app.use('/shared', express.static(path.join(__dirname, 'public/shared'), { maxAge: '1d' }));
 
 // ── No-cache for HTML pages (forces browser to always fetch fresh JS/CSS) ──
 app.use((req, res, next) => {
@@ -513,6 +513,9 @@ async function initDB() {
     'CREATE INDEX IF NOT EXISTS idx_ml_user       ON agzit_magic_links   (user_id)',
     'CREATE INDEX IF NOT EXISTS idx_team_admin    ON agzit_employer_team (admin_user_id)',
     'CREATE INDEX IF NOT EXISTS idx_team_member   ON agzit_employer_team (member_user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_saved_resumes_user ON agzit_saved_resumes (user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_resume_files_user  ON agzit_resume_files  (user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_badges_user        ON agzit_badges        (user_id)',
   ];
   for (const sql of INDEXES) {
     try { await pool.execute(sql); } catch (_) { /* already exists */ }

@@ -240,7 +240,7 @@ var TEMPLATES = [
   { id:'prestige_gold', name:'Prestige Gold',  desc:'Executive layout with deep navy and gold accents.',         color:'#78350F', premium:false },
   { id:'gulf',           name:'Gulf',           desc:'UAE/Dubai corporate — sidebar with photo.',                 color:'#B8860B', premium:false, gcc:true },
   { id:'emirates',       name:'Emirates',       desc:'Saudi/Qatar formal — photo header.',                       color:'#1B3A6B', premium:false, gcc:true },
-  { id:'khaleeji',       name:'Khaleeji',       desc:'GCC premium with profile photo — UAE, Saudi, Qatar, Kuwait.',color:'#1a3a5c', premium:true,  gcc:true, photo:true, tag:'GCC + Photo' },
+  { id:'khaleeji',       name:'Khaleeji',       desc:'GCC premium format — UAE, Saudi, Qatar, Kuwait.',color:'#1a3a5c', premium:true,  gcc:true, tag:'GCC' },
   { id:'fresher_clean',  name:'Fresh Start',    desc:'Clean fresher format — education, projects, skills.',        color:'#2c5f8a', premium:true,  fresher:true, tag:'Fresher' },
   { id:'fresher_project',name:'Project Pro',    desc:'Project-focused fresher — projects, internships, certs.',    color:'#1e7b4d', premium:true,  fresher:true, tag:'Fresher' },
   { id:'fresher_bold',   name:'Bold Graduate',  desc:'Bold modern fresher — strong header, skills grid.',          color:'#6b21a8', premium:true,  fresher:true, tag:'Fresher' },
@@ -635,12 +635,13 @@ function buildFooter() {
 
 function wrapPage(body, accent) {
   return '<!DOCTYPE html><html><head>' +
-    '<link rel="icon" type="image/x-icon" href="/favicon.ico">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="manifest" href="/site.webmanifest">
-<meta name="theme-color" content="#1A44C2"><meta charset="UTF-8">' +
+    '<link rel="icon" type="image/x-icon" href="/favicon.ico">' +
+    '<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">' +
+    '<link rel="icon" type="image/svg+xml" href="/favicon.svg">' +
+    '<link rel="apple-touch-icon" href="/apple-touch-icon.png">' +
+    '<link rel="manifest" href="/site.webmanifest">' +
+    '<meta name="theme-color" content="#1A44C2">' +
+    '<meta charset="UTF-8">' +
     '<style>' +
     '* { margin:0;padding:0;box-sizing:border-box; }' +
     'body { font-family:"Segoe UI",Inter,Arial,sans-serif;color:#1E293B;background:#fff;font-size:12.5px;line-height:1.5; }' +
@@ -1399,9 +1400,6 @@ function buildPrestige(accent, p) {
 // Gulf premium with circular photo in header. UAE/Saudi/Qatar/Kuwait.
 function buildKhaleeji(accent, p) {
   var ac = accent || '#1a3a5c';
-  var photo = p.photo
-    ? '<img src="' + esc(p.photo) + '" style="width:110px;height:110px;object-fit:cover;border-radius:50%;border:4px solid rgba(255,255,255,.8);display:block;">'
-    : '';
   var exps = (p.work_exp || []).map(function(j) {
     var desc = (j.description || '').split(/\n|\u2022/).map(function(l) { return cleanBullet(l); }).filter(Boolean);
     return '<div style="margin-bottom:14px;padding-left:12px;border-left:3px solid ' + ac + ';">' +
@@ -1430,10 +1428,9 @@ function buildKhaleeji(accent, p) {
   }).join('');
 
   var html = '<div style="font-family:\'Segoe UI\',Arial,sans-serif;background:#fff;min-height:297mm;">';
-  // Header with photo
-  html += '<div style="background:' + ac + ';color:white;padding:28px 32px;display:flex;align-items:center;gap:24px;">';
-  if (photo) html += '<div>' + photo + '</div>';
-  html += '<div style="flex:1;">';
+  // Header
+  html += '<div style="background:' + ac + ';color:white;padding:28px 32px;">';
+  html += '<div>';
   html += '<div style="font-size:28px;font-weight:800;line-height:1.1;">' + esc(p.name) + '</div>';
   var latestTitle = (p.work_exp || [])[0] ? (p.work_exp[0].title || '') : '';
   html += '<div style="font-size:13px;opacity:.85;font-weight:600;margin-top:4px;">' + esc(latestTitle) + '</div>';

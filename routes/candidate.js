@@ -317,18 +317,28 @@ router.get('/dashboard', ...guard, async (req, res) => {
     );
     if (!user) return res.status(404).json({ ok: false, error: 'User not found' });
 
-    const meta = user.dpr_profile_id ? await fetchPostMeta(user.dpr_profile_id) : null;
+    // Run independent queries in parallel
+    const [meta, subIndustriesResult, userMeta, creditResult] = await Promise.all([
+      user.dpr_profile_id ? fetchPostMeta(user.dpr_profile_id) : null,
+      user.wp_user_id
+        ? pool.execute("SELECT meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'candidate_sub_industries' LIMIT 1", [user.wp_user_id])
+        : [[null]],
+      user.wp_user_id
+        ? fetchUserMeta(user.wp_user_id, [
+            'mock_sessions_remaining_20',
+            'mock_sessions_remaining_30',
+            'mock_sessions_remaining',
+            'mock_valid_until',
+          ])
+        : {},
+      pool.execute('SELECT credit_balance FROM agzit_candidate_credits WHERE user_id = ?', [user.id]),
+    ]);
 
-    // Fetch sub-industries from wp_usermeta
+    // Parse sub-industries
     let candidateSubIndustries = [];
-    if (user.wp_user_id) {
-      const [[subRow]] = await pool.execute(
-        "SELECT meta_value FROM wp_usermeta WHERE user_id = ? AND meta_key = 'candidate_sub_industries' LIMIT 1",
-        [user.wp_user_id]
-      );
-      if (subRow?.meta_value) {
-        try { candidateSubIndustries = JSON.parse(subRow.meta_value); } catch (_) {}
-      }
+    const subRow = subIndustriesResult[0]?.[0];
+    if (subRow?.meta_value) {
+      try { candidateSubIndustries = JSON.parse(subRow.meta_value); } catch (_) {}
     }
 
     // Parse sessions for both recent-interviews and latest-scorecard
@@ -350,21 +360,7 @@ router.get('/dashboard', ...guard, async (req, res) => {
 
     const latestScorecard = [...sessions].reverse().find(s => s.mock_overall_score) || null;
 
-    // Interview entitlements from wp_usermeta (if WP user linked)
-    const userMeta = user.wp_user_id
-      ? await fetchUserMeta(user.wp_user_id, [
-          'mock_sessions_remaining_20',
-          'mock_sessions_remaining_30',
-          'mock_sessions_remaining',
-          'mock_valid_until',
-        ])
-      : {};
-
-    // Unified credit balance
-    const [[creditRow]] = await pool.execute(
-      'SELECT credit_balance FROM agzit_candidate_credits WHERE user_id = ?',
-      [user.id]
-    );
+    const creditRow = creditResult[0]?.[0];
     const creditBalance = creditRow ? creditRow.credit_balance : 0;
 
     res.json({
@@ -3252,7 +3248,7 @@ router.post('/saved-resumes', ...guard, async (req, res) => {
 router.get('/saved-resumes', ...guard, async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT id, resume_name, template_id, jd_used, created_at, updated_at FROM agzit_saved_resumes WHERE user_id = ? ORDER BY updated_at DESC',
+      'SELECT id, resume_name, template_id, jd_used, created_at, updated_at FROM agzit_saved_resumes WHERE user_id = ? ORDER BY updated_at DESC LIMIT 20',
       [req.user.id]
     );
     return res.json({ ok: true, resumes: rows });
