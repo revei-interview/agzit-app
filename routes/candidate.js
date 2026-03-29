@@ -399,6 +399,7 @@ router.get('/dashboard', ...guard, async (req, res) => {
         has_resume:            meta.has_resume,
         candidate_sub_industries: candidateSubIndustries,
         dpr_specialisation:      meta.dpr_specialisation || '',
+        dpr_specialisation_secondary: meta.dpr_specialisation_secondary || '',
       } : null,
       entitlements: {
         sessions_20: parseInt(userMeta.mock_sessions_remaining_20) || 0,
@@ -681,6 +682,7 @@ router.get('/profile', ...guard, async (req, res) => {
         key_achievements:                 meta.key_achievements,
         candidate_sub_industries:         candidateSubIndustries,
         dpr_specialisation:              meta.dpr_specialisation || '',
+        dpr_specialisation_secondary:   meta.dpr_specialisation_secondary || '',
         badges,
       },
     });
@@ -1872,7 +1874,7 @@ router.put('/profile', ...guard, async (req, res) => {
       'preferred_work_type', 'work_level',
       'gender', 'date_of_birth',
       'email_visibility', 'phone_visibility',
-      'professional_headline', 'dpr_specialisation',
+      'professional_headline', 'dpr_specialisation', 'dpr_specialisation_secondary',
     ];
     // Textarea fields that accept freeform rich text — sanitize HTML tags
     const TEXTAREA_FIELDS = new Set([
