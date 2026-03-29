@@ -2108,6 +2108,7 @@ function selectScorecard(idx) {
   renderScorecardPills(_allScorecards, idx);
   renderScorecard(_allScorecards[idx]);
 }
+window.selectScorecard = selectScorecard;
 
 /* ── Interviews renderer ──────────────────────────────────────────────────── */
 function renderInterviews(sessions, id) {
