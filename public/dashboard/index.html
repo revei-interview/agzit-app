@@ -1424,31 +1424,55 @@ function visSelectOptions(field, current) {
   }).join('');
 }
 
-function onVisChange(selectEl, field) {
-  fetch('/api/candidate/visibility', {
-    method: 'PATCH', credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ [field]: selectEl.value }),
-  }).then(r => r.json()).then(d => {
-    if (!d.ok) { alert(d.error || 'Failed to save'); return; }
-    selectEl.style.borderColor = '#86EFAC';
-    setTimeout(() => { selectEl.style.borderColor = ''; }, 1500);
-  }).catch(() => alert('Network error'));
-}
-
+/* Overview sidebar: read-only badges */
 function updateVisibilitySidebar(pv, ev, phv, rv) {
   if (!pv && !ev && !phv && !rv) return;
-  const fields = [['Profile','profile_visibility',pv],['Email','email_visibility',ev],['Phone','phone_visibility',phv],['Resume','resume_visibility',rv]];
   el('vis-full').innerHTML = `<div class="card-title" style="margin-bottom:4px;">Visibility</div>` +
     `<div class="vis-grid">` +
+    [['Profile', pv],['Email', ev],['Phone', phv],['Resume', rv]]
+    .map(([k,v]) => `<div class="vis-item"><span class="vis-label">${k}</span><span class="vis-badge ${visBadgeCls(v)}">${visLabel(v)}</span></div>`)
+    .join('') +
+    `</div>` +
+    `<div class="vis-note">Controls what employers see on your public DPR page. Edit in the Profile tab.</div>`;
+}
+
+/* Cached visibility values for profile tab save */
+var _visValues = {};
+
+/* Render editable privacy dropdowns inside Profile tab */
+function renderPrivacySection(pv, ev, phv, rv) {
+  _visValues = { profile_visibility: pv, email_visibility: ev, phone_visibility: phv, resume_visibility: rv };
+  const fields = [['Profile Visibility','profile_visibility',pv],['Email Visibility','email_visibility',ev],['Phone Visibility','phone_visibility',phv],['Resume Visibility','resume_visibility',rv]];
+  return `<div class="section-title">Privacy Settings</div>
+    <div class="field-grid" style="grid-template-columns:1fr 1fr;">` +
     fields.map(([label, field, val]) =>
-      `<div class="vis-item"><span class="vis-label">${label}</span>` +
-      `<select onchange="onVisChange(this,'${field}')" style="font-size:12px;font-weight:600;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;width:100%;font-family:inherit;">` +
+      `<div class="field-item"><div class="field-label">${label}</div>` +
+      `<select id="vis-${field}" onchange="_visValues['${field}']=this.value" style="font-size:13px;font-weight:600;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;width:100%;font-family:inherit;">` +
       visSelectOptions(field, val) +
       `</select></div>`
     ).join('') +
-    `</div>` +
-    `<div class="vis-note">Controls what employers see on your public DPR page.</div>`;
+    `</div>`;
+}
+
+/* Save privacy settings via PATCH */
+async function savePrivacySettings() {
+  const body = {};
+  for (const [field, val] of Object.entries(_visValues)) {
+    if (val) body[field] = val;
+  }
+  if (!Object.keys(body).length) return true;
+  try {
+    const r = await fetch('/api/candidate/visibility', {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!d.ok) { alert(d.error || 'Failed to save privacy settings'); return false; }
+    // Update the read-only overview sidebar
+    updateVisibilitySidebar(_visValues.profile_visibility, _visValues.email_visibility, _visValues.phone_visibility, _visValues.resume_visibility);
+    return true;
+  } catch (_) { alert('Network error saving privacy settings'); return false; }
 }
 
 /* ── Country lookup ───────────────────────────────────────────────────────── */
@@ -1844,13 +1868,26 @@ function render(d, pd, id) {
 
   const firstName = user.first_name || (user.email || '').split('@')[0] || 'there';
 
+  /* ── Format name according to public_name_mode ─────────────────────────── */
+  const profileObj = (pd && pd.profile) ? pd.profile : null;
+  const nameMode = profileObj ? (profileObj.public_name_mode || 'full') : 'full';
+  const fullName = prof.full_name || [user.first_name, user.last_name].filter(Boolean).join(' ') || firstName;
+  function formatDisplayName(name, mode) {
+    const parts = (name || '').trim().split(/\s+/);
+    if (!parts.length || !parts[0]) return name;
+    if (mode === 'first_only') return parts[0] + (parts.length > 1 ? ' ' + parts[parts.length - 1][0] + '.' : '');
+    if (mode === 'initials') return parts.map(p => p[0] + '.').join('');
+    return name;
+  }
+  const heroDisplayName = formatDisplayName(fullName, nameMode);
+
   /* ── Onboarding toggle ────────────────────────────────────────────────────── */
   el('ov-onboarding').style.display   = hasDpr ? 'none' : '';
   el('ov-main-content').style.display = hasDpr ? '' : 'none';
 
 
   /* hero */
-  el('hero-name').textContent = firstName;
+  el('hero-name').textContent = nameMode === 'full' ? firstName : heroDisplayName;
 
   /* hero photo */
   const heroInner = document.querySelector('.hero-inner');
@@ -2450,9 +2487,68 @@ function renderProfile(p) {
     ${cleanSkills ? `<div class="field-label" style="margin-bottom:6px;">Skills</div><div style="font-size:13px;color:var(--soft);line-height:1.7;margin-bottom:12px;">${esc(cleanSkills)}</div>` : ''}
     ${(p.compliance_tools||[]).length ? `<div class="field-label" style="margin-bottom:6px;">Tools &amp; Software</div><div class="pills" style="margin-bottom:12px;">${(p.compliance_tools||[]).filter(t=>t.tool_name).map(t=>`<span class="pill">${esc(t.tool_name)}</span>`).join('')}</div>` : ''}
     ${(p.language_proficiency||[]).filter(l=>l.language_name).length ? '<div class="field-label" style="margin-bottom:6px;">Languages</div><div style="font-size:13px;color:var(--soft);">' + (p.language_proficiency||[]).filter(l=>l.language_name).map(l=>esc(l.language_name)+(l.proficiency?' ('+esc(l.proficiency.charAt(0).toUpperCase()+l.proficiency.slice(1))+')':'')).join(' &bull; ') + '</div>' : ''}
+
+    <div class="section-title">Display Preferences</div>
+    <div class="field-grid" style="grid-template-columns:1fr;">
+      <div class="field-item">
+        <div class="field-label">Name Display on Public Profile</div>
+        <select id="pref-public-name-mode" style="font-size:13px;font-weight:600;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;width:100%;max-width:320px;font-family:inherit;">
+          <option value="full"${(p.public_name_mode||'full')==='full'?' selected':''}>Full Name (e.g. James Whitfield)</option>
+          <option value="first_only"${p.public_name_mode==='first_only'?' selected':''}>First Name + Last Initial (e.g. James W.)</option>
+          <option value="initials"${p.public_name_mode==='initials'?' selected':''}>Initials Only (e.g. J.W.)</option>
+        </select>
+      </div>
+    </div>
+
+    ${renderPrivacySection(p.profile_visibility, p.email_visibility, p.phone_visibility, p.resume_visibility)}
+
+    <div style="margin-top:24px;text-align:right;">
+      <button id="profile-save-btn" onclick="saveProfileSettings()" style="padding:10px 28px;background:var(--blue);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">Save Changes</button>
+    </div>
   `;
   el('profile-content').innerHTML = html;
 }
+
+/* ── Save profile settings (privacy + name display) ──────────────────────── */
+window.saveProfileSettings = async function() {
+  const btn = el('profile-save-btn');
+  if (!btn) return;
+  btn.textContent = 'Saving...'; btn.disabled = true;
+  try {
+    // Read current dropdown values
+    const selName = document.getElementById('pref-public-name-mode');
+    const nameMode = selName ? selName.value : 'full';
+
+    // Read current visibility dropdown values
+    for (const field of ['profile_visibility','email_visibility','phone_visibility','resume_visibility']) {
+      const sel = document.getElementById('vis-' + field);
+      if (sel) _visValues[field] = sel.value;
+    }
+
+    // Save name mode via PUT /profile
+    const pr = fetch('/api/candidate/profile', {
+      method: 'PUT', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ public_name_mode: nameMode }),
+    });
+
+    // Save privacy settings via PATCH /visibility
+    const vr = savePrivacySettings();
+
+    const [profileRes, visOk] = await Promise.all([pr, vr]);
+    const profileData = await profileRes.json();
+
+    if (profileData.ok && visOk !== false) {
+      btn.textContent = 'Saved!'; btn.style.background = '#0B7A47';
+      setTimeout(() => { btn.textContent = 'Save Changes'; btn.style.background = ''; btn.disabled = false; }, 2000);
+    } else {
+      btn.textContent = 'Save Changes'; btn.disabled = false;
+    }
+  } catch (e) {
+    alert('Failed to save settings');
+    btn.textContent = 'Save Changes'; btn.disabled = false;
+  }
+};
 
 /* ── Field helper ─────────────────────────────────────────────────────────── */
 function fld(label, val, raw) {
